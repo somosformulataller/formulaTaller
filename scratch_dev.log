@@ -1,0 +1,91 @@
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.1s
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 688ms (126 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 3s (607 modules)
+ GET /login 200 in 3219ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (102kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (250kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ✓ Compiled /api/tracking/[token] in 485ms (116 modules)
+ GET /api/tracking/00000000-0000-0000-0000-000000000000 404 in 1943ms
+ ✓ Compiled /login in 180ms (294 modules)
+ GET /login?redirectedFrom=%2F 200 in 355ms
+ GET /login 200 in 35ms
+ GET /login?redirectedFrom=%2F 200 in 72ms
+ GET /login?redirectedFrom=%2F 200 in 63ms
+ GET /login 200 in 42ms
+ GET /login?redirectedFrom=%2F 200 in 44ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 855ms (767 modules)
+ ✓ Compiled /_not-found in 199ms (770 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 325ms
+ ✓ Compiled /admin/mecanicos in 498ms (791 modules)
+ ✓ Compiled /api/mechanics in 325ms (457 modules)
+ POST /api/mechanics 201 in 2184ms
+ ✓ Compiled /api/mechanics/[id] in 139ms (459 modules)
+ PATCH /api/mechanics/2a5cd548-afc6-44f5-8b01-98c36b7847f1 200 in 1266ms
+ PATCH /api/mechanics/2a5cd548-afc6-44f5-8b01-98c36b7847f1 200 in 478ms
+ PATCH /api/mechanics/2a5cd548-afc6-44f5-8b01-98c36b7847f1 200 in 481ms
+ GET /admin 200 in 972ms
+ ✓ Compiled /_not-found in 490ms (791 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 868ms
+ GET /admin 200 in 727ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 40ms
+ GET /login 200 in 43ms
+ GET /admin 200 in 333ms
+ ✓ Compiled in 1535ms (791 modules)
+ ✓ Compiled in 558ms (805 modules)
+ ✓ Compiled in 191ms (802 modules)
+ ✓ Compiled /_not-found in 339ms (791 modules)
+ GET /login 404 in 480ms
+ GET /login 200 in 62ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\estef\OneDrive\Escritorio\formulaTaller\.next\server\app\api'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/api/mechanics/[id]/route' in C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\estef\OneDrive\Escritorio\formulaTaller\.next\server\app\api\mechanics\[id]\route.js', but to 'Error: Can't resolve '../../../../.next/server/app/api/mechanics/[id]/route' in 'C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/api/mechanics/[id]/route (expected C:\Users\estef\OneDrive\Escritorio\formulaTaller\.next\server\app\api\mechanics\[id]\route.js)
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\handle-externals.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\handle-externals.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at resolve commonjs C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/api/tracking/[token]/route' in C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\estef\OneDrive\Escritorio\formulaTaller\.next\server\app\api\tracking\[token]\route.js', but to 'Error: Can't resolve '../../../../.next/server/app/api/tracking/[token]/route' in 'C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/api/tracking/[token]/route (expected C:\Users\estef\OneDrive\Escritorio\formulaTaller\.next\server\app\api\tracking\[token]\route.js)
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\handle-externals.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\handle-externals.js
+<w>  at file dependencies C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at file C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at resolve commonjs C:\Users\estef\OneDrive\Escritorio\formulaTaller\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+ GET /admin 200 in 611ms
+ GET /_next/static/css/app/layout.css?v=1782761509488 404 in 125ms
+ GET /_next/static/chunks/main-app.js?v=1782761509488 404 in 116ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 115ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 30ms
+ GET /_next/static/css/app/layout.css?v=1782761509488 404 in 77ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 93ms
+ GET /_next/static/chunks/main-app.js?v=1782761509488 404 in 99ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 66ms
+ GET /_next/static/css/app/layout.css?v=1782761509488 404 in 40ms
+ GET /_next/static/chunks/main-app.js?v=1782761509488 404 in 69ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 64ms
+ GET /_next/static/css/app/layout.css?v=1782761509488 404 in 41ms
+ GET /_next/static/chunks/main-app.js?v=1782761509488 404 in 58ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 63ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 25ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 28ms
+[?25h

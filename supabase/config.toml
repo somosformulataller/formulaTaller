@@ -1,0 +1,29 @@
+# Supabase local/CI configuration.
+# Replace project_id with your linked project ref when running `supabase link`.
+project_id = "formula-taller"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+# Allow email/password sign in. Email confirmation is disabled so the
+# admin-created mechanics can log in immediately with the given password.
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+enable_signup = false
+[auth.email]
+enable_signup = false
+enable_confirmations = false
