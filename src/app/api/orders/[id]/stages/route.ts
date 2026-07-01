@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { CreateStagePayload } from '@/lib/types';
+import { getCaller, canManageOrder } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
@@ -23,16 +24,18 @@ export async function GET(_: Request, { params }: Params) {
 
 // POST /api/orders/:id/stages — add a custom stage
 export async function POST(req: Request, { params }: Params) {
-  const supabase = await createClient();
   const service = createServiceClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await canManageOrder(caller, params.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const body: CreateStagePayload = await req.json();
 
   // Get the max position so we can append
-  const { data: existing } = await supabase
+  const { data: existing } = await service
     .from('order_stages')
     .select('position')
     .eq('order_id', params.id)

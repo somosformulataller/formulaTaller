@@ -1,16 +1,19 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateStagePayload } from '@/lib/types';
+import { getCaller, canManageOrder } from '@/lib/api-auth';
 
 type Params = { params: { id: string; sid: string } };
 
 // PATCH /api/orders/:id/stages/:sid
 export async function PATCH(req: Request, { params }: Params) {
-  const supabase = await createClient();
   const service = createServiceClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await canManageOrder(caller, params.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const body: UpdateStagePayload = await req.json();
 
@@ -33,11 +36,13 @@ export async function PATCH(req: Request, { params }: Params) {
 
 // DELETE /api/orders/:id/stages/:sid
 export async function DELETE(_: Request, { params }: Params) {
-  const supabase = await createClient();
   const service = createServiceClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await canManageOrder(caller, params.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { error } = await service
     .from('order_stages')
