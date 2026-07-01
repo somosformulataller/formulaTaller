@@ -3,12 +3,13 @@
 import type { Mechanic } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
-import { Phone, Mail, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Phone, Mail, Edit2, Trash2, ToggleLeft, ToggleRight, KeyRound } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
 interface MechanicCardProps {
   mechanic: Mechanic;
   onEdit?: (mechanic: Mechanic) => void;
+  onResend?: (mechanic: Mechanic) => void;
   onToggleActive?: (id: string, active: boolean) => void;
   onDelete?: (id: string) => void;
 }
@@ -16,6 +17,7 @@ interface MechanicCardProps {
 export default function MechanicCard({
   mechanic,
   onEdit,
+  onResend,
   onToggleActive,
   onDelete,
 }: MechanicCardProps) {
@@ -121,6 +123,28 @@ export default function MechanicCard({
             {mechanic.active ? 'Activo' : 'Inactivo'}
           </span>
           {mechanic.email && <CopyLinkButton url={mechanic.email} label="Copiar email" />}
+          {onResend && (
+            <button
+              type="button"
+              onClick={() => onResend(mechanic)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                background: 'rgba(37,211,102,0.12)',
+                color: '#25D366',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid rgba(37,211,102,0.2)',
+                cursor: 'pointer',
+              }}
+            >
+              <KeyRound size={13} />
+              Reenviar acceso
+            </button>
+          )}
         </div>
       </div>
 

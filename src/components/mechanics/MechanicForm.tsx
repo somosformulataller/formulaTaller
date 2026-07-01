@@ -16,6 +16,7 @@ interface MechanicFormProps {
   onSaved: (mechanic: Mechanic) => void;
   onClose: () => void;
   mechanic?: Mechanic;
+  focusPassword?: boolean;
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -27,7 +28,12 @@ interface FormState {
   phone: string;
 }
 
-export default function MechanicForm({ onSaved, onClose, mechanic }: MechanicFormProps) {
+export default function MechanicForm({
+  onSaved,
+  onClose,
+  mechanic,
+  focusPassword = false,
+}: MechanicFormProps) {
   const isEdit = Boolean(mechanic);
 
   const [form, setForm] = useState<FormState>({
@@ -187,6 +193,21 @@ export default function MechanicForm({ onSaved, onClose, mechanic }: MechanicFor
   // --- Form -----------------------------------------------------------------
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {isEdit && focusPassword && (
+        <div
+          style={{
+            padding: '10px 14px',
+            background: 'rgba(52,211,153,0.1)',
+            border: '1px solid rgba(52,211,153,0.25)',
+            borderRadius: 8,
+            color: '#34d399',
+            fontSize: 13,
+          }}
+        >
+          Escribe una <strong>nueva contraseña</strong> y guárdala para reenviar el acceso al mecánico por WhatsApp.
+        </div>
+      )}
+
       <Input
         label="Nombre completo"
         placeholder="Carlos Rodríguez"
@@ -214,6 +235,7 @@ export default function MechanicForm({ onSaved, onClose, mechanic }: MechanicFor
         onChange={(e) => set('password', e.target.value)}
         required={!isEdit}
         minLength={isEdit && !form.password ? undefined : 8}
+        autoFocus={isEdit && focusPassword}
         icon={<Lock size={15} />}
       />
 

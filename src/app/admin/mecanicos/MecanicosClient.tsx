@@ -16,6 +16,27 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
   const [mechanics, setMechanics] = useState<Mechanic[]>(initialMechanics);
   // undefined = modal closed · null = create mode · Mechanic = edit mode
   const [formMechanic, setFormMechanic] = useState<Mechanic | null | undefined>(undefined);
+  const [focusPassword, setFocusPassword] = useState(false);
+
+  function openCreate() {
+    setFocusPassword(false);
+    setFormMechanic(null);
+  }
+
+  function openEdit(mechanic: Mechanic) {
+    setFocusPassword(false);
+    setFormMechanic(mechanic);
+  }
+
+  function openResend(mechanic: Mechanic) {
+    setFocusPassword(true);
+    setFormMechanic(mechanic);
+  }
+
+  function closeForm() {
+    setFocusPassword(false);
+    setFormMechanic(undefined);
+  }
 
   function handleSaved(mechanic: Mechanic) {
     setMechanics((prev) => {
@@ -57,7 +78,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
             {active.length} activos · {inactive.length} inactivos
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setFormMechanic(null)}>
+        <Button variant="primary" size="sm" onClick={openCreate}>
           <Plus size={15} />
           Agregar
         </Button>
@@ -83,7 +104,8 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
               <MechanicCard
                 key={m.id}
                 mechanic={m}
-                onEdit={setFormMechanic}
+                onEdit={openEdit}
+                onResend={openResend}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
               />
@@ -112,7 +134,8 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
               <MechanicCard
                 key={m.id}
                 mechanic={m}
-                onEdit={setFormMechanic}
+                onEdit={openEdit}
+                onResend={openResend}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
               />
@@ -126,7 +149,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
         <div className="empty-state">
           <Users size={48} />
           <p>No hay mecánicos registrados</p>
-          <Button variant="primary" size="sm" onClick={() => setFormMechanic(null)}>
+          <Button variant="primary" size="sm" onClick={openCreate}>
             <Plus size={14} />
             Agregar primer mecánico
           </Button>
@@ -136,13 +159,20 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
       {/* Create / Edit Modal */}
       <Modal
         isOpen={formMechanic !== undefined}
-        onClose={() => setFormMechanic(undefined)}
-        title={formMechanic ? 'Editar mecánico' : 'Nuevo mecánico'}
+        onClose={closeForm}
+        title={
+          formMechanic
+            ? focusPassword
+              ? 'Reenviar acceso'
+              : 'Editar mecánico'
+            : 'Nuevo mecánico'
+        }
       >
         <MechanicForm
           mechanic={formMechanic ?? undefined}
+          focusPassword={focusPassword}
           onSaved={handleSaved}
-          onClose={() => setFormMechanic(undefined)}
+          onClose={closeForm}
         />
       </Modal>
     </div>
