@@ -47,6 +47,18 @@ export interface Order {
 export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages'>;
 export type OrderUpdate = Partial<Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages'>>;
 
+export interface StageAttachment {
+  id: string;
+  stage_id: string;
+  order_id: string;
+  path: string;
+  url: string;
+  name: string | null;
+  mime: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface OrderStage {
   id: string;
   order_id: string;
@@ -56,6 +68,8 @@ export interface OrderStage {
   status: StageStatus;
   completed_at: string | null;
   created_at: string;
+  // joined
+  attachments?: StageAttachment[];
 }
 
 export type OrderStageInsert = Omit<OrderStage, 'id' | 'created_at'>;

@@ -2,7 +2,7 @@
 
 import type { Order, OrderStage, StageStatus, OrderStatus } from '@/lib/types';
 import { formatDate, ORDER_STATUS_LABELS } from '@/lib/utils';
-import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock, FileText } from 'lucide-react';
 
 interface TrackingClientProps {
   order: Order;
@@ -329,6 +329,58 @@ export default function TrackingClient({ order }: TrackingClientProps) {
                       <Clock size={10} />
                       {formatDate(stage.completed_at)}
                     </p>
+                  )}
+
+                  {stage.attachments && stage.attachments.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                      {stage.attachments.map((att) => {
+                        const isImage = att.mime?.startsWith('image/');
+                        return isImage ? (
+                          <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={att.url}
+                              alt={att.name ?? 'foto'}
+                              style={{
+                                width: 72,
+                                height: 72,
+                                objectFit: 'cover',
+                                borderRadius: 8,
+                                border: '1px solid var(--color-border)',
+                                display: 'block',
+                              }}
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            key={att.id}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '8px 12px',
+                              background: 'var(--color-surface-2)',
+                              border: '1px solid var(--color-border)',
+                              borderRadius: 8,
+                              color: 'var(--color-text-secondary)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              maxWidth: 180,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <FileText size={14} />
+                            {att.name ?? 'Documento'}
+                          </a>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               </div>

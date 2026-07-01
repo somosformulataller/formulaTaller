@@ -17,7 +17,7 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-        stages:order_stages(*)
+        stages:order_stages(*, attachments:stage_attachments(*))
       `)
       .eq('id', params.id)
       .maybeSingle(),

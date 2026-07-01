@@ -40,7 +40,8 @@
       "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d.error?\\('ERROR: '+d.error.message\\):\\('Deploy lanzado: '+d.id\\)\\)}\\)\")",
       "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\('estado deploy:',d.readyState\\)}\\)\")",
       "Bash(npx tsc *)",
-      "Bash(echo \"=== exit: $? ===\")"
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{try{const d=JSON.parse\\(s\\);console.log\\('bucket:',d.name,'| public:',d.public\\)}catch{console.log\\('resp:',s.slice\\(0,120\\)\\)}}\\)\")"
     ]
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import type { OrderStage, StageStatus } from '@/lib/types';
+import type { OrderStage, StageStatus, StageAttachment } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, Paperclip, FileText, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 interface StageTimelineProps {
@@ -28,6 +28,46 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  async function uploadAttachment(stageId: string, file: File) {
+    setUploadingId(stageId);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`/api/orders/${orderId}/stages/${stageId}/attachments`, {
+      method: 'POST',
+      body: fd,
+    });
+    setUploadingId(null);
+    if (res.ok) {
+      const att: StageAttachment = await res.json();
+      setStages((prev) =>
+        prev.map((s) =>
+          s.id === stageId ? { ...s, attachments: [...(s.attachments ?? []), att] } : s
+        )
+      );
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'No se pudo subir el archivo');
+    }
+  }
+
+  async function deleteAttachment(stageId: string, attachmentId: string) {
+    if (!confirm('¿Eliminar este adjunto?')) return;
+    const res = await fetch(
+      `/api/orders/${orderId}/stages/${stageId}/attachments?id=${attachmentId}`,
+      { method: 'DELETE' }
+    );
+    if (res.ok) {
+      setStages((prev) =>
+        prev.map((s) =>
+          s.id === stageId
+            ? { ...s, attachments: (s.attachments ?? []).filter((a) => a.id !== attachmentId) }
+            : s
+        )
+      );
+    }
+  }
 
   function startEdit(stage: OrderStage) {
     setEditingId(stage.id);
@@ -336,6 +376,56 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                           <span>{formatDate(stage.completed_at)}</span>
                         </div>
                       )}
+
+                      {stage.attachments && stage.attachments.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                          {stage.attachments.map((att) => (
+                            <AttachmentThumb
+                              key={att.id}
+                              att={att}
+                              canEdit={canEdit}
+                              onDelete={() => deleteAttachment(stage.id, att.id)}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {canEdit && (
+                        <label
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            marginTop: 10,
+                            padding: '6px 12px',
+                            background: 'var(--color-surface-2)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: 'var(--color-text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {uploadingId === stage.id ? (
+                            <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
+                          ) : (
+                            <Paperclip size={13} />
+                          )}
+                          {uploadingId === stage.id ? 'Subiendo...' : 'Adjuntar foto/documento'}
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            style={{ display: 'none' }}
+                            disabled={uploadingId === stage.id}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) uploadAttachment(stage.id, f);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
                     </>
                   )}
                 </div>
@@ -389,6 +479,95 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
             </Button>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function AttachmentThumb({
+  att,
+  canEdit,
+  onDelete,
+}: {
+  att: StageAttachment;
+  canEdit: boolean;
+  onDelete: () => void;
+}) {
+  const isImage = att.mime?.startsWith('image/');
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <a
+        href={att.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: 'inline-flex', textDecoration: 'none' }}
+        title={att.name ?? 'Archivo'}
+      >
+        {isImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={att.url}
+            alt={att.name ?? 'adjunto'}
+            style={{
+              width: 64,
+              height: 64,
+              objectFit: 'cover',
+              borderRadius: 8,
+              border: '1px solid var(--color-border)',
+              display: 'block',
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              maxWidth: 160,
+              padding: '10px 12px',
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              color: 'var(--color-text-secondary)',
+              fontSize: 12,
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <FileText size={14} style={{ flexShrink: 0 }} />
+            {att.name ?? 'Archivo'}
+          </span>
+        )}
+      </a>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            onDelete();
+          }}
+          aria-label="Eliminar adjunto"
+          style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: '#ef4444',
+            border: 'none',
+            color: '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <X size={11} />
+        </button>
       )}
     </div>
   );

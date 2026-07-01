@@ -40,7 +40,7 @@ export default async function TrackingPage({ params }: Props) {
       created_at,
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
-      stages:order_stages(id, name, position, status, completed_at)
+      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, url, name, mime))
     `)
     .eq('public_token', params.token)
     .maybeSingle();
