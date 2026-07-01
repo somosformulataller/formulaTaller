@@ -30,26 +30,29 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
   const [editDesc, setEditDesc] = useState('');
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
-  async function uploadAttachment(stageId: string, file: File) {
+  async function uploadAttachments(stageId: string, files: File[]) {
     setUploadingId(stageId);
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(`/api/orders/${orderId}/stages/${stageId}/attachments`, {
-      method: 'POST',
-      body: fd,
-    });
-    setUploadingId(null);
-    if (res.ok) {
-      const att: StageAttachment = await res.json();
-      setStages((prev) =>
-        prev.map((s) =>
-          s.id === stageId ? { ...s, attachments: [...(s.attachments ?? []), att] } : s
-        )
-      );
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudo subir el archivo');
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/orders/${orderId}/stages/${stageId}/attachments`, {
+        method: 'POST',
+        body: fd,
+      });
+      if (res.ok) {
+        const att: StageAttachment = await res.json();
+        // Append as soon as each file finishes so they appear progressively.
+        setStages((prev) =>
+          prev.map((s) =>
+            s.id === stageId ? { ...s, attachments: [...(s.attachments ?? []), att] } : s
+          )
+        );
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `No se pudo subir "${file.name}"`);
+      }
     }
+    setUploadingId(null);
   }
 
   async function deleteAttachment(stageId: string, attachmentId: string) {
@@ -92,22 +95,40 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
     setLoadingId(null);
     if (res.ok) {
       const updated: OrderStage = await res.json();
-      setStages((prev) => prev.map((s) => (s.id === stageId ? updated : s)));
+      // Merge (keep attachments, which the PATCH response doesn't include).
+      setStages((prev) => prev.map((s) => (s.id === stageId ? { ...s, ...updated } : s)));
       cancelEdit();
     }
   }
 
   async function updateStage(stageId: string, newStatus: StageStatus) {
-    setLoadingId(stageId);
+    // Optimistic: change the icon instantly, reconcile/revert with the server.
+    const snapshot = stages;
+    setStages((prev) =>
+      prev.map((s) =>
+        s.id === stageId
+          ? {
+              ...s,
+              status: newStatus,
+              completed_at: newStatus === 'done' ? new Date().toISOString() : null,
+            }
+          : s
+      )
+    );
+
     const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
-    setLoadingId(null);
+
     if (res.ok) {
       const updated: OrderStage = await res.json();
-      setStages((prev) => prev.map((s) => (s.id === stageId ? updated : s)));
+      // Merge to keep attachments (not returned by the PATCH).
+      setStages((prev) => prev.map((s) => (s.id === stageId ? { ...s, ...updated } : s)));
+    } else {
+      setStages(snapshot);
+      alert('No se pudo actualizar la etapa');
     }
   }
 
@@ -416,11 +437,12 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                           <input
                             type="file"
                             accept="image/*,application/pdf"
+                            multiple
                             style={{ display: 'none' }}
                             disabled={uploadingId === stage.id}
                             onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) uploadAttachment(stage.id, f);
+                              const files = e.target.files ? Array.from(e.target.files) : [];
+                              if (files.length) uploadAttachments(stage.id, files);
                               e.target.value = '';
                             }}
                           />
