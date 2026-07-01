@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
 import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight } from 'lucide-react';
 
@@ -115,6 +116,9 @@ export default function OrderCard({
           <MessageCircle size={14} />
           Compartir
         </a>
+
+        {/* Copy tracking link */}
+        <CopyLinkButton url={trackingUrl} />
 
         {/* Detail / Stages */}
         <Button

@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import StageTimeline from '@/components/orders/StageTimeline';
+import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   formatDate,
   buildWhatsAppLink,
@@ -232,6 +233,8 @@ export default function OrderDetailClient({
             <ExternalLink size={14} />
             Ver tracking
           </a>
+
+          <CopyLinkButton url={trackingUrl} />
 
           <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>
             <Edit2 size={13} />

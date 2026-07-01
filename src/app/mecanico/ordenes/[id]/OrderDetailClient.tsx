@@ -6,6 +6,7 @@ import type { Order, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import StageTimeline from '@/components/orders/StageTimeline';
+import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -154,6 +155,8 @@ export default function MecanicoOrderDetailClient({
             <ExternalLink size={14} />
             Ver tracking
           </a>
+
+          <CopyLinkButton url={trackingUrl} />
 
           {order.status !== 'lista' && (
             <Button
