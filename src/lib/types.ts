@@ -51,6 +51,7 @@ export interface OrderStage {
   id: string;
   order_id: string;
   name: string;
+  description: string | null;
   position: number;
   status: StageStatus;
   completed_at: string | null;
@@ -138,7 +139,9 @@ export interface UpdateMechanicPayload {
 }
 
 export interface UpdateStagePayload {
-  status: StageStatus;
+  status?: StageStatus;
+  name?: string;
+  description?: string | null;
 }
 
 export interface CreateStagePayload {

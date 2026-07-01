@@ -287,6 +287,19 @@ export default function TrackingClient({ order }: TrackingClientProps) {
                     {stage.name}
                   </p>
 
+                  {stage.description && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--color-text-secondary)',
+                        marginTop: 6,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {stage.description}
+                    </p>
+                  )}
+
                   {stage.status === 'in_progress' && (
                     <p
                       style={{

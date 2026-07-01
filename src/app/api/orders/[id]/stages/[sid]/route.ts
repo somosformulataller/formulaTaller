@@ -17,10 +17,13 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const body: UpdateStagePayload = await req.json();
 
-  const updates = {
-    status: body.status,
-    completed_at: body.status === 'done' ? new Date().toISOString() : null,
-  };
+  const updates: Record<string, unknown> = {};
+  if (typeof body.name === 'string') updates.name = body.name;
+  if (body.description !== undefined) updates.description = body.description || null;
+  if (body.status) {
+    updates.status = body.status;
+    updates.completed_at = body.status === 'done' ? new Date().toISOString() : null;
+  }
 
   const { data, error } = await service
     .from('order_stages')

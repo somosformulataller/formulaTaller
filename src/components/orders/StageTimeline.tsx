@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { OrderStage, StageStatus } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 interface StageTimelineProps {
@@ -25,6 +25,37 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
   const [newStageName, setNewStageName] = useState('');
   const [addingStage, setAddingStage] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+
+  function startEdit(stage: OrderStage) {
+    setEditingId(stage.id);
+    setEditName(stage.name);
+    setEditDesc(stage.description ?? '');
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName('');
+    setEditDesc('');
+  }
+
+  async function saveEdit(stageId: string) {
+    if (!editName.trim()) return;
+    setLoadingId(stageId);
+    const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() || null }),
+    });
+    setLoadingId(null);
+    if (res.ok) {
+      const updated: OrderStage = await res.json();
+      setStages((prev) => prev.map((s) => (s.id === stageId ? updated : s)));
+      cancelEdit();
+    }
+  }
 
   async function updateStage(stageId: string, newStatus: StageStatus) {
     setLoadingId(stageId);
@@ -172,76 +203,140 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                     marginBottom: 8,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: stage.status === 'done'
-                          ? 'var(--color-text-secondary)'
-                          : 'var(--color-text-primary)',
-                        textDecoration: stage.status === 'done' ? 'line-through' : 'none',
-                      }}
-                    >
-                      {stage.name}
-                    </span>
-
-                    {canEdit && (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          onClick={() => updateStage(stage.id, cycleStatus(stage.status))}
-                          disabled={isLoading}
+                  {editingId === stage.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        className="form-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Nombre de la etapa"
+                        autoFocus
+                      />
+                      <textarea
+                        className="form-input"
+                        value={editDesc}
+                        onChange={(e) => setEditDesc(e.target.value)}
+                        placeholder="Descripción (opcional)"
+                        rows={2}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          loading={isLoading}
+                          onClick={() => saveEdit(stage.id)}
+                        >
+                          <Save size={13} />
+                          Guardar
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <span
                           style={{
-                            background: 'var(--color-surface-2)',
-                            border: '1px solid var(--color-border)',
-                            borderRadius: 6,
-                            padding: '4px 10px',
-                            color: 'var(--color-text-secondary)',
-                            fontSize: 11,
+                            fontSize: 14,
                             fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s',
+                            color: stage.status === 'done'
+                              ? 'var(--color-text-secondary)'
+                              : 'var(--color-text-primary)',
+                            textDecoration: stage.status === 'done' ? 'line-through' : 'none',
                           }}
                         >
-                          {stage.status === 'pending'
-                            ? 'Iniciar'
-                            : stage.status === 'in_progress'
-                            ? 'Completar'
-                            : 'Reabrir'}
-                        </button>
-                        <button
-                          onClick={() => deleteStage(stage.id)}
-                          disabled={isLoading}
+                          {stage.name}
+                        </span>
+
+                        {canEdit && (
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button
+                              onClick={() => updateStage(stage.id, cycleStatus(stage.status))}
+                              disabled={isLoading}
+                              style={{
+                                background: 'var(--color-surface-2)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 6,
+                                padding: '4px 10px',
+                                color: 'var(--color-text-secondary)',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                              }}
+                            >
+                              {stage.status === 'pending'
+                                ? 'Iniciar'
+                                : stage.status === 'in_progress'
+                                ? 'Completar'
+                                : 'Reabrir'}
+                            </button>
+                            <button
+                              onClick={() => startEdit(stage)}
+                              disabled={isLoading}
+                              title="Editar título y descripción"
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--color-text-muted)',
+                                cursor: 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => deleteStage(stage.id)}
+                              disabled={isLoading}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--color-text-muted)',
+                                cursor: 'pointer',
+                                padding: 4,
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {stage.description && (
+                        <p
                           style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--color-text-muted)',
-                            cursor: 'pointer',
-                            padding: 4,
+                            fontSize: 12,
+                            color: 'var(--color-text-secondary)',
+                            marginTop: 6,
+                            whiteSpace: 'pre-wrap',
+                          }}
+                        >
+                          {stage.description}
+                        </p>
+                      )}
+
+                      {stage.completed_at && (
+                        <div
+                          style={{
                             display: 'flex',
                             alignItems: 'center',
+                            gap: 4,
+                            marginTop: 4,
+                            color: 'var(--color-text-muted)',
+                            fontSize: 11,
                           }}
                         >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {stage.completed_at && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        marginTop: 4,
-                        color: 'var(--color-text-muted)',
-                        fontSize: 11,
-                      }}
-                    >
-                      <Clock size={10} />
-                      <span>{formatDate(stage.completed_at)}</span>
-                    </div>
+                          <Clock size={10} />
+                          <span>{formatDate(stage.completed_at)}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
