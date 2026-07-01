@@ -312,7 +312,7 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                         </span>
 
                         {canEdit && (
-                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                             <button
                               onClick={() => updateStage(stage.id, cycleStatus(stage.status))}
                               disabled={isLoading}
@@ -339,31 +339,35 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                               disabled={isLoading}
                               title="Editar título y descripción"
                               style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--color-text-muted)',
+                                background: 'var(--color-surface-2)',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 6,
+                                color: 'var(--color-text-secondary)',
                                 cursor: 'pointer',
-                                padding: 4,
+                                padding: 6,
                                 display: 'flex',
                                 alignItems: 'center',
                               }}
                             >
-                              <Edit2 size={12} />
+                              <Edit2 size={13} />
                             </button>
                             <button
                               onClick={() => deleteStage(stage.id)}
                               disabled={isLoading}
+                              title="Eliminar etapa"
                               style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--color-text-muted)',
+                                background: 'rgba(239,68,68,0.1)',
+                                border: '1px solid rgba(239,68,68,0.25)',
+                                borderRadius: 6,
+                                color: '#f87171',
                                 cursor: 'pointer',
-                                padding: 4,
+                                padding: 6,
+                                marginLeft: 4,
                                 display: 'flex',
                                 alignItems: 'center',
                               }}
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         )}
