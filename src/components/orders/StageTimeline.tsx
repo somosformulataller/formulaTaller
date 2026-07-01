@@ -351,24 +351,6 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                             >
                               <Edit2 size={13} />
                             </button>
-                            <button
-                              onClick={() => deleteStage(stage.id)}
-                              disabled={isLoading}
-                              title="Eliminar etapa"
-                              style={{
-                                background: 'rgba(239,68,68,0.1)',
-                                border: '1px solid rgba(239,68,68,0.25)',
-                                borderRadius: 6,
-                                color: '#f87171',
-                                cursor: 'pointer',
-                                padding: 6,
-                                marginLeft: 4,
-                                display: 'flex',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
                           </div>
                         )}
                       </div>
@@ -451,6 +433,29 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                             }}
                           />
                         </label>
+                      )}
+
+                      {canEdit && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                          <button
+                            onClick={() => deleteStage(stage.id)}
+                            disabled={isLoading}
+                            title="Eliminar etapa"
+                            aria-label="Eliminar etapa"
+                            style={{
+                              background: 'rgba(239,68,68,0.1)',
+                              border: '1px solid rgba(239,68,68,0.25)',
+                              borderRadius: 6,
+                              color: '#f87171',
+                              cursor: 'pointer',
+                              padding: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       )}
                     </>
                   )}
