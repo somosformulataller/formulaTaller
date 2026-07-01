@@ -20,6 +20,12 @@ export interface Profile {
 export type ProfileInsert = Omit<Profile, 'created_at' | 'updated_at'>;
 export type ProfileUpdate = Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
 
+// A mechanic profile enriched with the auth email (email lives in auth.users,
+// not in the profiles table).
+export interface Mechanic extends Profile {
+  email: string | null;
+}
+
 export interface Order {
   id: string;
   public_token: string;
@@ -121,6 +127,14 @@ export interface CreateMechanicPayload {
   email: string;
   password: string;
   phone?: string;
+}
+
+export interface UpdateMechanicPayload {
+  full_name?: string;
+  phone?: string | null;
+  active?: boolean;
+  email?: string;
+  password?: string;
 }
 
 export interface UpdateStagePayload {

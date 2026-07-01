@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Profile } from '@/lib/types';
+import type { Mechanic } from '@/lib/types';
 import MechanicCard from '@/components/mechanics/MechanicCard';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import Modal from '@/components/ui/Modal';
@@ -9,28 +9,32 @@ import Button from '@/components/ui/Button';
 import { Plus, Users } from 'lucide-react';
 
 interface MecanicosClientProps {
-  initialMechanics: Profile[];
+  initialMechanics: Mechanic[];
 }
 
 export default function MecanicosClient({ initialMechanics }: MecanicosClientProps) {
-  const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
-  const [showCreate, setShowCreate] = useState(false);
+  const [mechanics, setMechanics] = useState<Mechanic[]>(initialMechanics);
+  // undefined = modal closed · null = create mode · Mechanic = edit mode
+  const [formMechanic, setFormMechanic] = useState<Mechanic | null | undefined>(undefined);
 
-  function handleCreated(mechanic: Profile) {
-    setMechanics((prev) => [...prev, mechanic].sort((a, b) =>
-      a.full_name.localeCompare(b.full_name)
-    ));
-    setShowCreate(false);
+  function handleSaved(mechanic: Mechanic) {
+    setMechanics((prev) => {
+      const exists = prev.some((m) => m.id === mechanic.id);
+      const next = exists
+        ? prev.map((m) => (m.id === mechanic.id ? mechanic : m))
+        : [...prev, mechanic];
+      return next.sort((a, b) => a.full_name.localeCompare(b.full_name));
+    });
   }
 
   function handleToggleActive(id: string, active: boolean) {
-    setMechanics((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, active } : m))
-    );
+    setMechanics((prev) => prev.map((m) => (m.id === id ? { ...m, active } : m)));
   }
 
   function handleDelete(id: string) {
-    setMechanics((prev) => prev.filter((m) => m.id !== id));
+    setMechanics((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, active: false } : m))
+    );
   }
 
   const active = mechanics.filter((m) => m.active);
@@ -53,7 +57,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
             {active.length} activos · {inactive.length} inactivos
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+        <Button variant="primary" size="sm" onClick={() => setFormMechanic(null)}>
           <Plus size={15} />
           Agregar
         </Button>
@@ -79,6 +83,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
               <MechanicCard
                 key={m.id}
                 mechanic={m}
+                onEdit={setFormMechanic}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
               />
@@ -107,6 +112,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
               <MechanicCard
                 key={m.id}
                 mechanic={m}
+                onEdit={setFormMechanic}
                 onToggleActive={handleToggleActive}
                 onDelete={handleDelete}
               />
@@ -120,22 +126,23 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
         <div className="empty-state">
           <Users size={48} />
           <p>No hay mecánicos registrados</p>
-          <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+          <Button variant="primary" size="sm" onClick={() => setFormMechanic(null)}>
             <Plus size={14} />
             Agregar primer mecánico
           </Button>
         </div>
       )}
 
-      {/* Create Modal */}
+      {/* Create / Edit Modal */}
       <Modal
-        isOpen={showCreate}
-        onClose={() => setShowCreate(false)}
-        title="Nuevo mecánico"
+        isOpen={formMechanic !== undefined}
+        onClose={() => setFormMechanic(undefined)}
+        title={formMechanic ? 'Editar mecánico' : 'Nuevo mecánico'}
       >
         <MechanicForm
-          onSuccess={handleCreated}
-          onCancel={() => setShowCreate(false)}
+          mechanic={formMechanic ?? undefined}
+          onSaved={handleSaved}
+          onClose={() => setFormMechanic(undefined)}
         />
       </Modal>
     </div>

@@ -43,6 +43,29 @@ export function buildTrackingMessage(
   );
 }
 
+export function buildCredentialsMessage(
+  name: string,
+  email: string,
+  password: string,
+  siteUrl: string
+): string {
+  return (
+    `Hola ${name}! 🔧 Estos son tus datos de acceso a Formula Taller:\n\n` +
+    `👤 Usuario: ${email}\n` +
+    `🔑 Contraseña: ${password}\n\n` +
+    `Ingresa aquí:\n${siteUrl}/login\n\n` +
+    `Por seguridad, cambia tu contraseña después del primer ingreso.`
+  );
+}
+
+export function buildCredentialsText(
+  email: string,
+  password: string,
+  siteUrl: string
+): string {
+  return `Usuario: ${email}\nContraseña: ${password}\nAcceso: ${siteUrl}/login`;
+}
+
 // ============================================================================
 // Order status labels
 // ============================================================================

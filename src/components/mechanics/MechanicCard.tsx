@@ -1,18 +1,21 @@
 'use client';
 
-import type { Profile } from '@/lib/types';
+import type { Mechanic } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { User, Phone, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import CopyLinkButton from '@/components/orders/CopyLinkButton';
+import { Phone, Mail, Edit2, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
 interface MechanicCardProps {
-  mechanic: Profile;
+  mechanic: Mechanic;
+  onEdit?: (mechanic: Mechanic) => void;
   onToggleActive?: (id: string, active: boolean) => void;
   onDelete?: (id: string) => void;
 }
 
 export default function MechanicCard({
   mechanic,
+  onEdit,
   onToggleActive,
   onDelete,
 }: MechanicCardProps) {
@@ -63,6 +66,26 @@ export default function MechanicCard({
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontWeight: 600, fontSize: 15 }}>{mechanic.full_name}</p>
+
+        {mechanic.email && (
+          <p
+            style={{
+              color: 'var(--color-text-secondary)',
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              marginTop: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Mail size={11} style={{ flexShrink: 0 }} />
+            {mechanic.email}
+          </p>
+        )}
+
         {mechanic.phone && (
           <p
             style={{
@@ -78,28 +101,34 @@ export default function MechanicCard({
             {mechanic.phone}
           </p>
         )}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '2px 8px',
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 600,
-            marginTop: 4,
-            background: mechanic.active
-              ? 'rgba(16,185,129,0.12)'
-              : 'rgba(100,100,100,0.12)',
-            color: mechanic.active ? '#34d399' : 'var(--color-text-muted)',
-          }}
-        >
-          {mechanic.active ? 'Activo' : 'Inactivo'}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '2px 8px',
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 600,
+              background: mechanic.active
+                ? 'rgba(16,185,129,0.12)'
+                : 'rgba(100,100,100,0.12)',
+              color: mechanic.active ? '#34d399' : 'var(--color-text-muted)',
+            }}
+          >
+            {mechanic.active ? 'Activo' : 'Inactivo'}
+          </span>
+          {mechanic.email && <CopyLinkButton url={mechanic.email} label="Copiar email" />}
+        </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <Button variant="ghost" size="icon" onClick={() => onEdit?.(mechanic)}>
+          <Edit2 size={15} />
+        </Button>
         <Button variant="ghost" size="icon" onClick={handleToggle}>
           {mechanic.active ? (
             <ToggleRight size={18} color="var(--color-brand-400)" />

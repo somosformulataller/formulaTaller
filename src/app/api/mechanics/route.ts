@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { CreateMechanicPayload, ProfileInsert } from '@/lib/types';
+import { listMechanicsWithEmail } from '@/lib/mechanics';
 
 // GET /api/mechanics
 export async function GET() {
@@ -9,14 +10,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('role', 'mechanic')
-    .order('full_name', { ascending: true });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const mechanics = await listMechanicsWithEmail();
+  return NextResponse.json(mechanics);
 }
 
 // POST /api/mechanics  (admin only)
@@ -72,5 +67,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  return NextResponse.json(newProfile, { status: 201 });
+  return NextResponse.json({ ...newProfile, email: body.email }, { status: 201 });
 }
