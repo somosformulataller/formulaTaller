@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, Profile, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
+import OrderForm from '@/components/orders/OrderForm';
 import StageTimeline from '@/components/orders/StageTimeline';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
@@ -17,20 +19,27 @@ import {
   MessageCircle,
   ExternalLink,
   CheckCircle2,
+  Edit2,
+  UserCheck,
 } from 'lucide-react';
 
 interface MecanicoOrderDetailClientProps {
   order: Order;
+  mechanics: Profile[];
+  currentUserId: string;
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export default function MecanicoOrderDetailClient({
   order: initialOrder,
+  mechanics,
+  currentUserId,
 }: MecanicoOrderDetailClientProps) {
   const router = useRouter();
   const [order, setOrder] = useState<Order>(initialOrder);
-  const [markingReady, setMarkingReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
@@ -39,18 +48,17 @@ export default function MecanicoOrderDetailClient({
     buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
   );
 
-  async function markAsReady() {
-    setMarkingReady(true);
+  const isMine = order.assigned_mechanic_id === currentUserId;
+
+  async function patchOrder(body: Record<string, unknown>) {
+    setBusy(true);
     const res = await fetch(`/api/orders/${order.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'lista' as OrderStatus }),
+      body: JSON.stringify(body),
     });
-    setMarkingReady(false);
-    if (res.ok) {
-      const updated = await res.json();
-      setOrder(updated);
-    }
+    setBusy(false);
+    if (res.ok) setOrder(await res.json());
   }
 
   const stages = order.stages ?? [];
@@ -99,6 +107,11 @@ export default function MecanicoOrderDetailClient({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
           <InfoRow icon={<Car size={14} />} label="Vehículo" value={order.car_model} />
           <InfoRow icon={<Phone size={14} />} label="WhatsApp" value={order.client_whatsapp} />
+          <InfoRow
+            icon={<User size={14} />}
+            label="Mecánico"
+            value={order.assigned_mechanic?.full_name ?? 'Sin asignar'}
+          />
           <InfoRow icon={<Calendar size={14} />} label="Creado" value={formatDate(order.created_at)} />
         </div>
 
@@ -158,12 +171,29 @@ export default function MecanicoOrderDetailClient({
 
           <CopyLinkButton url={trackingUrl} />
 
-          {order.status !== 'lista' && (
+          {!isMine && (
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={busy}
+              onClick={() => patchOrder({ assigned_mechanic_id: currentUserId })}
+            >
+              <UserCheck size={14} />
+              Asignarme
+            </Button>
+          )}
+
+          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>
+            <Edit2 size={13} />
+            Editar
+          </Button>
+
+          {isMine && order.status !== 'lista' && (
             <Button
               variant="primary"
               size="sm"
-              loading={markingReady}
-              onClick={markAsReady}
+              loading={busy}
+              onClick={() => patchOrder({ status: 'lista' as OrderStatus })}
             >
               <CheckCircle2 size={14} />
               Marcar como lista
@@ -177,12 +207,30 @@ export default function MecanicoOrderDetailClient({
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
           Etapas del servicio
         </h2>
+        {!isMine && (
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+            Asígnate esta orden para poder editar las etapas.
+          </p>
+        )}
         <StageTimeline
           orderId={order.id}
           initialStages={stages}
-          canEdit={order.status !== 'lista'}
+          canEdit={isMine && order.status !== 'lista'}
         />
       </div>
+
+      {/* Edit Modal */}
+      <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar orden">
+        <OrderForm
+          mechanics={mechanics}
+          order={order}
+          onSuccess={(updated) => {
+            setOrder(updated);
+            setShowEdit(false);
+          }}
+          onCancel={() => setShowEdit(false)}
+        />
+      </Modal>
     </div>
   );
 }

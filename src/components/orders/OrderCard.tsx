@@ -7,14 +7,16 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
-import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight } from 'lucide-react';
+import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, UserCheck, CheckCircle2 } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
   mechanics: Profile[];
   role: 'admin' | 'mechanic';
+  currentUserId?: string;
   onDelete?: (id: string) => void;
   onStatusChange?: (id: string, status: OrderStatus) => void;
+  onUpdate?: (order: Order) => void;
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -23,11 +25,28 @@ export default function OrderCard({
   order,
   mechanics,
   role,
+  currentUserId,
   onDelete,
   onStatusChange,
+  onUpdate,
 }: OrderCardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  async function handleAssignSelf() {
+    if (!currentUserId) return;
+    setLoading(true);
+    const res = await fetch(`/api/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assigned_mechanic_id: currentUserId }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      const updated = await res.json();
+      onUpdate?.(updated);
+    }
+  }
 
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
@@ -132,6 +151,34 @@ export default function OrderCard({
           <ChevronRight size={14} />
           Ver orden
         </Button>
+
+        {/* Mechanic: self-assign */}
+        {role === 'mechanic' && order.assigned_mechanic_id !== currentUserId && (
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={loading}
+            onClick={handleAssignSelf}
+          >
+            <UserCheck size={14} />
+            Asignarme
+          </Button>
+        )}
+
+        {/* Mechanic: mark as ready when working on it */}
+        {role === 'mechanic' &&
+          order.assigned_mechanic_id === currentUserId &&
+          order.status === 'con_mecanico' && (
+            <Button
+              variant="primary"
+              size="sm"
+              loading={loading}
+              onClick={() => handleStatusChange('lista')}
+            >
+              <CheckCircle2 size={14} />
+              Marcar como lista
+            </Button>
+          )}
 
         {/* Status transition (admin) */}
         {role === 'admin' && nextStatuses[order.status].map((s) => (

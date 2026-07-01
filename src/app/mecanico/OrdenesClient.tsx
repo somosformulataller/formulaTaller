@@ -1,121 +1,190 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
-import Badge from '@/components/ui/Badge';
-import { ClipboardList, Wrench } from 'lucide-react';
+import OrderForm from '@/components/orders/OrderForm';
+import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import { Plus, ClipboardList, Search } from 'lucide-react';
 
 interface MecanicoOrdenesClientProps {
   initialOrders: Order[];
+  mechanics: Profile[];
   profile: Profile;
 }
 
+type FilterKey = 'mine' | 'all' | OrderStatus;
+
 export default function MecanicoOrdenesClient({
   initialOrders,
+  mechanics,
   profile,
 }: MecanicoOrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [showCreate, setShowCreate] = useState(false);
+  const [filter, setFilter] = useState<FilterKey>('mine');
+  const [search, setSearch] = useState('');
+
+  const mineCount = orders.filter((o) => o.assigned_mechanic_id === profile.id).length;
+
+  const filtered = orders.filter((o) => {
+    const matchScope =
+      filter === 'mine'
+        ? o.assigned_mechanic_id === profile.id
+        : filter === 'all'
+        ? true
+        : o.status === filter;
+    const q = search.toLowerCase();
+    const matchSearch =
+      !q ||
+      `${o.client_first_name} ${o.client_last_name}`.toLowerCase().includes(q) ||
+      o.car_model.toLowerCase().includes(q) ||
+      o.client_whatsapp.includes(q);
+    return matchScope && matchSearch;
+  });
+
+  function handleCreated(order: Order) {
+    setOrders((prev) => [order, ...prev]);
+    setShowCreate(false);
+  }
 
   function handleStatusChange(id: string, status: OrderStatus) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }
 
-  const enProgreso = orders.filter((o) => o.status === 'con_mecanico');
-  const listas = orders.filter((o) => o.status === 'lista');
+  function handleUpdate(updated: Order) {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  }
+
+  const FILTERS: { value: FilterKey; label: string }[] = [
+    { value: 'mine', label: `Mis órdenes (${mineCount})` },
+    { value: 'all', label: `Todas (${orders.length})` },
+    { value: 'sin_mecanico', label: 'Sin asignar' },
+    { value: 'con_mecanico', label: 'En progreso' },
+    { value: 'lista', label: 'Listas' },
+  ];
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: 16 }}>
-      {/* Welcome */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800 }}>
-          Hola, {profile.full_name.split(' ')[0]} 👋
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, marginTop: 4 }}>
-          {orders.length === 0
-            ? 'No tienes órdenes asignadas'
-            : `Tienes ${orders.length} orden${orders.length > 1 ? 'es' : ''} asignada${orders.length > 1 ? 's' : ''}`}
-        </p>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 4,
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800 }}>
+            Hola, {profile.full_name.split(' ')[0]} 👋
+          </h1>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginTop: 2 }}>
+            {mineCount === 0
+              ? 'No tienes órdenes asignadas'
+              : `Tienes ${mineCount} orden${mineCount > 1 ? 'es' : ''} asignada${mineCount > 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+          <Plus size={15} />
+          Nueva
+        </Button>
       </div>
 
-      {orders.length === 0 ? (
+      {/* Search */}
+      <div style={{ position: 'relative', margin: '16px 0 12px' }}>
+        <Search
+          size={15}
+          style={{
+            position: 'absolute',
+            left: 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--color-text-muted)',
+          }}
+        />
+        <input
+          className="form-input"
+          placeholder="Buscar por nombre, vehículo o teléfono..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ paddingLeft: 36 }}
+          id="orders-search"
+        />
+      </div>
+
+      {/* Filter tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 6,
+          marginBottom: 16,
+          overflowX: 'auto',
+          paddingBottom: 4,
+        }}
+      >
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              border: '1px solid',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s',
+              background:
+                filter === f.value ? 'var(--color-brand-500)' : 'var(--color-surface-2)',
+              color: filter === f.value ? '#0D0F1A' : 'var(--color-text-secondary)',
+              borderColor:
+                filter === f.value ? 'var(--color-brand-500)' : 'var(--color-border)',
+            }}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 ? (
         <div className="empty-state">
-          <Wrench size={48} />
-          <p>No hay órdenes asignadas a ti</p>
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-            El administrador te asignará órdenes pronto
+          <ClipboardList size={48} />
+          <p>
+            {search
+              ? 'No hay resultados para tu búsqueda'
+              : filter === 'mine'
+              ? 'No tienes órdenes asignadas'
+              : 'No hay órdenes con este filtro'}
           </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* In progress */}
-          {enProgreso.length > 0 && (
-            <section>
-              <p
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: '#fbbf24',
-                  marginBottom: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <Wrench size={12} />
-                En progreso ({enProgreso.length})
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {enProgreso.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    mechanics={[]}
-                    role="mechanic"
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Ready */}
-          {listas.length > 0 && (
-            <section style={{ marginTop: 8 }}>
-              <p
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: '#34d399',
-                  marginBottom: 10,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <ClipboardList size={12} />
-                Listas para entregar ({listas.length})
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {listas.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    mechanics={[]}
-                    role="mechanic"
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+          {filtered.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              mechanics={mechanics}
+              role="mechanic"
+              currentUserId={profile.id}
+              onStatusChange={handleStatusChange}
+              onUpdate={handleUpdate}
+            />
+          ))}
         </div>
       )}
+
+      {/* Create Modal */}
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva orden">
+        <OrderForm
+          mechanics={mechanics}
+          onSuccess={handleCreated}
+          onCancel={() => setShowCreate(false)}
+        />
+      </Modal>
     </div>
   );
 }

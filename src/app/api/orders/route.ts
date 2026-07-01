@@ -9,15 +9,8 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const profileResult = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const profile = profileResult.data as unknown as { role: string } | null;
-
-  let query = supabase
+  // All staff (admin and mechanics) can see every order.
+  const { data, error } = await supabase
     .from('orders')
     .select(`
       *,
@@ -26,12 +19,6 @@ export async function GET() {
     `)
     .order('created_at', { ascending: false });
 
-  // Mechanics only see their own assigned orders
-  if (profile?.role === 'mechanic') {
-    query = query.eq('assigned_mechanic_id', user.id);
-  }
-
-  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json(data);

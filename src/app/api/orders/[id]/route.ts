@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateOrderPayload } from '@/lib/types';
-import { getCaller, canManageOrder } from '@/lib/api-auth';
+import { getCaller } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
@@ -32,28 +32,17 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(await canManageOrder(caller, params.id))) {
+  // Any staff member (admin or mechanic) may create/assign/edit orders.
+  if (caller.role !== 'admin' && caller.role !== 'mechanic') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const body: UpdateOrderPayload = await req.json();
 
-  let updates: UpdateOrderPayload;
-  if (caller.role === 'admin') {
-    // Admins may edit any field; auto-set status from mechanic assignment.
-    updates = { ...body };
-    if ('assigned_mechanic_id' in body && !('status' in body)) {
-      updates.status = body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico';
-    }
-  } else {
-    // Mechanics may only change the status of their assigned order.
-    if (!body.status) {
-      return NextResponse.json(
-        { error: 'Solo puedes cambiar el estado de la orden' },
-        { status: 403 }
-      );
-    }
-    updates = { status: body.status };
+  // Auto-set status from mechanic assignment unless status is explicit.
+  const updates: UpdateOrderPayload = { ...body };
+  if ('assigned_mechanic_id' in body && !('status' in body)) {
+    updates.status = body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico';
   }
 
   // Use service client for mutations (any-typed, avoids TS never issues)

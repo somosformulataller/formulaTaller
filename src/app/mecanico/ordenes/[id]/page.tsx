@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import type { Order } from '@/lib/types';
+import type { Order, Profile } from '@/lib/types';
 import MecanicoOrderDetailClient from './OrderDetailClient';
 
 interface Props {
@@ -13,21 +13,34 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
 
   if (!user) return null;
 
-  const result = await supabase
-    .from('orders')
-    .select(`
-      *,
-      assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-      stages:order_stages(*)
-    `)
-    .eq('id', params.id)
-    .eq('assigned_mechanic_id', user.id)
-    .maybeSingle();
+  const [orderRes, mechanicsRes] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(`
+        *,
+        assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+        stages:order_stages(*)
+      `)
+      .eq('id', params.id)
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'mechanic')
+      .eq('active', true)
+      .order('full_name'),
+  ]);
 
-  const orderData = result.data;
+  const orderData = orderRes.data;
   if (!orderData) notFound();
 
   const order = orderData as unknown as Order;
 
-  return <MecanicoOrderDetailClient order={order} />;
+  return (
+    <MecanicoOrderDetailClient
+      order={order}
+      mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
+      currentUserId={user.id}
+    />
+  );
 }
