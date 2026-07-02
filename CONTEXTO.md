@@ -94,7 +94,8 @@ que se comparte por WhatsApp.
 - **Adjuntos multimedia** (una o varias a la vez): botón **"Agregar"** abre un modal con opciones:
   **foto/video desde galería**, **tomar foto** (cámara), **hacer video** (cámara),
   **grabar nota de voz** (micrófono, en la web), **adjuntar nota de voz** y **adjuntar documento**.
-  Se ven miniaturas (imagen), reproductor (video/audio) o enlace (documento), con opción de eliminar.
+  Se muestran en una **cuadrícula uniforme** de miniaturas; al hacer clic se abre un **lightbox**
+  (foto/video/audio en grande) con **descargar** y navegación entre elementos. Se pueden eliminar.
 - Las **imágenes se comprimen en el navegador** antes de subir (máx. 1600px, JPEG 0.8).
 - Los archivos se suben **directo a Storage con URL firmada** (evita el límite de ~4.5MB de Vercel;
   soporta videos/audios hasta **50MB**). En el tracking del cliente también se muestran video y audio.

@@ -2,7 +2,8 @@
 
 import type { Order, OrderStage, StageStatus, OrderStatus } from '@/lib/types';
 import { formatDate, ORDER_STATUS_LABELS } from '@/lib/utils';
-import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock } from 'lucide-react';
+import AttachmentGallery from '@/components/orders/AttachmentGallery';
 
 interface TrackingClientProps {
   order: Order;
@@ -332,101 +333,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
                   )}
 
                   {stage.attachments && stage.attachments.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      {stage.attachments.map((att) => {
-                        const mime = att.mime ?? '';
-                        if (mime.startsWith('image/')) {
-                          return (
-                            <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={att.url}
-                                alt={att.name ?? 'foto'}
-                                style={{
-                                  width: 72,
-                                  height: 72,
-                                  objectFit: 'cover',
-                                  borderRadius: 8,
-                                  border: '1px solid var(--color-border)',
-                                  display: 'block',
-                                }}
-                              />
-                            </a>
-                          );
-                        }
-                        if (mime.startsWith('video/')) {
-                          return (
-                            <video
-                              key={att.id}
-                              src={att.url}
-                              controls
-                              playsInline
-                              preload="metadata"
-                              style={{
-                                width: 150,
-                                height: 100,
-                                objectFit: 'cover',
-                                borderRadius: 8,
-                                border: '1px solid var(--color-border)',
-                                background: '#000',
-                                display: 'block',
-                              }}
-                            />
-                          );
-                        }
-                        if (mime.startsWith('audio/')) {
-                          return (
-                            <div
-                              key={att.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                padding: '8px 10px',
-                                background: 'var(--color-surface-2)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 8,
-                                width: '100%',
-                              }}
-                            >
-                              <audio
-                                src={att.url}
-                                controls
-                                preload="metadata"
-                                style={{ height: 34, width: '100%' }}
-                              />
-                            </div>
-                          );
-                        }
-                        return (
-                          <a
-                            key={att.id}
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '8px 12px',
-                              background: 'var(--color-surface-2)',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: 8,
-                              color: 'var(--color-text-secondary)',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              textDecoration: 'none',
-                              maxWidth: 180,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            <FileText size={14} />
-                            {att.name ?? 'Documento'}
-                          </a>
-                        );
-                      })}
-                    </div>
+                    <AttachmentGallery attachments={stage.attachments} tile={80} />
                   )}
                 </div>
               </div>

@@ -78,6 +78,7 @@ Navegador
 | `orders/StageTimeline.tsx` | Etapas del servicio: estado, editar título/descripción, adjuntar/eliminar archivos (foto/video/audio/documento). |
 | `orders/AttachmentPicker.tsx` | Modal con opciones para agregar adjuntos (galería, tomar foto, hacer video, grabar/adjuntar nota de voz, documento). |
 | `orders/VoiceRecorder.tsx` | Grabador de notas de voz en la web (`MediaRecorder`): grabar, detener, previsualizar y usar/regrabar. |
+| `orders/AttachmentGallery.tsx` | Cuadrícula uniforme de adjuntos + **lightbox** (ver foto/video/audio en grande, descargar, navegar). Reusado en el panel y el tracking. |
 | `mechanics/MechanicCard.tsx` | Tarjeta de mecánico (email, editar, reenviar acceso, activar/eliminar). |
 | `mechanics/MechanicForm.tsx` | Formulario crear/editar mecánico + panel de credenciales (copiar/WhatsApp). |
 

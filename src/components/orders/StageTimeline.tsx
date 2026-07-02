@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import type { OrderStage, StageStatus, StageAttachment } from '@/lib/types';
+import type { OrderStage, StageStatus } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, FileText, X } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { uploadStageAttachment } from '@/lib/attachments';
 import AttachmentPicker from './AttachmentPicker';
+import AttachmentGallery from './AttachmentGallery';
 
 interface StageTimelineProps {
   orderId: string;
@@ -382,16 +383,11 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                       )}
 
                       {stage.attachments && stage.attachments.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                          {stage.attachments.map((att) => (
-                            <AttachmentThumb
-                              key={att.id}
-                              att={att}
-                              canEdit={canEdit}
-                              onDelete={() => deleteAttachment(stage.id, att.id)}
-                            />
-                          ))}
-                        </div>
+                        <AttachmentGallery
+                          attachments={stage.attachments}
+                          canEdit={canEdit}
+                          onDelete={(id) => deleteAttachment(stage.id, id)}
+                        />
                       )}
 
                       {canEdit && (
@@ -507,129 +503,6 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
           onFiles={(files) => uploadAttachments(pickerStageId, files)}
           onClose={() => setPickerStageId(null)}
         />
-      )}
-    </div>
-  );
-}
-
-function AttachmentThumb({
-  att,
-  canEdit,
-  onDelete,
-}: {
-  att: StageAttachment;
-  canEdit: boolean;
-  onDelete: () => void;
-}) {
-  const mime = att.mime ?? '';
-  const isImage = mime.startsWith('image/');
-  const isVideo = mime.startsWith('video/');
-  const isAudio = mime.startsWith('audio/');
-
-  return (
-    <div style={{ position: 'relative' }}>
-      {isImage ? (
-        <a href={att.url} target="_blank" rel="noopener noreferrer" title={att.name ?? 'Foto'}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={att.url}
-            alt={att.name ?? 'adjunto'}
-            style={{
-              width: 64,
-              height: 64,
-              objectFit: 'cover',
-              borderRadius: 8,
-              border: '1px solid var(--color-border)',
-              display: 'block',
-            }}
-          />
-        </a>
-      ) : isVideo ? (
-        <video
-          src={att.url}
-          controls
-          playsInline
-          preload="metadata"
-          style={{
-            width: 130,
-            height: 90,
-            objectFit: 'cover',
-            borderRadius: 8,
-            border: '1px solid var(--color-border)',
-            background: '#000',
-            display: 'block',
-          }}
-        />
-      ) : isAudio ? (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '8px 10px',
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-          }}
-        >
-          <audio src={att.url} controls preload="metadata" style={{ height: 34, maxWidth: 200 }} />
-        </div>
-      ) : (
-        <a
-          href={att.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: 'inline-flex', textDecoration: 'none' }}
-          title={att.name ?? 'Archivo'}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              maxWidth: 160,
-              padding: '10px 12px',
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              color: 'var(--color-text-secondary)',
-              fontSize: 12,
-              fontWeight: 600,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <FileText size={14} style={{ flexShrink: 0 }} />
-            {att.name ?? 'Archivo'}
-          </span>
-        </a>
-      )}
-      {canEdit && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            onDelete();
-          }}
-          aria-label="Eliminar adjunto"
-          style={{
-            position: 'absolute',
-            top: -6,
-            right: -6,
-            width: 18,
-            height: 18,
-            borderRadius: '50%',
-            background: '#ef4444',
-            border: 'none',
-            color: '#fff',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <X size={11} />
-        </button>
       )}
     </div>
   );
