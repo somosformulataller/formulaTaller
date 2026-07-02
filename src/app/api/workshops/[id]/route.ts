@@ -33,3 +33,37 @@ export async function PATCH(req: Request, { params }: Params) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+// DELETE /api/workshops/:id — permanently delete the workshop and all its data
+// (users, orders, stages, attachments). Admin owner of that workshop only.
+export async function DELETE(_: Request, { params }: Params) {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (caller.role !== 'admin' || caller.workshopId !== params.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const service = createServiceClient();
+
+  // Collect the workshop's user ids before deleting (to remove their auth users).
+  const { data: profiles } = await service
+    .from('profiles')
+    .select('id')
+    .eq('workshop_id', params.id);
+  const userIds = ((profiles ?? []) as unknown as { id: string }[]).map((p) => p.id);
+
+  // Deleting the workshop cascades: profiles, orders → stages → attachments.
+  const { error } = await service.from('workshops').delete().eq('id', params.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Remove the auth users so their emails are freed and they can't log in.
+  for (const id of userIds) {
+    try {
+      await service.auth.admin.deleteUser(id);
+    } catch {
+      // Ignore individual failures; the workshop data is already gone.
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}

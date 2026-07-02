@@ -2,11 +2,22 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Store, Phone, CheckCircle2, Loader2, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import {
+  Store,
+  Phone,
+  CheckCircle2,
+  Loader2,
+  Image as ImageIcon,
+  ExternalLink,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { compressImage } from '@/lib/image';
+import { createClient } from '@/lib/supabase/client';
 import type { Workshop } from '@/lib/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -22,7 +33,27 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
   const [saved, setSaved] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  const [showDelete, setShowDelete] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const loginUrl = `${SITE_URL}/login/${workshop.slug}`;
+
+  async function handleDeleteAccount() {
+    setDeleteError(null);
+    setDeleting(true);
+    const res = await fetch(`/api/workshops/${workshop.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDeleting(false);
+      setDeleteError(data.error || 'No se pudo eliminar la cuenta.');
+      return;
+    }
+    // Account is gone: sign out and go to registration.
+    await createClient().auth.signOut();
+    router.replace('/registro');
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -254,6 +285,115 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
           </Button>
         </form>
       </div>
+
+      {/* Danger zone */}
+      <div
+        className="card"
+        style={{
+          padding: 24,
+          marginTop: 16,
+          border: '1px solid rgba(239,68,68,0.3)',
+          background: 'rgba(239,68,68,0.04)',
+        }}
+      >
+        <p style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: '#f87171' }}>
+          Zona de peligro
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+          Eliminar la cuenta borra <strong>permanentemente</strong> el taller, sus usuarios,
+          órdenes y adjuntos. Esta acción no se puede deshacer.
+        </p>
+        <button
+          onClick={() => {
+            setConfirmName('');
+            setDeleteError(null);
+            setShowDelete(true);
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '9px 14px',
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            borderRadius: 8,
+            color: '#f87171',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          <Trash2 size={15} />
+          Eliminar cuenta del taller
+        </button>
+      </div>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={showDelete}
+        onClose={() => !deleting && setShowDelete(false)}
+        title="Eliminar cuenta del taller"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              padding: '12px 14px',
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 8,
+              color: '#f87171',
+              fontSize: 13,
+            }}
+          >
+            <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>
+              Se eliminarán <strong>para siempre</strong> el taller, todos sus mecánicos, órdenes,
+              etapas y adjuntos. Los enlaces de tracking dejarán de funcionar.
+            </span>
+          </div>
+
+          <div className="form-field">
+            <label className="form-label">
+              Para confirmar, escribe el nombre del taller: <strong>{workshop.name}</strong>
+            </label>
+            <input
+              className="form-input"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={workshop.name}
+              autoFocus
+            />
+          </div>
+
+          {deleteError && (
+            <div style={{ color: '#f87171', fontSize: 13 }}>{deleteError}</div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowDelete(false)}
+              disabled={deleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              fullWidth
+              loading={deleting}
+              disabled={confirmName.trim() !== workshop.name.trim()}
+              onClick={handleDeleteAccount}
+            >
+              Eliminar definitivamente
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

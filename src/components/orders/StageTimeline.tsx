@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import type { OrderStage, StageStatus } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, GripVertical, MessageCircle } from 'lucide-react';
-import { formatDate, buildStageReminderMessage, openWhatsApp } from '@/lib/utils';
+import { formatDate, buildStageReminderMessage, openWhatsApp, slugify } from '@/lib/utils';
 import { uploadStageAttachment } from '@/lib/attachments';
 import AttachmentPicker from './AttachmentPicker';
 import AttachmentGallery from './AttachmentGallery';
@@ -533,7 +533,7 @@ export default function StageTimeline({
                                   stage.status,
                                   publicToken,
                                   SITE_URL,
-                                  index === stages.length - 1
+                                  slugify(stage.name) === 'vehiculo-listo'
                                 )
                               )
                             }

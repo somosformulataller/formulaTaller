@@ -88,7 +88,8 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 - **Registro público** en `/registro`: nombre del taller, correo, WhatsApp, nombre, apellido,
   contraseña + confirmación. Crea el taller y su admin (**acceso inmediato**, sin verificación por correo).
 - **Perfil del Taller** (`/admin/taller`): el admin edita el **nombre**, **WhatsApp** y **logo** del taller,
-  y ve su **enlace de login personalizado** (`/login/<slug>`, con nombre + logo del taller).
+  ve su **enlace de login personalizado** (`/login/<slug>`) y puede **eliminar la cuenta** del taller
+  (borra todo: usuarios, órdenes, adjuntos; pide confirmar escribiendo el nombre del taller).
   El nombre y el logo aparecen en el panel (TopBar), en el login personalizado y en el **tracking del cliente**.
 - Cada taller ve únicamente **sus** órdenes, mecánicos y adjuntos.
 
@@ -123,8 +124,8 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 - **Etapas por defecto:** Diagnóstico, Desmontaje de piezas, Reemplazo/Reparación, Armado y prueba, Vehículo listo (editables).
 - **Reordenar arrastrando:** el admin o el mecánico pueden **arrastrar** (asa ⋮) las etapas para cambiar su orden (touch + mouse); se guarda vía `POST /api/orders/:id/stages/reorder`.
 - **Avisar al cliente:** cada etapa tiene un botón que abre WhatsApp con un mensaje según su **estado**
-  (completada / en progreso / pendiente) e incluye el **link de tracking**. La última etapa usa un
-  mensaje especial de "reparación finalizada". (`buildStageReminderMessage` en `utils.ts`.)
+  (completada / en progreso / pendiente) e incluye el **link de tracking**. La etapa **"Vehículo listo"**
+  usa un mensaje especial de "reparación finalizada". (`buildStageReminderMessage` en `utils.ts`.)
 - **Marcar/desmarcar** estado (Iniciar/Completar/Reabrir) con **cambio de ícono instantáneo** (optimista).
 - **Adjuntos multimedia** (una o varias a la vez): botón **"Agregar"** abre un modal con opciones:
   **foto/video desde galería**, **tomar foto** (cámara), **hacer video** (cámara),
