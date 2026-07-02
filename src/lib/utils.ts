@@ -30,6 +30,22 @@ export function buildWhatsAppLink(phone: string, message: string): string {
   return `https://wa.me/${clean}?text=${encoded}`;
 }
 
+// Opens WhatsApp using the right target for the device.
+// - Mobile: `wa.me` opens the installed app directly.
+// - Desktop: go straight to WhatsApp Web (`web.whatsapp.com/send`), which
+//   avoids the `wa.me` landing page that often hangs "loading" on a computer.
+// Called from a click handler (browser only), so `navigator` is available.
+export function openWhatsApp(phone: string, message: string): void {
+  const clean = phone.replace(/\D/g, '');
+  const encoded = encodeURIComponent(message);
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+  const url = isMobile
+    ? `https://wa.me/${clean}?text=${encoded}`
+    : `https://web.whatsapp.com/send?phone=${clean}&text=${encoded}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 export function buildTrackingMessage(
   clientName: string,
   token: string,

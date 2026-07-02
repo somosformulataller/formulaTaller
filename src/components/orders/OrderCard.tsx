@@ -6,7 +6,7 @@ import type { Order, Profile, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
-import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
+import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, UserCheck, CheckCircle2 } from 'lucide-react';
 
 interface OrderCardProps {
@@ -118,6 +118,13 @@ export default function OrderCard({
           href={waLink}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            openWhatsApp(
+              order.client_whatsapp,
+              buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+            );
+          }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

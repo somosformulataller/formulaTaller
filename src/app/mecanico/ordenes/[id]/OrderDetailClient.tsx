@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import StageTimeline from '@/components/orders/StageTimeline';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
-import { formatDate, buildWhatsAppLink, buildTrackingMessage } from '@/lib/utils';
+import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import {
   ArrowLeft,
   Car,
@@ -129,6 +129,13 @@ export default function MecanicoOrderDetailClient({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              openWhatsApp(
+                order.client_whatsapp,
+                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+              );
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

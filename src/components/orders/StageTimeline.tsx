@@ -5,6 +5,7 @@ import type { OrderStage, StageStatus, StageAttachment } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, Paperclip, FileText, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { compressImage } from '@/lib/image';
 
 interface StageTimelineProps {
   orderId: string;
@@ -32,7 +33,9 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
 
   async function uploadAttachments(stageId: string, files: File[]) {
     setUploadingId(stageId);
-    for (const file of files) {
+    for (const original of files) {
+      // Compress images in the browser before uploading (PDFs pass through).
+      const file = await compressImage(original);
       const fd = new FormData();
       fd.append('file', file);
       const res = await fetch(`/api/orders/${orderId}/stages/${stageId}/attachments`, {

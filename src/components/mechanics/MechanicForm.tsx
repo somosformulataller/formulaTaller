@@ -7,6 +7,7 @@ import Input from '@/components/ui/Input';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   buildWhatsAppLink,
+  openWhatsApp,
   buildCredentialsMessage,
   buildCredentialsText,
 } from '@/lib/utils';
@@ -164,6 +165,13 @@ export default function MechanicForm({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              openWhatsApp(
+                creds.phone,
+                buildCredentialsMessage(creds.name, creds.email, creds.password, SITE_URL)
+              );
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

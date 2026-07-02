@@ -12,6 +12,7 @@ import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   formatDate,
   buildWhatsAppLink,
+  openWhatsApp,
   buildTrackingMessage,
 } from '@/lib/utils';
 import {
@@ -194,6 +195,13 @@ export default function OrderDetailClient({
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              openWhatsApp(
+                order.client_whatsapp,
+                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+              );
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
