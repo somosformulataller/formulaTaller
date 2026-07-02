@@ -1,10 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import type { Order, Profile, CreateOrderPayload } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import type { Order, Profile, CreateOrderPayload, OrderStage } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { User, Phone, Car, ChevronDown } from 'lucide-react';
+import SubscriptionModal from '@/components/orders/SubscriptionModal';
+import AttachmentPicker from '@/components/orders/AttachmentPicker';
+import { uploadStageAttachment } from '@/lib/attachments';
+import {
+  User,
+  Phone,
+  Car,
+  ChevronDown,
+  Plus,
+  X,
+  Mic,
+  Video as VideoIcon,
+  FileText,
+} from 'lucide-react';
 
 interface OrderFormProps {
   mechanics: Profile[];
@@ -22,6 +35,11 @@ const EMPTY: CreateOrderPayload = {
   notes: '',
 };
 
+interface PendingFile {
+  file: File;
+  url: string | null; // object URL for image previews
+}
+
 export default function OrderForm({ mechanics, order, onSuccess, onCancel }: OrderFormProps) {
   const isEdit = !!order;
   const [form, setForm] = useState<CreateOrderPayload>(
@@ -38,15 +56,46 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paywall, setPaywall] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingFile[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
+
+  // Release image preview URLs when the form unmounts.
+  useEffect(() => {
+    return () => {
+      pending.forEach((p) => p.url && URL.revokeObjectURL(p.url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function set(field: keyof CreateOrderPayload, value: string | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function addFiles(files: File[]) {
+    setPending((prev) => [
+      ...prev,
+      ...files.map((f) => ({
+        file: f,
+        url: f.type.startsWith('image/') ? URL.createObjectURL(f) : null,
+      })),
+    ]);
+  }
+
+  function removePending(index: number) {
+    setPending((prev) => {
+      const p = prev[index];
+      if (p?.url) URL.revokeObjectURL(p.url);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setPhase('creating');
 
     const url = isEdit ? `/api/orders/${order.id}` : '/api/orders';
     const method = isEdit ? 'PATCH' : 'POST';
@@ -61,20 +110,67 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
       }),
     });
 
-    setLoading(false);
-
     if (!res.ok) {
-      const data = await res.json();
+      setLoading(false);
+      setPhase('idle');
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 402 || data.limitReached) {
+        setPaywall(data.error || null);
+        return;
+      }
       setError(data.error || 'Error al guardar la orden');
       return;
     }
 
     const saved: Order = await res.json();
+
+    // Upload the initial attachments to the first stage (intake). They then
+    // show up in the stage timeline (admin/mechanic) and the client tracking.
+    if (!isEdit && pending.length > 0) {
+      setPhase('uploading');
+      const stages = ((saved.stages ?? []) as OrderStage[])
+        .slice()
+        .sort((a, b) => a.position - b.position);
+      const target = stages[0];
+      if (target) {
+        const uploaded = [];
+        for (const p of pending) {
+          try {
+            uploaded.push(await uploadStageAttachment(saved.id, target.id, p.file));
+          } catch (err) {
+            alert(err instanceof Error ? err.message : `No se pudo subir "${p.file.name}"`);
+          }
+        }
+        target.attachments = [...(target.attachments ?? []), ...uploaded];
+      }
+    }
+
+    setLoading(false);
+    setPhase('idle');
+    pending.forEach((p) => p.url && URL.revokeObjectURL(p.url));
     onSuccess(saved);
   }
 
+  const submitLabel = isEdit
+    ? 'Guardar cambios'
+    : phase === 'uploading'
+    ? 'Subiendo archivos...'
+    : phase === 'creating'
+    ? 'Creando orden...'
+    : 'Crear orden';
+
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {paywall !== null && (
+        <SubscriptionModal
+          message={paywall || undefined}
+          onClose={() => {
+            setPaywall(null);
+            onCancel();
+          }}
+        />
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Input
           label="Nombre"
@@ -155,18 +251,124 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
         />
       </div>
 
-      {error && (
-        <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>{error}</p>
+      {/* Initial attachments (create only) */}
+      {!isEdit && (
+        <div className="form-field">
+          <label className="form-label">
+            Fotos, video, nota de voz o documentos (opcional)
+          </label>
+
+          {pending.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+              {pending.map((p, i) => (
+                <PendingTile key={i} file={p} onRemove={() => removePending(i)} />
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowPicker(true)}
+            disabled={loading}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={14} />
+            Agregar foto, video, nota de voz o documento
+          </button>
+        </div>
       )}
 
+      {error && <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>{error}</p>}
+
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-        <Button type="button" variant="secondary" fullWidth onClick={onCancel}>
+        <Button type="button" variant="secondary" fullWidth onClick={onCancel} disabled={loading}>
           Cancelar
         </Button>
         <Button type="submit" variant="primary" fullWidth loading={loading}>
-          {isEdit ? 'Guardar cambios' : 'Crear orden'}
+          {submitLabel}
         </Button>
       </div>
+
+      {showPicker && (
+        <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} />
+      )}
     </form>
+  );
+}
+
+function PendingTile({ file, onRemove }: { file: PendingFile; onRemove: () => void }) {
+  const type = file.file.type;
+  const isImage = type.startsWith('image/');
+  const isVideo = type.startsWith('video/');
+  const isAudio = type.startsWith('audio/');
+
+  return (
+    <div style={{ position: 'relative', width: 64, height: 64 }}>
+      <div
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: 8,
+          overflow: 'hidden',
+          border: '1px solid var(--color-border)',
+          background: isImage ? '#000' : 'var(--color-surface-2)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        {isImage && file.url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={file.url}
+            alt={file.file.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : isVideo ? (
+          <VideoIcon size={22} />
+        ) : isAudio ? (
+          <Mic size={22} />
+        ) : (
+          <FileText size={22} />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Quitar"
+        style={{
+          position: 'absolute',
+          top: -6,
+          right: -6,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: '#ef4444',
+          border: '2px solid var(--color-surface)',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+        }}
+      >
+        <X size={11} />
+      </button>
+    </div>
   );
 }

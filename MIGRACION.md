@@ -111,6 +111,8 @@ En el **SQL Editor** del proyecto nuevo, corre en este orden los archivos del re
 2. `supabase/migrations/0003_stage_description.sql` (columna `description`).
 3. `supabase/migrations/0004_stage_attachments.sql` (tabla de adjuntos + bucket `stage-files`).
 4. `supabase/migrations/0005_multi_tenant.sql` (tabla `workshops` + `workshop_id`, trigger y RLS por taller).
+5. `supabase/migrations/0006_workshop_branding.sql` (columnas `logo_url` y `slug` en `workshops`).
+6. `supabase/migrations/0007_order_limit.sql` (columna `order_limit` en `workshops`, default 3).
 
 Copia y pega el contenido de cada uno y pulsa **RUN**. Son idempotentes.
 

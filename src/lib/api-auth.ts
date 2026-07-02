@@ -44,12 +44,12 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
   const service = createServiceClient();
   const { data } = await service
     .from('orders')
-    .select('assigned_mechanic_id, workshop_id')
+    .select('assigned_mechanic_id, workshop_id, created_by')
     .eq('id', orderId)
     .single();
 
   const order = data as unknown as
-    | { assigned_mechanic_id: string | null; workshop_id: string }
+    | { assigned_mechanic_id: string | null; workshop_id: string; created_by: string | null }
     | null;
   if (!order) return false;
 
@@ -57,5 +57,6 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
   if (order.workshop_id !== caller.workshopId) return false;
 
   if (caller.role === 'admin') return true;
-  return order.assigned_mechanic_id === caller.userId;
+  // Mechanics can manage orders they are assigned to or that they created.
+  return order.assigned_mechanic_id === caller.userId || order.created_by === caller.userId;
 }

@@ -1,6 +1,22 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { slugify } from '@/lib/utils';
 import type { RegisterWorkshopPayload } from '@/lib/types';
+
+// Builds a URL-friendly, unique slug for the workshop (e.g. taller-el-rayo).
+async function uniqueSlug(
+  service: ReturnType<typeof createServiceClient>,
+  name: string
+): Promise<string> {
+  const base = slugify(name) || 'taller';
+  let slug = base;
+  for (let i = 0; i < 5; i++) {
+    const { data } = await service.from('workshops').select('id').eq('slug', slug).maybeSingle();
+    if (!data) return slug;
+    slug = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+  }
+  return slug;
+}
 
 // POST /api/register — public self-registration of a new workshop (taller).
 // Creates the workshop, then its first user (admin, auto-confirmed) linked to it.
@@ -34,10 +50,11 @@ export async function POST(req: Request) {
 
   const service = createServiceClient();
 
-  // 1. Create the workshop.
+  // 1. Create the workshop (with a unique login slug).
+  const slug = await uniqueSlug(service, workshopName);
   const { data: workshop, error: wsError } = await service
     .from('workshops')
-    .insert({ name: workshopName, whatsapp })
+    .insert({ name: workshopName, whatsapp, slug })
     .select()
     .single();
 

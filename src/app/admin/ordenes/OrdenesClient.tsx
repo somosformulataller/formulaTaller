@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
+import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, Search } from 'lucide-react';
@@ -11,15 +12,25 @@ import { Plus, ClipboardList, Search } from 'lucide-react';
 interface OrdenesClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
+  orderLimit: number;
 }
 
 type FilterStatus = 'all' | OrderStatus;
 
-export default function OrdenesClient({ initialOrders, mechanics }: OrdenesClientProps) {
+export default function OrdenesClient({ initialOrders, mechanics, orderLimit }: OrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [search, setSearch] = useState('');
+
+  function handleNew() {
+    if (orders.length >= orderLimit) {
+      setShowPaywall(true);
+    } else {
+      setShowCreate(true);
+    }
+  }
 
   const filtered = orders.filter((o) => {
     const matchStatus = filter === 'all' || o.status === filter;
@@ -64,7 +75,7 @@ export default function OrdenesClient({ initialOrders, mechanics }: OrdenesClien
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Todas las órdenes</h1>
-        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+        <Button variant="primary" size="sm" onClick={handleNew}>
           <Plus size={15} />
           Nueva
         </Button>
@@ -169,6 +180,8 @@ export default function OrdenesClient({ initialOrders, mechanics }: OrdenesClien
           onCancel={() => setShowCreate(false)}
         />
       </Modal>
+
+      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
     </div>
   );
 }

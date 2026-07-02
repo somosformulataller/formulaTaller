@@ -61,6 +61,9 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 3. `0004_stage_attachments.sql` (tabla de adjuntos + bucket `stage-files`).
 4. `0005_multi_tenant.sql` (**tabla `workshops` + `workshop_id`** en profiles/orders, backfill al taller
    "Formula Taller", trigger y RLS por taller). **Correr esta migración ANTES de subir el código nuevo.**
+5. `0006_workshop_branding.sql` (columnas **`logo_url`** y **`slug`** en `workshops` + backfill de slugs).
+   El logo se guarda en el bucket `stage-files` (carpeta `logos/`). **Correr ANTES de subir el código.**
+6. `0007_order_limit.sql` (columna **`order_limit`** en `workshops`, default **3**). **Correr ANTES del código.**
 
 ---
 
@@ -82,9 +85,17 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 ### Registro de talleres (multi-tenant)
 - **Registro público** en `/registro`: nombre del taller, correo, WhatsApp, nombre, apellido,
   contraseña + confirmación. Crea el taller y su admin (**acceso inmediato**, sin verificación por correo).
-- **Perfil del Taller** (`/admin/taller`): el admin edita el **nombre** y **WhatsApp** del taller.
-  El nombre aparece en el panel (TopBar) y en el **tracking del cliente**.
+- **Perfil del Taller** (`/admin/taller`): el admin edita el **nombre**, **WhatsApp** y **logo** del taller,
+  y ve su **enlace de login personalizado** (`/login/<slug>`, con nombre + logo del taller).
+  El nombre y el logo aparecen en el panel (TopBar), en el login personalizado y en el **tracking del cliente**.
 - Cada taller ve únicamente **sus** órdenes, mecánicos y adjuntos.
+
+### Plan gratuito / suscripción
+- Cada taller puede crear hasta **`order_limit`** órdenes (**3 por defecto**). Al alcanzarlo, al intentar
+  crear otra sale un **modal**: "para seguir usando la app debes pagar la suscripción" (el flujo de pago
+  aún no está definido). Se valida **en el servidor** (`POST /api/orders` → `402`) y en el cliente.
+- Para **desbloquear** un taller que pague, subir su `order_limit` por SQL:
+  `update public.workshops set order_limit = 100000 where slug = '<slug>';`
 
 ### Roles y acceso
 - Login por email/contraseña. El admin crea mecánicos; cada mecánico recibe su acceso.
@@ -94,6 +105,9 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 
 ### Órdenes
 - **Admin y mecánico** pueden **ver todas las órdenes**, **crearlas** y **asignar mecánicos**.
+- Al **crear** una orden se pueden **adjuntar datos iniciales** (foto/video/**nota de voz**/documento);
+  se guardan en la primera etapa ("Vehículo recibido") y los ven admin, mecánico y **cliente** (tracking).
+  (`canManageOrder` permite gestionar al admin, al mecánico asignado **o al creador** de la orden.)
 - El mecánico puede **autoasignarse** una orden ("Asignarme") y, una vez asignado, **editarla**.
 - **Filtro** en la vista del mecánico: **Mis órdenes / Todas** (+ por estado) y buscador.
 - Solo el **admin** puede **eliminar** órdenes.

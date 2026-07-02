@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
+import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, CheckCircle2, Wrench, Clock } from 'lucide-react';
@@ -11,6 +12,7 @@ import { Plus, ClipboardList, CheckCircle2, Wrench, Clock } from 'lucide-react';
 interface AdminDashboardClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
+  orderLimit: number;
 }
 
 type FilterStatus = 'all' | OrderStatus;
@@ -18,10 +20,20 @@ type FilterStatus = 'all' | OrderStatus;
 export default function AdminDashboardClient({
   initialOrders,
   mechanics,
+  orderLimit,
 }: AdminDashboardClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
+
+  function handleNew() {
+    if (orders.length >= orderLimit) {
+      setShowPaywall(true);
+    } else {
+      setShowCreate(true);
+    }
+  }
 
   const filtered =
     filter === 'all' ? orders : orders.filter((o) => o.status === filter);
@@ -102,7 +114,7 @@ export default function AdminDashboardClient({
         }}
       >
         <h2 style={{ fontSize: 16, fontWeight: 700 }}>Órdenes recientes</h2>
-        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+        <Button variant="primary" size="sm" onClick={handleNew}>
           <Plus size={15} />
           Nueva orden
         </Button>
@@ -189,6 +201,8 @@ export default function AdminDashboardClient({
           onCancel={() => setShowCreate(false)}
         />
       </Modal>
+
+      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
     </div>
   );
 }

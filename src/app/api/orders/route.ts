@@ -37,6 +37,30 @@ export async function POST(req: Request) {
   const body: CreateOrderPayload = await req.json();
   const service = createServiceClient();
 
+  // Free-plan limit: block once the workshop reaches its order_limit.
+  const { data: ws } = await service
+    .from('workshops')
+    .select('order_limit')
+    .eq('id', caller.workshopId)
+    .single();
+  const limit = (ws as unknown as { order_limit: number } | null)?.order_limit ?? 3;
+
+  const { count } = await service
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('workshop_id', caller.workshopId);
+
+  if ((count ?? 0) >= limit) {
+    return NextResponse.json(
+      {
+        error:
+          'Alcanzaste el límite de órdenes del plan gratuito. Para seguir usando la app debes pagar la suscripción.',
+        limitReached: true,
+      },
+      { status: 402 }
+    );
+  }
+
   const { data, error } = await service
     .from('orders')
     .insert({

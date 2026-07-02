@@ -52,10 +52,17 @@ async function ensureWorkshop() {
   const found = await findRes.json().catch(() => []);
   if (Array.isArray(found) && found[0]?.id) return found[0].id;
 
+  const slug =
+    WORKSHOP_NAME.normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'taller';
+
   const res = await fetch(`${SUPABASE_URL}/rest/v1/workshops`, {
     method: 'POST',
     headers: { ...headers, Prefer: 'return=representation' },
-    body: JSON.stringify({ name: WORKSHOP_NAME }),
+    body: JSON.stringify({ name: WORKSHOP_NAME, slug }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

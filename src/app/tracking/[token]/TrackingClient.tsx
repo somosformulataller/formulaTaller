@@ -44,6 +44,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
   const progress = stages.length > 0 ? Math.round((done / stages.length) * 100) : 0;
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const workshopName = order.workshop?.name ?? 'Taller';
+  const workshopLogo = order.workshop?.logo_url ?? null;
 
   const mechanic = order.assigned_mechanic as { full_name: string } | null | undefined;
 
@@ -70,14 +71,26 @@ export default function TrackingClient({ order }: TrackingClientProps) {
           style={{
             width: 38,
             height: 38,
-            background: 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
+            background: workshopLogo
+              ? 'var(--color-surface-2)'
+              : 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
             borderRadius: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
-          <Wrench size={20} color="#0D0F1A" strokeWidth={2.5} />
+          {workshopLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={workshopLogo}
+              alt={workshopName}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Wrench size={20} color="#0D0F1A" strokeWidth={2.5} />
+          )}
         </div>
         <div>
           <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1 }}>{workshopName}</p>

@@ -8,7 +8,12 @@ import { Wrench, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
-export default function LoginForm() {
+interface LoginFormProps {
+  workshopName?: string;
+  logoUrl?: string | null;
+}
+
+export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -69,19 +74,31 @@ export default function LoginForm() {
           style={{
             width: 72,
             height: 72,
-            background: 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
+            background: logoUrl
+              ? 'var(--color-surface-2)'
+              : 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
             borderRadius: 20,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow: '0 8px 32px rgba(245,158,11,0.35)',
+            overflow: 'hidden',
           }}
         >
-          <Wrench size={36} color="#0D0F1A" strokeWidth={2.5} />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={workshopName || 'Logo'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Wrench size={36} color="#0D0F1A" strokeWidth={2.5} />
+          )}
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Formula Taller
+            {workshopName || 'Formula Taller'}
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', marginTop: 4, fontSize: 14 }}>
             Sistema de gestión de taller

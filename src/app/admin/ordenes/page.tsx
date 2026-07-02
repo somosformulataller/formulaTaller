@@ -8,7 +8,7 @@ export default async function OrdenesAdminPage() {
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [ordersRes, mechanicsRes] = await Promise.all([
+  const [ordersRes, mechanicsRes, workshopRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
@@ -26,12 +26,17 @@ export default async function OrdenesAdminPage() {
       .eq('role', 'mechanic')
       .eq('active', true)
       .order('full_name'),
+    supabase.from('workshops').select('order_limit').eq('id', wid).single(),
   ]);
+
+  const orderLimit =
+    (workshopRes.data as unknown as { order_limit: number } | null)?.order_limit ?? 3;
 
   return (
     <OrdenesClient
       initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
+      orderLimit={orderLimit}
     />
   );
 }

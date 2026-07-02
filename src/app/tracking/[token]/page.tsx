@@ -43,7 +43,7 @@ export default async function TrackingPage({ params }: Props) {
       created_at,
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
-      workshop:workshops(name),
+      workshop:workshops(name, logo_url),
       stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, url, name, mime))
     `)
     .eq('public_token', params.token)

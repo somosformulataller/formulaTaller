@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
+import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, Search } from 'lucide-react';
@@ -12,6 +13,7 @@ interface MecanicoOrdenesClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
   profile: Profile;
+  orderLimit: number;
 }
 
 type FilterKey = 'mine' | 'all' | OrderStatus;
@@ -20,11 +22,21 @@ export default function MecanicoOrdenesClient({
   initialOrders,
   mechanics,
   profile,
+  orderLimit,
 }: MecanicoOrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const [filter, setFilter] = useState<FilterKey>('mine');
   const [search, setSearch] = useState('');
+
+  function handleNew() {
+    if (orders.length >= orderLimit) {
+      setShowPaywall(true);
+    } else {
+      setShowCreate(true);
+    }
+  }
 
   const mineCount = orders.filter((o) => o.assigned_mechanic_id === profile.id).length;
 
@@ -86,7 +98,7 @@ export default function MecanicoOrdenesClient({
               : `Tienes ${mineCount} orden${mineCount > 1 ? 'es' : ''} asignada${mineCount > 1 ? 's' : ''}`}
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+        <Button variant="primary" size="sm" onClick={handleNew}>
           <Plus size={15} />
           Nueva
         </Button>
@@ -185,6 +197,8 @@ export default function MecanicoOrdenesClient({
           onCancel={() => setShowCreate(false)}
         />
       </Modal>
+
+      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
     </div>
   );
 }

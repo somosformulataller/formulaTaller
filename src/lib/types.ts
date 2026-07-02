@@ -10,7 +10,10 @@ export type StageStatus = 'pending' | 'in_progress' | 'done';
 export interface Workshop {
   id: string;
   name: string;
+  slug: string;
   whatsapp: string | null;
+  logo_url: string | null;
+  order_limit: number;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
@@ -55,7 +58,7 @@ export interface Order {
   // joined
   assigned_mechanic?: Profile | null;
   stages?: OrderStage[];
-  workshop?: { name: string } | null;
+  workshop?: { name: string; logo_url?: string | null } | null;
 }
 
 export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages' | 'workshop'>;

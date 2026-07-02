@@ -40,6 +40,7 @@ Navegador
 |---|---|
 | `src/app/login/page.tsx` + `LoginForm.tsx` | Pantalla de login; tras entrar, lee el rol y redirige a `/admin` o `/mecanico`. Tiene enlace a "Crear taller". |
 | `src/app/registro/page.tsx` + `RegisterForm.tsx` | **Registro público de un taller** (auto-alta): crea taller + admin y entra directo. |
+| `src/app/login/[slug]/page.tsx` | **Login personalizado** por taller: muestra nombre + logo del taller sobre el formulario. |
 | `src/app/api/register/route.ts` | Endpoint público: crea `workshops` + usuario admin (auto-confirmado) ligado al taller. |
 | `src/app/api/auth/callback/route.ts` | Callback de autenticación de Supabase. |
 | `scripts/create-admin.mjs` | Script (`npm run seed:admin`) para crear un taller por defecto + su admin inicial. |
@@ -101,7 +102,8 @@ Todos validan permisos con `lib/api-auth.ts` y escriben con el service client.
 | `orders/[id]/stages/[sid]/attachments/route.ts` (POST/DELETE) | Registrar adjunto (metadatos tras subida firmada) o subir multipart, y borrar de Storage (`stage-files`) + tabla. |
 | `tracking/[token]/route.ts` | Datos públicos de tracking por token. |
 | `register/route.ts` (POST) | Registro público de un taller (crea `workshops` + admin). |
-| `workshops/[id]/route.ts` (PATCH) | Editar el perfil del taller (solo el admin dueño). |
+| `workshops/[id]/route.ts` (PATCH) | Editar el perfil del taller (nombre/WhatsApp; solo el admin dueño). |
+| `workshops/[id]/logo/route.ts` (POST) | Subir el logo del taller (imagen comprimida → bucket `stage-files/logos`). |
 
 ---
 
