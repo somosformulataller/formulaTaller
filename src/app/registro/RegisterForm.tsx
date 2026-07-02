@@ -24,6 +24,7 @@ export default function RegisterForm() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
 
   function set<K extends keyof RegisterWorkshopPayload>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -33,6 +34,10 @@ export default function RegisterForm() {
     e.preventDefault();
     setError(null);
 
+    if (!accepted) {
+      setError('Debes aceptar los Términos y la Política de Privacidad.');
+      return;
+    }
     if (form.password !== form.password_confirm) {
       setError('Las contraseñas no coinciden.');
       return;
@@ -214,7 +219,22 @@ export default function RegisterForm() {
             </div>
           )}
 
-          <Button type="submit" variant="primary" fullWidth size="lg" loading={loading}>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              style={{ marginTop: 2 }}
+            />
+            <span>
+              Acepto los{' '}
+              <Link href="/terminos" target="_blank" style={{ color: 'var(--color-brand-400)' }}>Términos</Link>
+              {' '}y la{' '}
+              <Link href="/privacidad" target="_blank" style={{ color: 'var(--color-brand-400)' }}>Política de Privacidad</Link>.
+            </span>
+          </label>
+
+          <Button type="submit" variant="primary" fullWidth size="lg" loading={loading} disabled={!accepted}>
             Crear taller
           </Button>
         </form>

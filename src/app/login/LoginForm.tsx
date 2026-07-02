@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Wrench, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import InstallButton from '@/components/pwa/InstallButton';
 
 interface LoginFormProps {
   workshopName?: string;
@@ -220,8 +221,14 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
         </div>
       </div>
 
-      <p style={{ marginTop: 24, color: 'var(--color-text-muted)', fontSize: 12 }}>
+      <InstallButton />
+
+      <p style={{ marginTop: 20, color: 'var(--color-text-muted)', fontSize: 12, textAlign: 'center' }}>
         Formula Taller © {new Date().getFullYear()}
+        <br />
+        <Link href="/terminos" style={{ color: 'var(--color-text-muted)' }}>Términos</Link>
+        {' · '}
+        <Link href="/privacidad" style={{ color: 'var(--color-text-muted)' }}>Privacidad</Link>
       </p>
     </div>
   );
