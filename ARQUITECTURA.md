@@ -29,6 +29,8 @@ Navegador
 | `src/lib/utils.ts` | Utilidades: fechas, links de WhatsApp (`buildWhatsAppLink`, mensajes de tracking y credenciales), etiquetas/colores de estado. |
 | `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol) y `canManageOrder()` (admin, o mecánico asignado). |
 | `src/lib/mechanics.ts` | `listMechanicsWithEmail()`: junta `profiles` con el email de `auth.users`. |
+| `src/lib/image.ts` | Compresión de imágenes en el navegador (canvas): redimensiona y re-codifica a JPEG antes de subir. |
+| `src/lib/attachments.ts` | `uploadStageAttachment()`: comprime imágenes, pide URL firmada, sube el archivo **directo a Storage** y registra el adjunto. |
 | `src/app/layout.tsx` | Layout raíz (PWA, fuentes, estilos globales). |
 
 ---
@@ -73,7 +75,9 @@ Navegador
 | `orders/OrderCard.tsx` | Tarjeta de orden en las listas (WhatsApp, copiar, asignarme, estado). |
 | `orders/OrderForm.tsx` | Formulario crear/editar orden (usado por admin y mecánico). |
 | `orders/CopyLinkButton.tsx` | Botón "Copiar" (enlace de tracking o texto). |
-| `orders/StageTimeline.tsx` | Etapas del servicio: estado, editar título/descripción, adjuntar/eliminar archivos. |
+| `orders/StageTimeline.tsx` | Etapas del servicio: estado, editar título/descripción, adjuntar/eliminar archivos (foto/video/audio/documento). |
+| `orders/AttachmentPicker.tsx` | Modal con opciones para agregar adjuntos (galería, tomar foto, hacer video, grabar/adjuntar nota de voz, documento). |
+| `orders/VoiceRecorder.tsx` | Grabador de notas de voz en la web (`MediaRecorder`): grabar, detener, previsualizar y usar/regrabar. |
 | `mechanics/MechanicCard.tsx` | Tarjeta de mecánico (email, editar, reenviar acceso, activar/eliminar). |
 | `mechanics/MechanicForm.tsx` | Formulario crear/editar mecánico + panel de credenciales (copiar/WhatsApp). |
 
@@ -89,7 +93,8 @@ Todos validan permisos con `lib/api-auth.ts` y escriben con el service client.
 | `orders/[id]/route.ts` (GET/PATCH/DELETE) | Ver, editar/asignar (staff) y eliminar (solo admin). |
 | `orders/[id]/stages/route.ts` (GET/POST) | Listar y crear etapas. |
 | `orders/[id]/stages/[sid]/route.ts` (PATCH/DELETE) | Cambiar estado/título/descripción y borrar etapa. |
-| `orders/[id]/stages/[sid]/attachments/route.ts` (POST/DELETE) | Subir/borrar adjuntos en Storage (`stage-files`) + tabla. |
+| `orders/[id]/stages/[sid]/attachments/sign/route.ts` (POST) | Devuelve una **URL firmada** para subir el archivo directo a Storage (evita el límite de tamaño de Vercel). |
+| `orders/[id]/stages/[sid]/attachments/route.ts` (POST/DELETE) | Registrar adjunto (metadatos tras subida firmada) o subir multipart, y borrar de Storage (`stage-files`) + tabla. |
 | `tracking/[token]/route.ts` | Datos públicos de tracking por token. |
 
 ---

@@ -91,7 +91,13 @@ que se comparte por WhatsApp.
 ### Etapas del servicio
 - **Título editable** y **descripción opcional** (admin y mecánico asignado).
 - **Marcar/desmarcar** estado (Iniciar/Completar/Reabrir) con **cambio de ícono instantáneo** (optimista).
-- **Adjuntar fotos/documentos** (varias a la vez), ver miniaturas y eliminarlas.
+- **Adjuntos multimedia** (una o varias a la vez): botón **"Agregar"** abre un modal con opciones:
+  **foto/video desde galería**, **tomar foto** (cámara), **hacer video** (cámara),
+  **grabar nota de voz** (micrófono, en la web), **adjuntar nota de voz** y **adjuntar documento**.
+  Se ven miniaturas (imagen), reproductor (video/audio) o enlace (documento), con opción de eliminar.
+- Las **imágenes se comprimen en el navegador** antes de subir (máx. 1600px, JPEG 0.8).
+- Los archivos se suben **directo a Storage con URL firmada** (evita el límite de ~4.5MB de Vercel;
+  soporta videos/audios hasta **50MB**). En el tracking del cliente también se muestran video y audio.
 - Botón **eliminar etapa** ubicado en la esquina inferior derecha (separado, con tinte rojo).
 
 ### Seguridad (autorización en API)
@@ -132,7 +138,8 @@ git push        # Vercel redespliega solo en ~1 min
 ## Pendientes y recomendaciones
 - 🔴 **Revocar el token de Vercel** que se compartió durante la configuración:
   https://vercel.com/account/tokens
-- 💡 **Opcional:** comprimir/redimensionar las imágenes en el navegador antes de subirlas
-  (acelera la subida y la carga en el tracking). Aún no implementado.
+- ✅ **Hecho:** compresión de imágenes en el navegador antes de subir (acelera subida y tracking).
+- 💡 **Opcional:** aumentar el límite de tamaño del bucket `stage-files` en Supabase si se
+  necesitan videos de más de 50MB (requiere plan de pago para superar el máximo por archivo).
 - 💡 Cambiar la **contraseña del admin** tras el primer login si no se ha hecho.
 - Para revisar consumo del plan Claude: comando `/usage`.

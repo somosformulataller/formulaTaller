@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import type { OrderStage, StageStatus, StageAttachment } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, Paperclip, FileText, X } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, FileText, X } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import { compressImage } from '@/lib/image';
+import { uploadStageAttachment } from '@/lib/attachments';
+import AttachmentPicker from './AttachmentPicker';
 
 interface StageTimelineProps {
   orderId: string;
@@ -30,29 +31,22 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [pickerStageId, setPickerStageId] = useState<string | null>(null);
 
   async function uploadAttachments(stageId: string, files: File[]) {
     setUploadingId(stageId);
-    for (const original of files) {
-      // Compress images in the browser before uploading (PDFs pass through).
-      const file = await compressImage(original);
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch(`/api/orders/${orderId}/stages/${stageId}/attachments`, {
-        method: 'POST',
-        body: fd,
-      });
-      if (res.ok) {
-        const att: StageAttachment = await res.json();
+    for (const file of files) {
+      try {
+        // Compress images, upload straight to Storage (signed URL), record row.
+        const att = await uploadStageAttachment(orderId, stageId, file);
         // Append as soon as each file finishes so they appear progressively.
         setStages((prev) =>
           prev.map((s) =>
             s.id === stageId ? { ...s, attachments: [...(s.attachments ?? []), att] } : s
           )
         );
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || `No se pudo subir "${file.name}"`);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : `No se pudo subir "${file.name}"`);
       }
     }
     setUploadingId(null);
@@ -401,7 +395,9 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                       )}
 
                       {canEdit && (
-                        <label
+                        <button
+                          onClick={() => setPickerStageId(stage.id)}
+                          disabled={uploadingId === stage.id}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -414,28 +410,18 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                             fontSize: 12,
                             fontWeight: 600,
                             color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
+                            cursor: uploadingId === stage.id ? 'default' : 'pointer',
                           }}
                         >
                           {uploadingId === stage.id ? (
                             <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} />
                           ) : (
-                            <Paperclip size={13} />
+                            <Plus size={13} />
                           )}
-                          {uploadingId === stage.id ? 'Subiendo...' : 'Adjuntar foto/documento'}
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            multiple
-                            style={{ display: 'none' }}
-                            disabled={uploadingId === stage.id}
-                            onChange={(e) => {
-                              const files = e.target.files ? Array.from(e.target.files) : [];
-                              if (files.length) uploadAttachments(stage.id, files);
-                              e.target.value = '';
-                            }}
-                          />
-                        </label>
+                          {uploadingId === stage.id
+                            ? 'Subiendo...'
+                            : 'Agregar foto, video, nota de voz o documento'}
+                        </button>
                       )}
 
                       {canEdit && (
@@ -514,6 +500,14 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
           )}
         </div>
       )}
+
+      {/* Attachment picker modal (shared by all stages) */}
+      {pickerStageId && (
+        <AttachmentPicker
+          onFiles={(files) => uploadAttachments(pickerStageId, files)}
+          onClose={() => setPickerStageId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -527,19 +521,16 @@ function AttachmentThumb({
   canEdit: boolean;
   onDelete: () => void;
 }) {
-  const isImage = att.mime?.startsWith('image/');
+  const mime = att.mime ?? '';
+  const isImage = mime.startsWith('image/');
+  const isVideo = mime.startsWith('video/');
+  const isAudio = mime.startsWith('audio/');
 
   return (
     <div style={{ position: 'relative' }}>
-      <a
-        href={att.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ display: 'inline-flex', textDecoration: 'none' }}
-        title={att.name ?? 'Archivo'}
-      >
-        {isImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
+      {isImage ? (
+        <a href={att.url} target="_blank" rel="noopener noreferrer" title={att.name ?? 'Foto'}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={att.url}
             alt={att.name ?? 'adjunto'}
@@ -552,7 +543,44 @@ function AttachmentThumb({
               display: 'block',
             }}
           />
-        ) : (
+        </a>
+      ) : isVideo ? (
+        <video
+          src={att.url}
+          controls
+          playsInline
+          preload="metadata"
+          style={{
+            width: 130,
+            height: 90,
+            objectFit: 'cover',
+            borderRadius: 8,
+            border: '1px solid var(--color-border)',
+            background: '#000',
+            display: 'block',
+          }}
+        />
+      ) : isAudio ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px 10px',
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+          }}
+        >
+          <audio src={att.url} controls preload="metadata" style={{ height: 34, maxWidth: 200 }} />
+        </div>
+      ) : (
+        <a
+          href={att.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', textDecoration: 'none' }}
+          title={att.name ?? 'Archivo'}
+        >
           <span
             style={{
               display: 'inline-flex',
@@ -574,8 +602,8 @@ function AttachmentThumb({
             <FileText size={14} style={{ flexShrink: 0 }} />
             {att.name ?? 'Archivo'}
           </span>
-        )}
-      </a>
+        </a>
+      )}
       {canEdit && (
         <button
           type="button"
