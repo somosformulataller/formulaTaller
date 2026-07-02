@@ -64,6 +64,8 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 5. `0006_workshop_branding.sql` (columnas **`logo_url`** y **`slug`** en `workshops` + backfill de slugs).
    El logo se guarda en el bucket `stage-files` (carpeta `logos/`). **Correr ANTES de subir el código.**
 6. `0007_order_limit.sql` (columna **`order_limit`** en `workshops`, default **3**). **Correr ANTES del código.**
+7. `0008_default_stages.sql` (nuevas **etapas por defecto**: Diagnóstico, Desmontaje de piezas,
+   Reemplazo/Reparación, Armado y prueba, Vehículo listo). Solo afecta a órdenes nuevas.
 
 ---
 
@@ -118,6 +120,8 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 
 ### Etapas del servicio
 - **Título editable** y **descripción opcional** (admin y mecánico asignado).
+- **Etapas por defecto:** Diagnóstico, Desmontaje de piezas, Reemplazo/Reparación, Armado y prueba, Vehículo listo (editables).
+- **Reordenar arrastrando:** el admin o el mecánico pueden **arrastrar** (asa ⋮) las etapas para cambiar su orden (touch + mouse); se guarda vía `POST /api/orders/:id/stages/reorder`.
 - **Marcar/desmarcar** estado (Iniciar/Completar/Reabrir) con **cambio de ícono instantáneo** (optimista).
 - **Adjuntos multimedia** (una o varias a la vez): botón **"Agregar"** abre un modal con opciones:
   **foto/video desde galería**, **tomar foto** (cámara), **hacer video** (cámara),

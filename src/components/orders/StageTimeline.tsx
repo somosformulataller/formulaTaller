@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { OrderStage, StageStatus } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, GripVertical } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { uploadStageAttachment } from '@/lib/attachments';
 import AttachmentPicker from './AttachmentPicker';
@@ -165,6 +165,68 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
     return cycle[(idx + 1) % cycle.length];
   }
 
+  // --- Drag & drop reordering (pointer events: works on touch + mouse) ------
+  const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const dragRef = useRef<{ index: number; order: OrderStage[]; snapshot: OrderStage[] } | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  function startDrag(index: number, e: React.PointerEvent) {
+    if (!canEdit) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { index, order: stages.slice(), snapshot: stages };
+    setDragIndex(index);
+  }
+
+  function moveDrag(e: React.PointerEvent) {
+    const st = dragRef.current;
+    if (!st) return;
+    e.preventDefault();
+    const y = e.clientY;
+    // Find the slot whose midpoint is just below the pointer.
+    let target = st.order.length - 1;
+    for (let i = 0; i < st.order.length; i++) {
+      const el = rowRefs.current[i];
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (y < r.top + r.height / 2) {
+        target = i;
+        break;
+      }
+    }
+    if (target !== st.index) {
+      const next = st.order.slice();
+      const [moved] = next.splice(st.index, 1);
+      next.splice(target, 0, moved);
+      st.order = next;
+      st.index = target;
+      setStages(next);
+      setDragIndex(target);
+    }
+  }
+
+  async function endDrag() {
+    const st = dragRef.current;
+    dragRef.current = null;
+    setDragIndex(null);
+    if (!st) return;
+
+    const ids = st.order.map((s) => s.id);
+    const unchanged = st.snapshot.every((s, i) => s.id === ids[i]);
+    if (unchanged) return;
+
+    // Persist; keep positions in sync locally.
+    setStages((prev) => prev.map((s, i) => ({ ...s, position: i + 1 })));
+    const res = await fetch(`/api/orders/${orderId}/stages/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      setStages(st.snapshot);
+      alert('No se pudo guardar el nuevo orden de las etapas');
+    }
+  }
+
   const done = stages.filter((s) => s.status === 'done').length;
   const progress = stages.length > 0 ? Math.round((done / stages.length) * 100) : 0;
 
@@ -222,14 +284,18 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
             return (
               <div
                 key={stage.id}
+                ref={(el) => {
+                  rowRefs.current[index] = el;
+                }}
                 className="animate-fade-in"
                 style={{
                   display: 'flex',
                   gap: 14,
                   alignItems: 'flex-start',
                   position: 'relative',
-                  zIndex: 1,
+                  zIndex: dragIndex === index ? 2 : 1,
                   animationDelay: `${index * 50}ms`,
+                  opacity: dragIndex === index ? 0.6 : 1,
                 }}
               >
                 {/* Icon */}
@@ -311,6 +377,26 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
 
                         {canEdit && (
                           <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                            <button
+                              onPointerDown={(e) => startDrag(index, e)}
+                              onPointerMove={moveDrag}
+                              onPointerUp={endDrag}
+                              onPointerCancel={endDrag}
+                              title="Mantén y arrastra para reordenar"
+                              aria-label="Reordenar etapa"
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--color-text-muted)',
+                                cursor: 'grab',
+                                touchAction: 'none',
+                                padding: 2,
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <GripVertical size={16} />
+                            </button>
                             <button
                               onClick={() => updateStage(stage.id, cycleStatus(stage.status))}
                               disabled={isLoading}

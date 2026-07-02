@@ -113,6 +113,7 @@ En el **SQL Editor** del proyecto nuevo, corre en este orden los archivos del re
 4. `supabase/migrations/0005_multi_tenant.sql` (tabla `workshops` + `workshop_id`, trigger y RLS por taller).
 5. `supabase/migrations/0006_workshop_branding.sql` (columnas `logo_url` y `slug` en `workshops`).
 6. `supabase/migrations/0007_order_limit.sql` (columna `order_limit` en `workshops`, default 3).
+7. `supabase/migrations/0008_default_stages.sql` (nuevas etapas por defecto del servicio).
 
 Copia y pega el contenido de cada uno y pulsa **RUN**. Son idempotentes.
 
