@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@/lib/types';
 
 // Routes that are accessible without authentication
-const PUBLIC_ROUTES = ['/login', '/tracking'];
+const PUBLIC_ROUTES = ['/login', '/registro', '/tracking'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -21,6 +21,11 @@ export async function middleware(request: NextRequest) {
 
   // Allow public tracking API
   if (pathname.startsWith('/api/tracking')) {
+    return NextResponse.next();
+  }
+
+  // Allow public workshop registration API
+  if (pathname.startsWith('/api/register')) {
     return NextResponse.next();
   }
 

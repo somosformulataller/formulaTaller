@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Wrench, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -181,6 +182,25 @@ export default function LoginForm() {
             Entrar
           </Button>
         </form>
+
+        <div
+          style={{
+            marginTop: 20,
+            paddingTop: 18,
+            borderTop: '1px solid var(--color-border)',
+            textAlign: 'center',
+            fontSize: 13,
+            color: 'var(--color-text-secondary)',
+          }}
+        >
+          ¿No tienes taller registrado?{' '}
+          <Link
+            href="/registro"
+            style={{ color: 'var(--color-brand-400)', fontWeight: 700, textDecoration: 'none' }}
+          >
+            Crear taller
+          </Link>
+        </div>
       </div>
 
       <p style={{ marginTop: 24, color: 'var(--color-text-muted)', fontSize: 12 }}>

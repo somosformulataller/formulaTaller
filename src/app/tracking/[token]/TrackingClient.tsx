@@ -43,6 +43,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
   const done = stages.filter((s) => s.status === 'done').length;
   const progress = stages.length > 0 ? Math.round((done / stages.length) * 100) : 0;
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
+  const workshopName = order.workshop?.name ?? 'Taller';
 
   const mechanic = order.assigned_mechanic as { full_name: string } | null | undefined;
 
@@ -79,7 +80,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
           <Wrench size={20} color="#0D0F1A" strokeWidth={2.5} />
         </div>
         <div>
-          <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1 }}>Formula Taller</p>
+          <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1 }}>{workshopName}</p>
           <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1, marginTop: 2 }}>
             Seguimiento de servicio
           </p>
@@ -362,7 +363,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>
             Puedes pasar a retirar tu {order.car_model}.
             <br />
-            ¡Gracias por confiar en Formula Taller!
+            ¡Gracias por confiar en {workshopName}!
           </p>
         </div>
       )}
@@ -377,7 +378,7 @@ export default function TrackingClient({ order }: TrackingClientProps) {
           paddingBottom: 16,
         }}
       >
-        Formula Taller © {new Date().getFullYear()} • Esta página se actualiza en tiempo real
+        {workshopName} © {new Date().getFullYear()} • Esta página se actualiza en tiempo real
       </p>
     </div>
   );

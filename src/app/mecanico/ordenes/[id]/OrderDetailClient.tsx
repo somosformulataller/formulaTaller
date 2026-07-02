@@ -45,7 +45,7 @@ export default function MecanicoOrderDetailClient({
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const waLink = buildWhatsAppLink(
     order.client_whatsapp,
-    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
   );
 
   const isMine = order.assigned_mechanic_id === currentUserId;
@@ -133,7 +133,7 @@ export default function MecanicoOrderDetailClient({
               e.preventDefault();
               openWhatsApp(
                 order.client_whatsapp,
-                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
               );
             }}
             style={{

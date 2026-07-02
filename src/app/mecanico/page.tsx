@@ -10,23 +10,34 @@ export default async function MecanicoPage() {
 
   if (!user) return null;
 
-  const [ordersRes, mechanicsRes, profileRes] = await Promise.all([
+  // Resolve the mechanic's workshop first, then scope everything to it.
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+  const wid = (me as unknown as Profile | null)?.workshop_id ?? '';
+
+  const [ordersRes, mechanicsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-        stages:order_stages(*)
+        stages:order_stages(*),
+        workshop:workshops(name)
       `)
+      .eq('workshop_id', wid)
       .order('created_at', { ascending: false }),
     supabase
       .from('profiles')
       .select('*')
+      .eq('workshop_id', wid)
       .eq('role', 'mechanic')
       .eq('active', true)
       .order('full_name'),
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
   ]);
+  const profileRes = { data: me };
 
   return (
     <MecanicoOrdenesClient

@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ClipboardList, Users, LayoutDashboard, Wrench } from 'lucide-react';
+import { ClipboardList, Users, LayoutDashboard, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -26,6 +26,11 @@ const ADMIN_NAV: NavItem[] = [
     href: '/admin/mecanicos',
     label: 'Mecánicos',
     icon: <Users size={22} />,
+  },
+  {
+    href: '/admin/taller',
+    label: 'Taller',
+    icon: <Store size={22} />,
   },
 ];
 

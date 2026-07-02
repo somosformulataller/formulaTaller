@@ -5,7 +5,7 @@ tablas, usuarios, archivos) y a otra cuenta de **Vercel** (hosting + dominio).
 
 > Datos actuales de referencia:
 > - Supabase (origen) — project ref: `tsvaagakjkemavhdcroy`
-> - Tablas: `profiles`, `orders`, `order_stages`, `stage_attachments`
+> - Tablas: `workshops`, `profiles`, `orders`, `order_stages`, `stage_attachments`
 > - Bucket de Storage: `stage-files` (público)
 > - Repo GitHub: `somosformulataller/formulaTaller`
 > - Proyecto Vercel: `formula-taller` · Dominio: `formulataller.com`
@@ -110,6 +110,7 @@ En el **SQL Editor** del proyecto nuevo, corre en este orden los archivos del re
 1. `SETUP.sql` (crea tablas base, enums, triggers y políticas RLS).
 2. `supabase/migrations/0003_stage_description.sql` (columna `description`).
 3. `supabase/migrations/0004_stage_attachments.sql` (tabla de adjuntos + bucket `stage-files`).
+4. `supabase/migrations/0005_multi_tenant.sql` (tabla `workshops` + `workshop_id`, trigger y RLS por taller).
 
 Copia y pega el contenido de cada uno y pulsa **RUN**. Son idempotentes.
 

@@ -1,47 +1,40 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { CreateMechanicPayload, ProfileInsert } from '@/lib/types';
 import { listMechanicsWithEmail } from '@/lib/mechanics';
+import { getCaller } from '@/lib/api-auth';
 
-// GET /api/mechanics
+// GET /api/mechanics — mechanics of the caller's workshop only.
 export async function GET() {
-  const supabase = await createClient();
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const mechanics = await listMechanicsWithEmail();
+  const mechanics = await listMechanicsWithEmail(caller.workshopId);
   return NextResponse.json(mechanics);
 }
 
-// POST /api/mechanics  (admin only)
+// POST /api/mechanics  (admin only) — creates a mechanic in the admin's workshop.
 export async function POST(req: Request) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const profileResult = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const callerProfile = profileResult.data as { role: string } | null;
-
-  if (callerProfile?.role !== 'admin') {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (caller.role !== 'admin' || !caller.workshopId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const body: CreateMechanicPayload = await req.json();
   const service = createServiceClient();
 
-  // Create auth user
+  // Create auth user, tagged with this workshop.
   const { data: authData, error: authError } = await service.auth.admin.createUser({
     email: body.email,
     password: body.password,
     email_confirm: true,
-    user_metadata: { full_name: body.full_name, role: 'mechanic' },
+    user_metadata: {
+      full_name: body.full_name,
+      role: 'mechanic',
+      workshop_id: caller.workshopId,
+    },
   });
 
   if (authError) {
@@ -51,6 +44,7 @@ export async function POST(req: Request) {
   // Upsert profile
   const profileData: ProfileInsert = {
     id: authData.user.id,
+    workshop_id: caller.workshopId,
     full_name: body.full_name,
     role: 'mechanic',
     phone: body.phone ?? null,

@@ -34,6 +34,7 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@formulataller.com';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin1234!';
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Administrador';
+const WORKSHOP_NAME = process.env.WORKSHOP_NAME || 'Formula Taller';
 
 const headers = {
   apikey: SERVICE_KEY,
@@ -41,7 +42,34 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+// Multi-tenant: every user belongs to a workshop. Reuse one by name if it
+// already exists, otherwise create it (via PostgREST).
+async function ensureWorkshop() {
+  const findRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/workshops?name=eq.${encodeURIComponent(WORKSHOP_NAME)}&select=id&limit=1`,
+    { headers }
+  );
+  const found = await findRes.json().catch(() => []);
+  if (Array.isArray(found) && found[0]?.id) return found[0].id;
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/workshops`, {
+    method: 'POST',
+    headers: { ...headers, Prefer: 'return=representation' },
+    body: JSON.stringify({ name: WORKSHOP_NAME }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('❌  Error creando taller:', JSON.stringify(data));
+    process.exit(1);
+  }
+  return Array.isArray(data) ? data[0].id : data.id;
+}
+
 async function main() {
+  console.log(`\n🏪  Ensuring workshop: ${WORKSHOP_NAME}`);
+  const workshopId = await ensureWorkshop();
+  console.log('✅  Workshop id:', workshopId);
+
   console.log(`\n🔧  Creating admin user: ${ADMIN_EMAIL}`);
 
   const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
@@ -51,7 +79,7 @@ async function main() {
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
       email_confirm: true,
-      user_metadata: { full_name: ADMIN_NAME, role: 'admin' },
+      user_metadata: { full_name: ADMIN_NAME, role: 'admin', workshop_id: workshopId },
     }),
   });
 

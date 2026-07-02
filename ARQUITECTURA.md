@@ -27,7 +27,7 @@ Navegador
 | `src/lib/supabase/middleware.ts` | Refresca la sesión desde cookies (usado por el middleware). |
 | `src/lib/types.ts` | Tipos TypeScript de todo (Profile, Order, OrderStage, StageAttachment, payloads). Fuente de verdad de los datos. |
 | `src/lib/utils.ts` | Utilidades: fechas, links de WhatsApp (`buildWhatsAppLink`, mensajes de tracking y credenciales), etiquetas/colores de estado. |
-| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol) y `canManageOrder()` (admin, o mecánico asignado). |
+| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol+**taller**) y `canManageOrder()` (mismo taller, y admin o mecánico asignado). Base del **aislamiento multi-taller**. |
 | `src/lib/mechanics.ts` | `listMechanicsWithEmail()`: junta `profiles` con el email de `auth.users`. |
 | `src/lib/image.ts` | Compresión de imágenes en el navegador (canvas): redimensiona y re-codifica a JPEG antes de subir. |
 | `src/lib/attachments.ts` | `uploadStageAttachment()`: comprime imágenes, pide URL firmada, sube el archivo **directo a Storage** y registra el adjunto. |
@@ -38,9 +38,11 @@ Navegador
 ## Autenticación
 | Archivo | Rol |
 |---|---|
-| `src/app/login/page.tsx` + `LoginForm.tsx` | Pantalla de login; tras entrar, lee el rol y redirige a `/admin` o `/mecanico`. |
+| `src/app/login/page.tsx` + `LoginForm.tsx` | Pantalla de login; tras entrar, lee el rol y redirige a `/admin` o `/mecanico`. Tiene enlace a "Crear taller". |
+| `src/app/registro/page.tsx` + `RegisterForm.tsx` | **Registro público de un taller** (auto-alta): crea taller + admin y entra directo. |
+| `src/app/api/register/route.ts` | Endpoint público: crea `workshops` + usuario admin (auto-confirmado) ligado al taller. |
 | `src/app/api/auth/callback/route.ts` | Callback de autenticación de Supabase. |
-| `scripts/create-admin.mjs` | Script (`npm run seed:admin`) para crear el usuario admin inicial. |
+| `scripts/create-admin.mjs` | Script (`npm run seed:admin`) para crear un taller por defecto + su admin inicial. |
 
 ---
 
@@ -51,7 +53,8 @@ Navegador
 | `page.tsx` + `DashboardClient.tsx` | Inicio/resumen del admin. |
 | `ordenes/page.tsx` → `ordenes/OrdenesClient.tsx` | Lista TODAS las órdenes (carga datos + mecánicos) con buscador/filtro y crear. |
 | `ordenes/[id]/page.tsx` → `[id]/OrderDetailClient.tsx` | Detalle de una orden: editar, estado, tracking y sus etapas. |
-| `mecanicos/page.tsx` → `mecanicos/MecanicosClient.tsx` | Gestión de mecánicos (crear/editar/reenviar acceso). |
+| `mecanicos/page.tsx` → `mecanicos/MecanicosClient.tsx` | Gestión de mecánicos del taller (crear/editar/reenviar acceso). |
+| `taller/page.tsx` → `taller/TallerClient.tsx` | **Perfil del Taller mecánico**: editar nombre y WhatsApp del taller. |
 
 ## Panel MECÁNICO (`src/app/mecanico/`)
 | Archivo | Rol |
@@ -97,19 +100,23 @@ Todos validan permisos con `lib/api-auth.ts` y escriben con el service client.
 | `orders/[id]/stages/[sid]/attachments/sign/route.ts` (POST) | Devuelve una **URL firmada** para subir el archivo directo a Storage (evita el límite de tamaño de Vercel). |
 | `orders/[id]/stages/[sid]/attachments/route.ts` (POST/DELETE) | Registrar adjunto (metadatos tras subida firmada) o subir multipart, y borrar de Storage (`stage-files`) + tabla. |
 | `tracking/[token]/route.ts` | Datos públicos de tracking por token. |
+| `register/route.ts` (POST) | Registro público de un taller (crea `workshops` + admin). |
+| `workshops/[id]/route.ts` (PATCH) | Editar el perfil del taller (solo el admin dueño). |
 
 ---
 
 ## Relaciones de datos (lógica)
 ```
-auth.users ─(id)─ profiles (admin | mechanic)
-                     │ assigned_mechanic_id
-orders ──────────────┘   (public_token → enlace de tracking del cliente)
-  └── order_stages (1 orden : N etapas)
-         └── stage_attachments (1 etapa : N archivos → bucket stage-files)
+workshops (taller / tenant)
+  ├── profiles (admin | mechanic)   [workshop_id]
+  │        │ assigned_mechanic_id
+  └── orders ┘  [workshop_id]  (public_token → enlace de tracking del cliente)
+         └── order_stages (1 orden : N etapas)
+                └── stage_attachments (1 etapa : N archivos → bucket stage-files)
 ```
+- Cada **taller** tiene sus **usuarios** y **órdenes** aislados (`workshop_id`).
 - Una **orden** se asigna a un **mecánico** y tiene varias **etapas**; cada etapa puede tener **adjuntos**.
-- El **cliente** entra por el `public_token` (sin login) y ve etapas + adjuntos en tiempo real.
+- El **cliente** entra por el `public_token` (sin login) y ve etapas + adjuntos, con el nombre de su taller.
 
 ---
 

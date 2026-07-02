@@ -7,8 +7,20 @@ export type UserRole = 'admin' | 'mechanic';
 export type OrderStatus = 'sin_mecanico' | 'con_mecanico' | 'lista';
 export type StageStatus = 'pending' | 'in_progress' | 'done';
 
+export interface Workshop {
+  id: string;
+  name: string;
+  whatsapp: string | null;
+  owner_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkshopUpdate = Partial<Pick<Workshop, 'name' | 'whatsapp'>>;
+
 export interface Profile {
   id: string;
+  workshop_id: string;
   full_name: string;
   role: UserRole;
   phone: string | null;
@@ -28,6 +40,7 @@ export interface Mechanic extends Profile {
 
 export interface Order {
   id: string;
+  workshop_id: string;
   public_token: string;
   client_first_name: string;
   client_last_name: string;
@@ -42,10 +55,11 @@ export interface Order {
   // joined
   assigned_mechanic?: Profile | null;
   stages?: OrderStage[];
+  workshop?: { name: string } | null;
 }
 
-export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages'>;
-export type OrderUpdate = Partial<Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages'>>;
+export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages' | 'workshop'>;
+export type OrderUpdate = Partial<Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages' | 'workshop'>>;
 
 export interface StageAttachment {
   id: string;
@@ -81,6 +95,12 @@ export type OrderStageUpdate = Partial<Omit<OrderStage, 'id' | 'order_id' | 'cre
 export type Database = {
   public: {
     Tables: {
+      workshops: {
+        Row: Workshop;
+        Insert: Omit<Workshop, 'id' | 'created_at' | 'updated_at'>;
+        Update: WorkshopUpdate;
+        Relationships: [];
+      };
       profiles: {
         Row: Profile;
         Insert: ProfileInsert;
@@ -97,6 +117,12 @@ export type Database = {
         Row: OrderStage;
         Insert: OrderStageInsert;
         Update: OrderStageUpdate;
+        Relationships: [];
+      };
+      stage_attachments: {
+        Row: StageAttachment;
+        Insert: Omit<StageAttachment, 'id' | 'created_at'>;
+        Update: Partial<Omit<StageAttachment, 'id' | 'created_at'>>;
         Relationships: [];
       };
     };
@@ -135,6 +161,16 @@ export interface UpdateOrderPayload {
   assigned_mechanic_id?: string | null;
   status?: OrderStatus;
   notes?: string | null;
+}
+
+export interface RegisterWorkshopPayload {
+  workshop_name: string;
+  email: string;
+  whatsapp: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  password_confirm: string;
 }
 
 export interface CreateMechanicPayload {

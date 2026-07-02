@@ -1,25 +1,29 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateOrderPayload } from '@/lib/types';
-import { getCaller } from '@/lib/api-auth';
+import { getCaller, canManageOrder } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
-// GET /api/orders/:id
+const ORDER_SELECT = `
+  *,
+  assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+  stages:order_stages(*),
+  workshop:workshops(name)
+`;
+
+// GET /api/orders/:id — scoped to the caller's workshop.
 export async function GET(_: Request, { params }: Params) {
-  const supabase = await createClient();
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const { data, error } = await supabase
+  const service = createServiceClient();
+  const { data, error } = await service
     .from('orders')
-    .select(`
-      *,
-      assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-      stages:order_stages(*)
-    `)
+    .select(ORDER_SELECT)
     .eq('id', params.id)
+    .eq('workshop_id', caller.workshopId)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -28,12 +32,11 @@ export async function GET(_: Request, { params }: Params) {
 
 // PATCH /api/orders/:id
 export async function PATCH(req: Request, { params }: Params) {
-  const service = createServiceClient();
-
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // Any staff member (admin or mechanic) may create/assign/edit orders.
-  if (caller.role !== 'admin' && caller.role !== 'mechanic') {
+  // Must be able to manage this order (belongs to the workshop; admin, or
+  // assigned mechanic).
+  if (!(await canManageOrder(caller, params.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -45,43 +48,34 @@ export async function PATCH(req: Request, { params }: Params) {
     updates.status = body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico';
   }
 
-  // Use service client for mutations (any-typed, avoids TS never issues)
+  const service = createServiceClient();
   const { data, error } = await service
     .from('orders')
     .update(updates)
     .eq('id', params.id)
-    .select(`
-      *,
-      assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-      stages:order_stages(*)
-    `)
+    .eq('workshop_id', caller.workshopId)
+    .select(ORDER_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
 
-// DELETE /api/orders/:id
+// DELETE /api/orders/:id  (admin of the order's workshop only)
 export async function DELETE(_: Request, { params }: Params) {
-  const supabase = await createClient();
-  const service = createServiceClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const profileResult = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const callerRole = (profileResult.data as unknown as { role: string } | null)?.role;
-
-  if (callerRole !== 'admin') {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (caller.role !== 'admin' || !caller.workshopId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { error } = await service.from('orders').delete().eq('id', params.id);
+  const service = createServiceClient();
+  const { error } = await service
+    .from('orders')
+    .delete()
+    .eq('id', params.id)
+    .eq('workshop_id', caller.workshopId);
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return new NextResponse(null, { status: 204 });
 }

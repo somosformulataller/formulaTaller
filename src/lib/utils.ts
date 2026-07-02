@@ -49,11 +49,12 @@ export function openWhatsApp(phone: string, message: string): void {
 export function buildTrackingMessage(
   clientName: string,
   token: string,
-  siteUrl: string
+  siteUrl: string,
+  workshopName = 'nuestro taller'
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
   return (
-    `Hola ${clientName}! 🔧 Tu vehículo está en Formula Taller.\n\n` +
+    `Hola ${clientName}! 🔧 Tu vehículo está en ${workshopName}.\n\n` +
     `Puedes hacer seguimiento a tu orden aquí:\n${url}\n\n` +
     `¡Cualquier duda estamos a tu disposición!`
   );
@@ -63,10 +64,11 @@ export function buildCredentialsMessage(
   name: string,
   email: string,
   password: string,
-  siteUrl: string
+  siteUrl: string,
+  workshopName = 'el taller'
 ): string {
   return (
-    `Hola ${name}! 🔧 Estos son tus datos de acceso a Formula Taller:\n\n` +
+    `Hola ${name}! 🔧 Estos son tus datos de acceso a ${workshopName}:\n\n` +
     `👤 Usuario: ${email}\n` +
     `🔑 Contraseña: ${password}\n\n` +
     `Ingresa aquí:\n${siteUrl}/login\n\n` +

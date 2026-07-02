@@ -10,9 +10,10 @@ import { Plus, Users } from 'lucide-react';
 
 interface MecanicosClientProps {
   initialMechanics: Mechanic[];
+  workshopName: string;
 }
 
-export default function MecanicosClient({ initialMechanics }: MecanicosClientProps) {
+export default function MecanicosClient({ initialMechanics, workshopName }: MecanicosClientProps) {
   const [mechanics, setMechanics] = useState<Mechanic[]>(initialMechanics);
   // undefined = modal closed · null = create mode · Mechanic = edit mode
   const [formMechanic, setFormMechanic] = useState<Mechanic | null | undefined>(undefined);
@@ -171,6 +172,7 @@ export default function MecanicosClient({ initialMechanics }: MecanicosClientPro
         <MechanicForm
           mechanic={formMechanic ?? undefined}
           focusPassword={focusPassword}
+          workshopName={workshopName}
           onSaved={handleSaved}
           onClose={closeForm}
         />

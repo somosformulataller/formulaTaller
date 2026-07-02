@@ -5,10 +5,11 @@ Documento de estado general del proyecto. Última actualización: **2026-07-01**
 ---
 
 ## ¿Qué es?
-**Formula Taller** es una **PWA** (aplicación web instalable) para la gestión de un taller
-mecánico. Permite al **administrador** y a los **mecánicos** manejar órdenes de servicio, y a los
-**clientes** hacer seguimiento del estado de su vehículo mediante un enlace público (sin login),
-que se comparte por WhatsApp.
+**Formula Taller** es una **PWA** (aplicación web instalable) **multi-taller** (SaaS) para la
+gestión de talleres mecánicos. Cualquier taller puede **registrarse** y obtener su propio taller
+virtual **aislado**: el **administrador (dueño del taller)** y sus **mecánicos** manejan órdenes de
+servicio, y los **clientes** hacen seguimiento del estado de su vehículo mediante un enlace público
+(sin login) que se comparte por WhatsApp. Cada taller solo ve **sus** datos.
 
 ---
 
@@ -40,20 +41,26 @@ que se comparte por WhatsApp.
 
 | Tabla | Para qué |
 |---|---|
-| `profiles` | Datos de usuarios (nombre, teléfono, rol, activo). `id` = `auth.users.id`. El email vive en `auth.users`. |
-| `orders` | Órdenes de servicio (cliente, vehículo, WhatsApp, mecánico asignado, estado, `public_token` único para el tracking). |
+| `workshops` | **Talleres (tenants).** Nombre, WhatsApp, dueño (`owner_id`). Cada usuario y orden pertenece a un taller. |
+| `profiles` | Datos de usuarios (nombre, teléfono, rol, activo, **`workshop_id`**). `id` = `auth.users.id`. El email vive en `auth.users`. |
+| `orders` | Órdenes de servicio (**`workshop_id`**, cliente, vehículo, WhatsApp, mecánico asignado, estado, `public_token` único para el tracking). |
 | `order_stages` | Etapas del servicio de cada orden (nombre, **descripción**, estado, posición). |
-| `stage_attachments` | Adjuntos (fotos/documentos) de cada etapa. |
+| `stage_attachments` | Adjuntos (fotos/videos/audios/documentos) de cada etapa. |
+
+> **Aislamiento por taller:** cada consulta se filtra por `workshop_id` en la app (`api-auth.ts`
+> resuelve el taller del usuario) + RLS por taller como red de seguridad.
 
 **Storage:** bucket **`stage-files`** (público) para las fotos/documentos.
 
 **Estados de orden:** `sin_mecanico`, `con_mecanico`, `lista`.
 **Estados de etapa:** `pending`, `in_progress`, `done`.
 
-**Migraciones aplicadas en Supabase:**
+**Migraciones aplicadas en Supabase (en este orden):**
 1. `SETUP.sql` (tablas base, enums, triggers, RLS) — equivale a `0001` + `0002`.
 2. `0003_stage_description.sql` (columna `description` en etapas).
 3. `0004_stage_attachments.sql` (tabla de adjuntos + bucket `stage-files`).
+4. `0005_multi_tenant.sql` (**tabla `workshops` + `workshop_id`** en profiles/orders, backfill al taller
+   "Formula Taller", trigger y RLS por taller). **Correr esta migración ANTES de subir el código nuevo.**
 
 ---
 
@@ -71,6 +78,13 @@ que se comparte por WhatsApp.
 ---
 
 ## Funcionalidades implementadas
+
+### Registro de talleres (multi-tenant)
+- **Registro público** en `/registro`: nombre del taller, correo, WhatsApp, nombre, apellido,
+  contraseña + confirmación. Crea el taller y su admin (**acceso inmediato**, sin verificación por correo).
+- **Perfil del Taller** (`/admin/taller`): el admin edita el **nombre** y **WhatsApp** del taller.
+  El nombre aparece en el panel (TopBar) y en el **tracking del cliente**.
+- Cada taller ve únicamente **sus** órdenes, mecánicos y adjuntos.
 
 ### Roles y acceso
 - Login por email/contraseña. El admin crea mecánicos; cada mecánico recibe su acceso.

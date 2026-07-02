@@ -24,9 +24,16 @@ export default async function AdminLayout({
 
   if (!profile || profile.role !== 'admin') redirect('/mecanico');
 
+  const { data: workshop } = await supabase
+    .from('workshops')
+    .select('name')
+    .eq('id', profile.workshop_id)
+    .single();
+  const workshopName = (workshop as unknown as { name: string } | null)?.name;
+
   return (
     <>
-      <TopBar profile={profile as Profile} />
+      <TopBar profile={profile as Profile} title={workshopName} />
       <main className="page-container">{children}</main>
       <BottomNav role="admin" />
     </>

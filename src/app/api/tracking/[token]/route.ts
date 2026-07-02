@@ -19,6 +19,7 @@ export async function GET(_: Request, { params }: Params) {
       created_at,
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
+      workshop:workshops(name),
       stages:order_stages(id, name, position, status, completed_at)
     `)
     .eq('public_token', params.token)

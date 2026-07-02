@@ -18,6 +18,7 @@ interface MechanicFormProps {
   onClose: () => void;
   mechanic?: Mechanic;
   focusPassword?: boolean;
+  workshopName?: string;
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -34,6 +35,7 @@ export default function MechanicForm({
   onClose,
   mechanic,
   focusPassword = false,
+  workshopName,
 }: MechanicFormProps) {
   const isEdit = Boolean(mechanic);
 
@@ -112,7 +114,7 @@ export default function MechanicForm({
   if (creds) {
     const waLink = buildWhatsAppLink(
       creds.phone,
-      buildCredentialsMessage(creds.name, creds.email, creds.password, SITE_URL)
+      buildCredentialsMessage(creds.name, creds.email, creds.password, SITE_URL, workshopName)
     );
     const credsText = buildCredentialsText(creds.email, creds.password, SITE_URL);
 
@@ -169,7 +171,7 @@ export default function MechanicForm({
               e.preventDefault();
               openWhatsApp(
                 creds.phone,
-                buildCredentialsMessage(creds.name, creds.email, creds.password, SITE_URL)
+                buildCredentialsMessage(creds.name, creds.email, creds.password, SITE_URL, workshopName)
               );
             }}
             style={{

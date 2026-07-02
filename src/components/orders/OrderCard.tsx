@@ -52,7 +52,7 @@ export default function OrderCard({
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const waLink = buildWhatsAppLink(
     order.client_whatsapp,
-    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
   );
 
   async function handleDelete() {
@@ -122,7 +122,7 @@ export default function OrderCard({
             e.preventDefault();
             openWhatsApp(
               order.client_whatsapp,
-              buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL)
+              buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
             );
           }}
           style={{

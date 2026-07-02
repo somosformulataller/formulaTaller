@@ -1,27 +1,31 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateMechanicPayload } from '@/lib/types';
+import { getCaller, type Caller } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
-// PATCH /api/mechanics/:id  (admin only)
+// True if the target mechanic exists and belongs to the caller's workshop.
+async function sameWorkshop(caller: Caller, mechanicId: string): Promise<boolean> {
+  if (!caller.workshopId) return false;
+  const service = createServiceClient();
+  const { data } = await service
+    .from('profiles')
+    .select('workshop_id')
+    .eq('id', mechanicId)
+    .single();
+  const wid = (data as unknown as { workshop_id: string } | null)?.workshop_id;
+  return wid === caller.workshopId;
+}
+
+// PATCH /api/mechanics/:id  (admin of the same workshop only)
 // Updates profile fields (full_name, phone, active) and/or auth
 // credentials (email, password).
 export async function PATCH(req: Request, { params }: Params) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const profileResult = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const callerRole = (profileResult.data as unknown as { role: string } | null)?.role;
-
-  if (callerRole !== 'admin') {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (caller.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!(await sameWorkshop(caller, params.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -50,6 +54,7 @@ export async function PATCH(req: Request, { params }: Params) {
       .from('profiles')
       .update(profileUpdate)
       .eq('id', params.id)
+      .eq('workshop_id', caller.workshopId)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -73,22 +78,12 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json({ ...(profile as Record<string, unknown>), email });
 }
 
-// DELETE /api/mechanics/:id  (admin only)
+// DELETE /api/mechanics/:id  (admin of the same workshop only)
 export async function DELETE(_: Request, { params }: Params) {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  const profileResult = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const callerRole = (profileResult.data as unknown as { role: string } | null)?.role;
-
-  if (callerRole !== 'admin') {
+  const caller = await getCaller();
+  if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (caller.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!(await sameWorkshop(caller, params.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -99,6 +94,7 @@ export async function DELETE(_: Request, { params }: Params) {
     .from('profiles')
     .update({ active: false })
     .eq('id', params.id)
+    .eq('workshop_id', caller.workshopId)
     .select()
     .single();
 
