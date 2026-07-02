@@ -60,6 +60,43 @@ export function buildTrackingMessage(
   );
 }
 
+// Message sent to the client about how a specific service stage is going.
+// `isFinal` = it's the last stage of the service (e.g. "Vehículo listo").
+export function buildStageReminderMessage(
+  clientFirstName: string,
+  stageName: string,
+  status: StageStatus,
+  token: string,
+  siteUrl: string,
+  isFinal = false
+): string {
+  const url = `${siteUrl}/tracking/${token}`;
+  const name = clientFirstName;
+
+  if (isFinal && status === 'done') {
+    return (
+      `¡${name}! 🎉 Ya se completó la reparación de tu vehículo (etapa final: ${stageName}).\n\n` +
+      `Puedes verificarlo en el siguiente link:\n${url}`
+    );
+  }
+  if (status === 'done') {
+    return (
+      `¡${name}! ✅ Ya se completó la etapa «${stageName}».\n\n` +
+      `Recuerda que puedes verificar tu vehículo desde el siguiente link:\n${url}`
+    );
+  }
+  if (status === 'in_progress') {
+    return (
+      `¡${name}! 🔧 Estamos trabajando en la etapa «${stageName}».\n\n` +
+      `Puedes seguir el avance de tu vehículo en el siguiente link:\n${url}`
+    );
+  }
+  return (
+    `¡${name}! La etapa «${stageName}» está por comenzar.\n\n` +
+    `Puedes seguir el avance de tu vehículo en el siguiente link:\n${url}`
+  );
+}
+
 export function buildCredentialsMessage(
   name: string,
   email: string,

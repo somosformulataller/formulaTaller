@@ -122,6 +122,9 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 - **Título editable** y **descripción opcional** (admin y mecánico asignado).
 - **Etapas por defecto:** Diagnóstico, Desmontaje de piezas, Reemplazo/Reparación, Armado y prueba, Vehículo listo (editables).
 - **Reordenar arrastrando:** el admin o el mecánico pueden **arrastrar** (asa ⋮) las etapas para cambiar su orden (touch + mouse); se guarda vía `POST /api/orders/:id/stages/reorder`.
+- **Avisar al cliente:** cada etapa tiene un botón que abre WhatsApp con un mensaje según su **estado**
+  (completada / en progreso / pendiente) e incluye el **link de tracking**. La última etapa usa un
+  mensaje especial de "reparación finalizada". (`buildStageReminderMessage` en `utils.ts`.)
 - **Marcar/desmarcar** estado (Iniciar/Completar/Reabrir) con **cambio de ícono instantáneo** (optimista).
 - **Adjuntos multimedia** (una o varias a la vez): botón **"Agregar"** abre un modal con opciones:
   **foto/video desde galería**, **tomar foto** (cámara), **hacer video** (cámara),

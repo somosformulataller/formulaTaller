@@ -223,6 +223,10 @@ export default function MecanicoOrderDetailClient({
           orderId={order.id}
           initialStages={stages}
           canEdit={isMine && order.status !== 'lista'}
+          canNotify={isMine}
+          clientFirstName={order.client_first_name}
+          clientWhatsapp={order.client_whatsapp}
+          publicToken={order.public_token}
         />
       </div>
 

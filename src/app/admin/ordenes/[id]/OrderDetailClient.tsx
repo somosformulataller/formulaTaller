@@ -265,6 +265,10 @@ export default function OrderDetailClient({
           orderId={order.id}
           initialStages={stages}
           canEdit={true}
+          canNotify={true}
+          clientFirstName={order.client_first_name}
+          clientWhatsapp={order.client_whatsapp}
+          publicToken={order.public_token}
         />
       </div>
 

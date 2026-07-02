@@ -3,16 +3,23 @@
 import { useRef, useState } from 'react';
 import type { OrderStage, StageStatus } from '@/lib/types';
 import Button from '@/components/ui/Button';
-import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, GripVertical } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { CheckCircle2, Circle, Loader2, Plus, Trash2, Clock, Edit2, Save, GripVertical, MessageCircle } from 'lucide-react';
+import { formatDate, buildStageReminderMessage, openWhatsApp } from '@/lib/utils';
 import { uploadStageAttachment } from '@/lib/attachments';
 import AttachmentPicker from './AttachmentPicker';
 import AttachmentGallery from './AttachmentGallery';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 interface StageTimelineProps {
   orderId: string;
   initialStages: OrderStage[];
   canEdit: boolean;
+  /** Whether the viewer may send WhatsApp updates to the client (staff of this order). */
+  canNotify: boolean;
+  clientFirstName: string;
+  clientWhatsapp: string;
+  publicToken: string;
 }
 
 const STATUS_ICONS: Record<StageStatus, React.ReactNode> = {
@@ -21,7 +28,15 @@ const STATUS_ICONS: Record<StageStatus, React.ReactNode> = {
   pending: <Circle size={20} color="var(--color-text-muted)" />,
 };
 
-export default function StageTimeline({ orderId, initialStages, canEdit }: StageTimelineProps) {
+export default function StageTimeline({
+  orderId,
+  initialStages,
+  canEdit,
+  canNotify,
+  clientFirstName,
+  clientWhatsapp,
+  publicToken,
+}: StageTimelineProps) {
   const [stages, setStages] = useState<OrderStage[]>(
     [...initialStages].sort((a, b) => a.position - b.position)
   );
@@ -504,6 +519,43 @@ export default function StageTimeline({ orderId, initialStages, canEdit }: Stage
                             ? 'Subiendo...'
                             : 'Agregar foto, video, nota de voz o documento'}
                         </button>
+                      )}
+
+                      {canNotify && (
+                        <div style={{ marginTop: 8 }}>
+                          <button
+                            onClick={() =>
+                              openWhatsApp(
+                                clientWhatsapp,
+                                buildStageReminderMessage(
+                                  clientFirstName,
+                                  stage.name,
+                                  stage.status,
+                                  publicToken,
+                                  SITE_URL,
+                                  index === stages.length - 1
+                                )
+                              )
+                            }
+                            title="Enviar aviso de esta etapa al cliente por WhatsApp"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '6px 12px',
+                              background: 'rgba(37,211,102,0.12)',
+                              border: '1px solid rgba(37,211,102,0.2)',
+                              borderRadius: 8,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: '#25D366',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <MessageCircle size={13} />
+                            Avisar al cliente
+                          </button>
+                        </div>
                       )}
 
                       {canEdit && (
