@@ -31,14 +31,20 @@ export default async function OrdenesAdminPage() {
       .eq('active', true)
       .order('full_name'),
     supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
-    supabase.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
+    supabase
+      .from('platform_settings')
+      .select('free_order_limit, support_phones')
+      .eq('id', 1)
+      .single(),
   ]);
 
   const workshop = workshopRes.data as unknown as
     | { order_limit: number | null; is_subscribed: boolean }
     | null;
-  const globalLimit =
-    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
+  const settings = settingsRes.data as unknown as
+    | { free_order_limit: number; support_phones: string[] | null }
+    | null;
+  const globalLimit = settings?.free_order_limit ?? 3;
   const orderLimit = workshop?.order_limit ?? globalLimit;
   const isSubscribed = workshop?.is_subscribed ?? false;
 
@@ -48,6 +54,7 @@ export default async function OrdenesAdminPage() {
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       orderLimit={orderLimit}
       isSubscribed={isSubscribed}
+      supportPhones={settings?.support_phones ?? []}
     />
   );
 }

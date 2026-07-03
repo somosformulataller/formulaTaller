@@ -15,6 +15,7 @@ interface MecanicoOrdenesClientProps {
   profile: Profile;
   orderLimit: number;
   isSubscribed: boolean;
+  supportPhones: string[];
 }
 
 type FilterKey = 'mine' | 'all' | OrderStatus;
@@ -25,6 +26,7 @@ export default function MecanicoOrdenesClient({
   profile,
   orderLimit,
   isSubscribed,
+  supportPhones,
 }: MecanicoOrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
@@ -205,7 +207,9 @@ export default function MecanicoOrdenesClient({
         />
       </Modal>
 
-      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
+      {showPaywall && (
+        <SubscriptionModal onClose={() => setShowPaywall(false)} phones={supportPhones} />
+      )}
     </div>
   );
 }

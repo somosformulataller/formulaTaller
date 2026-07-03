@@ -5,18 +5,31 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkshopAdminRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
-import { Building2, Star, ClipboardList, LogOut, Search, Save, SlidersHorizontal } from 'lucide-react';
+import {
+  Building2,
+  Star,
+  ClipboardList,
+  LogOut,
+  Search,
+  Save,
+  SlidersHorizontal,
+  Phone,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 
 interface SuperadminClientProps {
   rows: WorkshopAdminRow[];
   adminEmail: string | null;
   freeOrderLimit: number;
+  supportPhones: string[];
 }
 
 export default function SuperadminClient({
   rows: initialRows,
   adminEmail,
   freeOrderLimit,
+  supportPhones,
 }: SuperadminClientProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -35,6 +48,12 @@ export default function SuperadminClient({
       initialRows.map((r) => [r.id, r.order_limit == null ? '' : String(r.order_limit)])
     )
   );
+
+  // Números de atención al cliente (lista editable).
+  const [phoneDraft, setPhoneDraft] = useState<string[]>(
+    supportPhones.length ? supportPhones : ['']
+  );
+  const [savingPhones, setSavingPhones] = useState(false);
 
   const metrics = useMemo(() => {
     const total = rows.length;
@@ -74,6 +93,25 @@ export default function SuperadminClient({
     } else {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'No se pudo guardar el límite global.');
+    }
+  }
+
+  async function savePhones() {
+    const cleaned = phoneDraft.map((p) => p.trim()).filter((p) => p.length > 0);
+    setSavingPhones(true);
+    const res = await fetch('/api/superadmin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ support_phones: cleaned }),
+    });
+    setSavingPhones(false);
+    if (res.ok) {
+      const data = await res.json();
+      const saved: string[] = data.support_phones ?? cleaned;
+      setPhoneDraft(saved.length ? saved : ['']);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'No se pudieron guardar los números.');
     }
   }
 
@@ -211,6 +249,88 @@ export default function SuperadminClient({
         </div>
       </div>
 
+      {/* Números de atención al cliente */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Phone size={16} color="var(--color-brand-400)" />
+          <h2 style={{ fontSize: 15, fontWeight: 700 }}>Números de atención al cliente</h2>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+          Aparecen en el mensaje del límite gratuito para que el taller escriba y pague la
+          suscripción. Usa formato internacional (ej. <b>+58 424 234 9786</b>) para que el enlace de
+          WhatsApp abra bien.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {phoneDraft.map((phone, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="tel"
+                className="form-input"
+                placeholder="Ej. +58 424 234 9786"
+                value={phone}
+                onChange={(e) =>
+                  setPhoneDraft((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
+                }
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setPhoneDraft((prev) => {
+                    const next = prev.filter((_, j) => j !== i);
+                    return next.length ? next : [''];
+                  })
+                }
+                aria-label="Eliminar número"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 38,
+                  height: 38,
+                  flexShrink: 0,
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: 8,
+                  color: '#f87171',
+                  cursor: 'pointer',
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setPhoneDraft((prev) => [...prev, ''])}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={14} />
+            Agregar número
+          </button>
+          <button onClick={savePhones} disabled={savingPhones} style={primaryBtn(savingPhones)}>
+            <Save size={14} />
+            Guardar números
+          </button>
+        </div>
+      </div>
+
       {/* Buscador */}
       <div style={{ position: 'relative', marginBottom: 14 }}>
         <Search
@@ -245,6 +365,7 @@ export default function SuperadminClient({
             const current = overrides[row.id] ?? '';
             const changed = current.trim() !== stored;
             const busy = savingId === row.id;
+            const effectiveLimit = row.order_limit ?? globalLimit;
             return (
               <div key={row.id} className="card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -280,8 +401,10 @@ export default function SuperadminClient({
                     </div>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
                       {row.owner_name ? `${row.owner_name} · ` : ''}
-                      {row.order_count} {row.order_count === 1 ? 'orden' : 'órdenes'} ·{' '}
-                      {formatDate(row.created_at)}
+                      {row.is_subscribed
+                        ? `${row.order_count} órdenes`
+                        : `${row.order_count} / ${effectiveLimit} órdenes`}{' '}
+                      · {formatDate(row.created_at)}
                     </p>
                   </div>
 

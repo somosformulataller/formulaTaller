@@ -14,6 +14,7 @@ interface OrdenesClientProps {
   mechanics: Profile[];
   orderLimit: number;
   isSubscribed: boolean;
+  supportPhones: string[];
 }
 
 type FilterStatus = 'all' | OrderStatus;
@@ -23,6 +24,7 @@ export default function OrdenesClient({
   mechanics,
   orderLimit,
   isSubscribed,
+  supportPhones,
 }: OrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
@@ -187,7 +189,9 @@ export default function OrdenesClient({
         />
       </Modal>
 
-      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
+      {showPaywall && (
+        <SubscriptionModal onClose={() => setShowPaywall(false)} phones={supportPhones} />
+      )}
     </div>
   );
 }

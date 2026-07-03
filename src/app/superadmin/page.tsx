@@ -30,11 +30,18 @@ export default async function SuperadminDashboardPage() {
       .order('created_at', { ascending: false }),
     // Solo el workshop_id de cada orden: contamos por taller en memoria.
     service.from('orders').select('workshop_id'),
-    service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
+    service
+      .from('platform_settings')
+      .select('free_order_limit, support_phones')
+      .eq('id', 1)
+      .single(),
   ]);
 
-  const freeOrderLimit =
-    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
+  const settings = settingsRes.data as unknown as
+    | { free_order_limit: number; support_phones: string[] | null }
+    | null;
+  const freeOrderLimit = settings?.free_order_limit ?? 3;
+  const supportPhones = settings?.support_phones ?? [];
 
   const workshops = (workshopsRes.data ?? []) as unknown as WorkshopRow[];
   const orderRows = (ordersRes.data ?? []) as unknown as { workshop_id: string }[];
@@ -70,6 +77,11 @@ export default async function SuperadminDashboardPage() {
   }));
 
   return (
-    <SuperadminClient rows={rows} adminEmail={admin.email} freeOrderLimit={freeOrderLimit} />
+    <SuperadminClient
+      rows={rows}
+      adminEmail={admin.email}
+      freeOrderLimit={freeOrderLimit}
+      supportPhones={supportPhones}
+    />
   );
 }
