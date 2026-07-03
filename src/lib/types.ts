@@ -31,6 +31,8 @@ export interface WorkshopAdminRow {
   // Override por taller (null = usa el límite global del plan gratuito).
   order_limit: number | null;
   owner_name: string | null;
+  owner_email: string | null;
+  whatsapp: string | null;
   order_count: number;
 }
 

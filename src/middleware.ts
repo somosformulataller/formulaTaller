@@ -4,7 +4,14 @@ import { createServerClient } from '@supabase/ssr';
 import type { Database } from '@/lib/types';
 
 // Routes that are accessible without authentication
-const PUBLIC_ROUTES = ['/login', '/registro', '/tracking', '/terminos', '/privacidad'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/registro',
+  '/tracking',
+  '/terminos',
+  '/privacidad',
+  '/reset-password',
+];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

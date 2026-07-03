@@ -17,6 +17,10 @@ import {
   Phone,
   Plus,
   Trash2,
+  Mail,
+  KeyRound,
+  Send,
+  Copy,
 } from 'lucide-react';
 
 interface SuperadminClientProps {
@@ -60,6 +64,12 @@ export default function SuperadminClient({
     }))
   );
   const [savingPhones, setSavingPhones] = useState(false);
+
+  // Restablecimiento de contraseña por taller.
+  const [resetting, setResetting] = useState<{ id: string; mode: 'email' | 'temp' } | null>(null);
+  const [resetResult, setResetResult] = useState<
+    Record<string, { kind: 'email' | 'temp'; email: string; password?: string }>
+  >({});
 
   const metrics = useMemo(() => {
     const total = rows.length;
@@ -169,6 +179,36 @@ export default function SuperadminClient({
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'No se pudo actualizar el límite del taller.');
     }
+  }
+
+  async function resetPassword(row: WorkshopAdminRow, mode: 'email' | 'temp') {
+    if (
+      mode === 'temp' &&
+      !confirm(
+        `¿Generar una nueva contraseña temporal para ${row.owner_email}? La contraseña actual dejará de funcionar.`
+      )
+    ) {
+      return;
+    }
+    setResetting({ id: row.id, mode });
+    const res = await fetch(`/api/superadmin/workshops/${row.id}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode }),
+    });
+    setResetting(null);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || 'No se pudo restablecer la contraseña.');
+      return;
+    }
+    setResetResult((prev) => ({
+      ...prev,
+      [row.id]:
+        mode === 'email'
+          ? { kind: 'email', email: data.email }
+          : { kind: 'temp', email: data.email, password: data.password },
+    }));
   }
 
   async function handleLogout() {
@@ -372,6 +412,9 @@ export default function SuperadminClient({
             const changed = current.trim() !== stored;
             const busy = savingId === row.id;
             const effectiveLimit = row.order_limit ?? globalLimit;
+            const result = resetResult[row.id];
+            const resettingEmail = resetting?.id === row.id && resetting.mode === 'email';
+            const resettingTemp = resetting?.id === row.id && resetting.mode === 'temp';
             return (
               <div key={row.id} className="card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -464,6 +507,95 @@ export default function SuperadminClient({
                     </span>
                   </div>
                 )}
+
+                {/* Datos de contacto + acceso */}
+                <div
+                  style={{
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: '1px solid var(--color-border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    <Mail size={13} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {row.owner_email ?? 'Sin correo registrado'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    <Phone size={13} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+                    <span>{row.whatsapp ? row.whatsapp : 'Sin teléfono'}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => resetPassword(row, 'email')}
+                      disabled={!row.owner_email || resettingEmail || resettingTemp}
+                      style={smallBtn(!row.owner_email || resettingEmail || resettingTemp)}
+                    >
+                      <Send size={13} />
+                      {resettingEmail ? 'Enviando...' : 'Enviar enlace por correo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resetPassword(row, 'temp')}
+                      disabled={!row.owner_email || resettingEmail || resettingTemp}
+                      style={smallBtn(!row.owner_email || resettingEmail || resettingTemp)}
+                    >
+                      <KeyRound size={13} />
+                      {resettingTemp ? 'Generando...' : 'Contraseña temporal'}
+                    </button>
+                  </div>
+
+                  {result?.kind === 'email' && (
+                    <p style={{ fontSize: 12, color: '#34d399', marginTop: 2 }}>
+                      Enlace de restablecimiento enviado a {result.email}.
+                    </p>
+                  )}
+                  {result?.kind === 'temp' && result.password && (
+                    <div
+                      style={{
+                        marginTop: 4,
+                        padding: '10px 12px',
+                        background: 'var(--color-surface-2)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    >
+                      <p style={{ color: 'var(--color-text-muted)', marginBottom: 4 }}>
+                        Nueva contraseña temporal (compártela con el taller):
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <code style={{ fontWeight: 700, fontSize: 14 }}>{result.password}</code>
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard?.writeText(result.password!)}
+                          aria-label="Copiar contraseña"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '4px 8px',
+                            background: 'var(--color-surface-3)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 6,
+                            color: 'var(--color-text-secondary)',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Copy size={12} />
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -471,6 +603,23 @@ export default function SuperadminClient({
       )}
     </div>
   );
+}
+
+function smallBtn(disabled: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '7px 12px',
+    background: 'var(--color-surface-2)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--color-text-secondary)',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
+  };
 }
 
 function primaryBtn(disabled: boolean): React.CSSProperties {

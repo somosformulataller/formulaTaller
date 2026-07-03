@@ -15,6 +15,7 @@ type WorkshopRow = {
   owner_id: string | null;
   order_limit: number | null;
   is_subscribed: boolean;
+  whatsapp: string | null;
 };
 
 export default async function SuperadminDashboardPage() {
@@ -26,7 +27,7 @@ export default async function SuperadminDashboardPage() {
   const [workshopsRes, ordersRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
-      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed')
+      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, whatsapp')
       .order('created_at', { ascending: false }),
     // Solo el workshop_id de cada orden: contamos por taller en memoria.
     service.from('orders').select('workshop_id'),
@@ -65,6 +66,13 @@ export default async function SuperadminDashboardPage() {
     }
   }
 
+  // Correo de registro del dueño (vive en auth.users; se lee con la admin API).
+  const emailById = new Map<string, string | null>();
+  const { data: usersData } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  for (const u of usersData?.users ?? []) {
+    emailById.set(u.id, u.email ?? null);
+  }
+
   const rows: WorkshopAdminRow[] = workshops.map((w) => ({
     id: w.id,
     name: w.name,
@@ -73,6 +81,8 @@ export default async function SuperadminDashboardPage() {
     is_subscribed: w.is_subscribed,
     order_limit: w.order_limit,
     owner_name: w.owner_id ? ownerNameById.get(w.owner_id) ?? null : null,
+    owner_email: w.owner_id ? emailById.get(w.owner_id) ?? null : null,
+    whatsapp: w.whatsapp,
     order_count: countByWorkshop.get(w.id) ?? 0,
   }));
 
