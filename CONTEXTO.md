@@ -1,6 +1,14 @@
 # 🧭 Contexto del proyecto — Formula Taller
 
-Documento de estado general del proyecto. Última actualización: **2026-07-01**.
+Documento de estado general del proyecto. Última actualización: **2026-07-03**.
+
+> **Novedades 2026-07-03** (esta sesión): panel de **superadmin de plataforma**
+> (seguimiento de talleres, suscripciones, correo/teléfono, restablecer contraseña),
+> **límite del plan gratuito editable** (global + por taller), **números de atención al
+> cliente** en el mensaje del límite, **selector de código de país** en todos los teléfonos
+> (formato internacional para WhatsApp), el **mecánico puede eliminar sus propias órdenes**,
+> **adjuntos editables** en el resumen de la orden y arreglos del **service worker** (orden vacía
+> al navegar) y del **borrado de adjuntos**. Detalle al final, sección "Actualización 2026-07-03".
 
 ---
 
@@ -37,15 +45,19 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 ---
 
 ## Modelo de datos (Supabase)
-**Roles:** `admin` y `mechanic` (enum `user_role`).
+**Roles:** `admin` y `mechanic` (enum `user_role`) **por taller**, más el **superadmin de
+plataforma** (por encima de los talleres, definido en la tabla `platform_admins`; no tiene perfil
+ni taller).
 
 | Tabla | Para qué |
 |---|---|
-| `workshops` | **Talleres (tenants).** Nombre, WhatsApp, dueño (`owner_id`). Cada usuario y orden pertenece a un taller. |
+| `workshops` | **Talleres (tenants).** Nombre, WhatsApp, dueño (`owner_id`), **`order_limit`** (override opcional del límite gratuito, `null` = usa el global), **`is_subscribed`** (plan pago → órdenes ilimitadas). |
 | `profiles` | Datos de usuarios (nombre, teléfono, rol, activo, **`workshop_id`**). `id` = `auth.users.id`. El email vive en `auth.users`. |
 | `orders` | Órdenes de servicio (**`workshop_id`**, cliente, vehículo, WhatsApp, mecánico asignado, estado, `public_token` único para el tracking). |
-| `order_stages` | Etapas del servicio de cada orden (nombre, **descripción**, estado, posición). |
+| `order_stages` | Etapas del servicio de cada orden (nombre, **descripción**, estado, posición). La **posición 0** ("Recepción") guarda los adjuntos cargados al crear la orden. |
 | `stage_attachments` | Adjuntos (fotos/videos/audios/documentos) de cada etapa. |
+| `platform_admins` | **Superadmins de plataforma** (`user_id` → `auth.users`). RLS bloqueada: solo el service role la lee. |
+| `platform_settings` | Configuración global (fila única `id=1`): **`free_order_limit`** (límite gratuito global) y **`support_phones`** (números de atención al cliente). Lectura pública, escritura solo service role. |
 
 > **Aislamiento por taller:** cada consulta se filtra por `workshop_id` en la app (`api-auth.ts`
 > resuelve el taller del usuario) + RLS por taller como red de seguridad.
@@ -66,6 +78,16 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 6. `0007_order_limit.sql` (columna **`order_limit`** en `workshops`, default **3**). **Correr ANTES del código.**
 7. `0008_default_stages.sql` (nuevas **etapas por defecto**: Diagnóstico, Desmontaje de piezas,
    Reemplazo/Reparación, Armado y prueba, Vehículo listo). Solo afecta a órdenes nuevas.
+8. `0009_platform_admins.sql` (**tabla `platform_admins`** + **`workshops.is_subscribed`** +
+   `handle_new_user` no crea perfil si el usuario no tiene taller —superadmins). **Correr ANTES del código.**
+9. `0010_free_order_limit.sql` (**tabla `platform_settings.free_order_limit`** global +
+   `workshops.order_limit` pasa a **override opcional** (`null` = usar el global); los talleres
+   existentes con el default 3 quedan en `null`). **Correr ANTES del código.**
+10. `0011_support_phones.sql` (columna **`platform_settings.support_phones`** `text[]`, con el número
+    de atención sembrado). **Correr ANTES del código.**
+
+> Las migraciones se corren manualmente en el **SQL Editor de Supabase** antes de subir el código
+> que las usa (si no, las vistas fallan al buscar la tabla/columna nueva).
 
 ---
 
@@ -94,26 +116,52 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 - Cada taller ve únicamente **sus** órdenes, mecánicos y adjuntos.
 
 ### Plan gratuito / suscripción
-- Cada taller puede crear hasta **`order_limit`** órdenes (**3 por defecto**). Al alcanzarlo, al intentar
-  crear otra sale un **modal**: "para seguir usando la app debes pagar la suscripción" (el flujo de pago
-  aún no está definido). Se valida **en el servidor** (`POST /api/orders` → `402`) y en el cliente.
-- Para **desbloquear** un taller que pague, subir su `order_limit` por SQL:
-  `update public.workshops set order_limit = 100000 where slug = '<slug>';`
+- **Límite efectivo** de un taller no suscrito = **`order_limit` propio** (si tiene) **ó el
+  `free_order_limit` global** (3 por defecto). Los talleres **suscritos** (`is_subscribed`) tienen
+  **órdenes ilimitadas**. Al alcanzar el tope, al crear otra orden sale un **modal** con los
+  **números de atención al cliente** (botones de WhatsApp) para pagar la suscripción. Se valida
+  **en el servidor** (`POST /api/orders` → `402`) y en el cliente.
+- **Todo se gestiona desde el panel de superadmin** (ya no hace falta SQL): cambiar el límite global,
+  ponerle un límite propio a un taller, marcar un taller como suscrito, y editar los números de atención.
 
 ### Roles y acceso
-- Login por email/contraseña. El admin crea mecánicos; cada mecánico recibe su acceso.
+- Login por email/contraseña **único** para todos: al entrar, un **superadmin** va a `/superadmin`,
+  un **admin** a `/admin` y un **mecánico** a `/mecanico` (se decide tras el login consultando
+  `/api/superadmin/me` y luego el rol del perfil).
 - **Gestión de mecánicos** (admin): crear, **editar** (nombre/teléfono/email), **ver/copiar email**,
   **cambiar contraseña**, **enviar credenciales por WhatsApp**, botón **"Reenviar acceso"**,
   activar/desactivar.
 
+### Panel de superadmin de plataforma (`/superadmin`)
+Panel por encima de los talleres, para el dueño del sistema. Acceso solo para cuentas en
+`platform_admins`; login en `/superadmin/login` o por el login normal.
+- **Métricas:** total de talleres, suscritos y órdenes.
+- **Lista de talleres** con dueño, **correo de registro**, **teléfono**, nº de órdenes (**"X / límite"**)
+  y fecha de alta; con buscador.
+- **Suscripción:** interruptor por taller (**suscrito = órdenes ilimitadas**).
+- **Límite gratuito:** editar el **límite global** y/o un **límite propio por taller** (vacío = usa el global).
+- **Números de atención al cliente:** agregar/editar/eliminar (salen en el modal del límite).
+- **Restablecer contraseña** del dueño de un taller, de dos formas:
+  - **Enviar enlace por correo** (Supabase recover → página pública `/reset-password`).
+  - **Contraseña temporal** generada y mostrada para compartir (respaldo confiable, sin depender del correo).
+- **Crear superadmins** (manual): `npm run seed:superadmin -- <email> <password> ["Nombre"]`.
+  Cambiar contraseña de un superadmin: `npm run set:superadmin-password -- <email> <password>`.
+- ⚠️ Para que el **enlace por correo** redirija bien, agregar `https://formulataller.com/reset-password`
+  en Supabase → **Authentication → URL Configuration → Redirect URLs**. El correo de recuperación usa
+  el servicio integrado de Supabase (sin SMTP propio: **límite de envíos y posible spam**; por eso existe
+  la opción de contraseña temporal).
+
 ### Órdenes
 - **Admin y mecánico** pueden **ver todas las órdenes**, **crearlas** y **asignar mecánicos**.
 - Al **crear** una orden se pueden **adjuntar datos iniciales** (foto/video/**nota de voz**/documento);
-  se guardan en la primera etapa ("Vehículo recibido") y los ven admin, mecánico y **cliente** (tracking).
-  (`canManageOrder` permite gestionar al admin, al mecánico asignado **o al creador** de la orden.)
+  se guardan en la etapa de **"Recepción" (posición 0)** y los ven admin, mecánico y **cliente** (tracking).
+  En el **resumen de la orden** esos adjuntos se pueden **ver, agregar y eliminar** (admin siempre; mecánico
+  si la orden es suya y no está "lista"). (`canManageOrder` permite gestionar al admin, al mecánico asignado
+  **o al creador** de la orden.)
 - El mecánico puede **autoasignarse** una orden ("Asignarme") y, una vez asignado, **editarla**.
 - **Filtro** en la vista del mecánico: **Mis órdenes / Todas** (+ por estado) y buscador.
-- Solo el **admin** puede **eliminar** órdenes.
+- **Eliminar órdenes:** el **admin** puede eliminar cualquier orden de su taller; el **mecánico** solo las
+  **suyas** (asignadas a él o creadas por él). Botón de eliminar en el detalle y en la tarjeta.
 
 ### Tracking del cliente (público, sin login)
 - Enlace único por orden (`public_token`), que se puede **abrir**, **copiar** y **enviar por WhatsApp**.
@@ -141,9 +189,14 @@ servicio, y los **clientes** hacen seguimiento del estado de su vehículo median
 - Los endpoints validan rol y pertenencia: un mecánico solo gestiona etapas de sus órdenes asignadas.
 - La clave secreta (service role) solo se usa en el servidor.
 
-### WhatsApp
+### WhatsApp / teléfonos
 - Los enlaces usan `wa.me`: se envían **desde el celular de quien hace clic** (admin o mecánico),
   al destinatario del enlace. No hay un número emisor fijo (eso requeriría WhatsApp Business API).
+- **Selector de código de país** (`PhoneInput` + `lib/countries.ts`) en **todos** los campos de teléfono
+  (orden/cliente, mecánico, registro, perfil del taller, números de atención del panel). **Venezuela +58**
+  por defecto; se puede elegir otro país. Los números se guardan en **formato internacional**
+  (`+<código><número>`) para que WhatsApp abra bien en **cualquier dispositivo** (incluido WhatsApp Web).
+  Los números locales antiguos (`0424…`) siguen funcionando y se convierten al editarlos.
 
 ---
 
@@ -169,6 +222,36 @@ git commit -m "describe el cambio"
 git push        # Vercel redespliega solo en ~1 min
 ```
 (Detalle en `ACTUALIZAR-PRODUCCION.md`.)
+
+---
+
+## Actualización 2026-07-03 (detalle de la sesión)
+
+**Superadmin de plataforma** (migraciones `0009`–`0011` ya aplicadas en Supabase):
+- Panel `/superadmin` (login propio o por el login normal): métricas, lista de talleres con
+  correo/teléfono, suscripción (ilimitado), límite gratuito **global + por taller**, números de
+  atención al cliente y **restablecer contraseña** (enlace por correo o contraseña temporal).
+- Identidad en tabla `platform_admins`. Helper `getPlatformAdmin()` (`lib/api-auth.ts`).
+- Endpoints bajo `/api/superadmin/*` (protegidos), y `/reset-password` (página pública).
+- **Cuenta superadmin actual:** `somosformulataller@gmail.com` (se le quitó su perfil de mecánico del
+  taller "Formula Taller" para dejarla **solo como superadmin**). La contraseña se cambia con
+  `npm run set:superadmin-password`.
+
+**Órdenes y adjuntos:**
+- Adjuntos de creación **editables** en el resumen (agregar/eliminar) — `InitialAttachments`.
+- **Borrado de adjuntos por ruta** `.../attachments/[aid]` (antes `?id=`, que se perdía y daba
+  "Falta el id"). El **mecánico puede eliminar sus propias órdenes**.
+
+**Teléfonos:** selector de código de país (`PhoneInput`), Venezuela por defecto, formato internacional.
+
+**Service worker (PWA):** arreglada la **orden vacía al navegar** (los datos de navegación RSC ahora
+son *network-first*, antes se servían de caché) y se quitó la **recarga forzada** que podía abortar
+un borrado en curso. Caché en `formula-taller-v4`.
+
+**Scripts nuevos:** `seed:superadmin`, `set:superadmin-password` (usan `.env.local`, no llevan secretos).
+
+**Config manual pendiente:** agregar `https://formulataller.com/reset-password` en Supabase →
+Authentication → URL Configuration → **Redirect URLs** (para el enlace de restablecer por correo).
 
 ---
 
