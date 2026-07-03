@@ -180,66 +180,71 @@ export default function StageTimeline({
     return cycle[(idx + 1) % cycle.length];
   }
 
-  // --- Drag & drop reordering (pointer events: works on touch + mouse) ------
+  // --- Reordenar arrastrando (pointer events: funciona en touch y mouse) -----
+  // Se puede arrastrar cualquier etapa hacia arriba o abajo y soltarla en la
+  // posición que se quiera (antes o después de cualquier otra). Mientras dura
+  // el arrastre escuchamos en `window`, así el movimiento se sigue aunque el
+  // puntero se salga del asa cuando las filas se reordenan.
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const dragRef = useRef<{ index: number; order: OrderStage[]; snapshot: OrderStage[] } | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   function startDrag(index: number, e: React.PointerEvent) {
     if (!canEdit) return;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { index, order: stages.slice(), snapshot: stages };
-    setDragIndex(index);
-  }
-
-  function moveDrag(e: React.PointerEvent) {
-    const st = dragRef.current;
-    if (!st) return;
     e.preventDefault();
-    const y = e.clientY;
-    // Find the slot whose midpoint is just below the pointer.
-    let target = st.order.length - 1;
-    for (let i = 0; i < st.order.length; i++) {
-      const el = rowRefs.current[i];
-      if (!el) continue;
-      const r = el.getBoundingClientRect();
-      if (y < r.top + r.height / 2) {
-        target = i;
-        break;
+    const state = { index, order: stages.slice(), snapshot: stages };
+    setDragIndex(index);
+
+    const onMove = (ev: PointerEvent) => {
+      ev.preventDefault();
+      const y = ev.clientY;
+      // Buscar la posición cuyo punto medio queda justo debajo del puntero.
+      let target = state.order.length - 1;
+      for (let i = 0; i < state.order.length; i++) {
+        const el = rowRefs.current[i];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (y < r.top + r.height / 2) {
+          target = i;
+          break;
+        }
       }
-    }
-    if (target !== st.index) {
-      const next = st.order.slice();
-      const [moved] = next.splice(st.index, 1);
-      next.splice(target, 0, moved);
-      st.order = next;
-      st.index = target;
-      setStages(next);
-      setDragIndex(target);
-    }
-  }
+      if (target !== state.index) {
+        const next = state.order.slice();
+        const [moved] = next.splice(state.index, 1);
+        next.splice(target, 0, moved);
+        state.order = next;
+        state.index = target;
+        setStages(next);
+        setDragIndex(target);
+      }
+    };
 
-  async function endDrag() {
-    const st = dragRef.current;
-    dragRef.current = null;
-    setDragIndex(null);
-    if (!st) return;
+    const onUp = async () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      setDragIndex(null);
 
-    const ids = st.order.map((s) => s.id);
-    const unchanged = st.snapshot.every((s, i) => s.id === ids[i]);
-    if (unchanged) return;
+      const ids = state.order.map((s) => s.id);
+      const unchanged = state.snapshot.every((s, i) => s.id === ids[i]);
+      if (unchanged) return;
 
-    // Persist; keep positions in sync locally.
-    setStages((prev) => prev.map((s, i) => ({ ...s, position: i + 1 })));
-    const res = await fetch(`/api/orders/${orderId}/stages/reorder`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
-    if (!res.ok) {
-      setStages(st.snapshot);
-      alert('No se pudo guardar el nuevo orden de las etapas');
-    }
+      // Persistir; mantener las posiciones sincronizadas localmente.
+      setStages((prev) => prev.map((s, i) => ({ ...s, position: i + 1 })));
+      const res = await fetch(`/api/orders/${orderId}/stages/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) {
+        setStages(state.snapshot);
+        alert('No se pudo guardar el nuevo orden de las etapas');
+      }
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   const done = stages.filter((s) => s.status === 'done').length;
@@ -394,23 +399,21 @@ export default function StageTimeline({
                           <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
                             <button
                               onPointerDown={(e) => startDrag(index, e)}
-                              onPointerMove={moveDrag}
-                              onPointerUp={endDrag}
-                              onPointerCancel={endDrag}
-                              title="Mantén y arrastra para reordenar"
-                              aria-label="Reordenar etapa"
+                              title="Mantén y arrastra para mover la etapa arriba o abajo"
+                              aria-label="Arrastrar para reordenar etapa"
                               style={{
-                                background: 'transparent',
+                                background: dragIndex === index ? 'var(--color-surface-3)' : 'transparent',
                                 border: 'none',
-                                color: 'var(--color-text-muted)',
-                                cursor: 'grab',
+                                color: dragIndex === index ? 'var(--color-brand-400)' : 'var(--color-text-muted)',
+                                cursor: dragIndex === index ? 'grabbing' : 'grab',
                                 touchAction: 'none',
-                                padding: 2,
+                                borderRadius: 6,
+                                padding: 6,
                                 display: 'flex',
                                 alignItems: 'center',
                               }}
                             >
-                              <GripVertical size={16} />
+                              <GripVertical size={18} />
                             </button>
                             <button
                               onClick={() => updateStage(stage.id, cycleStatus(stage.status))}
