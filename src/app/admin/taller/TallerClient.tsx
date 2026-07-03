@@ -4,7 +4,6 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Store,
-  Phone,
   CheckCircle2,
   Loader2,
   Image as ImageIcon,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import PhoneInput from '@/components/ui/PhoneInput';
 import Modal from '@/components/ui/Modal';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { compressImage } from '@/lib/image';
@@ -232,16 +232,13 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
             id="taller-name"
           />
 
-          <Input
+          <PhoneInput
             label="WhatsApp del taller"
-            type="tel"
-            placeholder="+58 412 1234567"
             value={whatsapp}
-            onChange={(e) => {
-              setWhatsapp(e.target.value);
+            onChange={(v) => {
+              setWhatsapp(v);
               setSaved(false);
             }}
-            icon={<Phone size={15} />}
             id="taller-whatsapp"
           />
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Mechanic, CreateMechanicPayload } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import PhoneInput from '@/components/ui/PhoneInput';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   buildWhatsAppLink,
@@ -11,7 +12,7 @@ import {
   buildCredentialsMessage,
   buildCredentialsText,
 } from '@/lib/utils';
-import { User, Mail, Lock, Phone, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Lock, MessageCircle, CheckCircle2 } from 'lucide-react';
 
 interface MechanicFormProps {
   onSaved: (mechanic: Mechanic) => void;
@@ -249,13 +250,10 @@ export default function MechanicForm({
         icon={<Lock size={15} />}
       />
 
-      <Input
+      <PhoneInput
         label="Teléfono (opcional)"
-        type="tel"
-        placeholder="+58 412 1234567"
         value={form.phone}
-        onChange={(e) => set('phone', e.target.value)}
-        icon={<Phone size={15} />}
+        onChange={(v) => set('phone', v)}
       />
 
       {error && (

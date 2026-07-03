@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkshopAdminRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
+import PhoneInput from '@/components/ui/PhoneInput';
 import {
   Building2,
   Star,
@@ -49,9 +50,14 @@ export default function SuperadminClient({
     )
   );
 
-  // Números de atención al cliente (lista editable).
-  const [phoneDraft, setPhoneDraft] = useState<string[]>(
-    supportPhones.length ? supportPhones : ['']
+  // Números de atención al cliente (lista editable con id estable por fila para
+  // que borrar/reordenar no confunda los campos).
+  const phoneKey = useRef(0);
+  const [phoneDraft, setPhoneDraft] = useState<{ id: number; value: string }[]>(() =>
+    (supportPhones.length ? supportPhones : ['']).map((value) => ({
+      id: phoneKey.current++,
+      value,
+    }))
   );
   const [savingPhones, setSavingPhones] = useState(false);
 
@@ -97,7 +103,7 @@ export default function SuperadminClient({
   }
 
   async function savePhones() {
-    const cleaned = phoneDraft.map((p) => p.trim()).filter((p) => p.length > 0);
+    const cleaned = phoneDraft.map((p) => p.value.trim()).filter((p) => p.length > 0);
     setSavingPhones(true);
     const res = await fetch('/api/superadmin/settings', {
       method: 'PATCH',
@@ -108,7 +114,7 @@ export default function SuperadminClient({
     if (res.ok) {
       const data = await res.json();
       const saved: string[] = data.support_phones ?? cleaned;
-      setPhoneDraft(saved.length ? saved : ['']);
+      setPhoneDraft((saved.length ? saved : ['']).map((value) => ({ id: phoneKey.current++, value })));
     } else {
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'No se pudieron guardar los números.');
@@ -262,24 +268,24 @@ export default function SuperadminClient({
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {phoneDraft.map((phone, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                type="tel"
-                className="form-input"
-                placeholder="Ej. +58 424 234 9786"
-                value={phone}
-                onChange={(e) =>
-                  setPhoneDraft((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
-                }
-                style={{ flex: 1 }}
-              />
+          {phoneDraft.map((item) => (
+            <div key={item.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <PhoneInput
+                  value={item.value}
+                  onChange={(v) =>
+                    setPhoneDraft((prev) =>
+                      prev.map((p) => (p.id === item.id ? { ...p, value: v } : p))
+                    )
+                  }
+                />
+              </div>
               <button
                 type="button"
                 onClick={() =>
                   setPhoneDraft((prev) => {
-                    const next = prev.filter((_, j) => j !== i);
-                    return next.length ? next : [''];
+                    const next = prev.filter((p) => p.id !== item.id);
+                    return next.length ? next : [{ id: phoneKey.current++, value: '' }];
                   })
                 }
                 aria-label="Eliminar número"
@@ -287,8 +293,8 @@ export default function SuperadminClient({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 38,
-                  height: 38,
+                  width: 42,
+                  height: 42,
                   flexShrink: 0,
                   background: 'rgba(239,68,68,0.1)',
                   border: '1px solid rgba(239,68,68,0.25)',
@@ -306,7 +312,7 @@ export default function SuperadminClient({
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <button
             type="button"
-            onClick={() => setPhoneDraft((prev) => [...prev, ''])}
+            onClick={() => setPhoneDraft((prev) => [...prev, { id: phoneKey.current++, value: '' }])}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

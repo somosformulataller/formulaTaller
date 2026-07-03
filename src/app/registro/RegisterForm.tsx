@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Wrench, Store, Mail, Phone, User, Lock } from 'lucide-react';
+import { Wrench, Store, Mail, User, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import PhoneInput from '@/components/ui/PhoneInput';
 import type { RegisterWorkshopPayload } from '@/lib/types';
 
 export default function RegisterForm() {
@@ -169,14 +170,11 @@ export default function RegisterForm() {
             id="reg-email"
           />
 
-          <Input
+          <PhoneInput
             label="WhatsApp"
-            type="tel"
-            placeholder="+58 412 1234567"
             value={form.whatsapp}
-            onChange={(e) => set('whatsapp', e.target.value)}
+            onChange={(v) => set('whatsapp', v)}
             required
-            icon={<Phone size={15} />}
             id="reg-whatsapp"
           />
 

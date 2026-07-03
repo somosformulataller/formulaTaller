@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { Order, Profile, CreateOrderPayload, OrderStage } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import PhoneInput from '@/components/ui/PhoneInput';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import { uploadStageAttachment } from '@/lib/attachments';
 import {
   User,
-  Phone,
   Car,
   ChevronDown,
   Check,
@@ -190,14 +190,11 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
         />
       </div>
 
-      <Input
+      <PhoneInput
         label="WhatsApp"
-        placeholder="+58 412 1234567"
-        type="tel"
         value={form.client_whatsapp}
-        onChange={(e) => set('client_whatsapp', e.target.value)}
+        onChange={(v) => set('client_whatsapp', v)}
         required
-        icon={<Phone size={15} />}
       />
 
       <Input
