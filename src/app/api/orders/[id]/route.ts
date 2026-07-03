@@ -61,11 +61,13 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json(data);
 }
 
-// DELETE /api/orders/:id  (admin of the order's workshop only)
+// DELETE /api/orders/:id
+// Admin: cualquier orden de su taller. Mecánico: solo las suyas (asignadas a
+// él o creadas por él). Esto lo resuelve canManageOrder.
 export async function DELETE(_: Request, { params }: Params) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (caller.role !== 'admin' || !caller.workshopId) {
+  if (!(await canManageOrder(caller, params.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

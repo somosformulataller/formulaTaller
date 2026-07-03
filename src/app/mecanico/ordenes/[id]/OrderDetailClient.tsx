@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Edit2,
   UserCheck,
+  Trash2,
 } from 'lucide-react';
 
 interface MecanicoOrderDetailClientProps {
@@ -50,6 +51,9 @@ export default function MecanicoOrderDetailClient({
   );
 
   const isMine = order.assigned_mechanic_id === currentUserId;
+  // Un mecánico puede eliminar solo sus propias órdenes: asignadas a él o
+  // creadas por él.
+  const canDelete = isMine || order.created_by === currentUserId;
 
   async function patchOrder(body: Record<string, unknown>) {
     setBusy(true);
@@ -60,6 +64,19 @@ export default function MecanicoOrderDetailClient({
     });
     setBusy(false);
     if (res.ok) setOrder(await res.json());
+  }
+
+  async function handleDelete() {
+    if (!confirm(`¿Eliminar la orden de ${clientName}?`)) return;
+    setBusy(true);
+    const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      router.push('/mecanico');
+      return;
+    }
+    setBusy(false);
+    const data = await res.json().catch(() => ({}));
+    alert(data.error || 'No se pudo eliminar la orden.');
   }
 
   const stages = order.stages ?? [];
@@ -208,6 +225,13 @@ export default function MecanicoOrderDetailClient({
             >
               <CheckCircle2 size={14} />
               Marcar como lista
+            </Button>
+          )}
+
+          {canDelete && (
+            <Button variant="danger" size="sm" loading={busy} onClick={handleDelete}>
+              <Trash2 size={13} />
+              Eliminar
             </Button>
           )}
         </div>

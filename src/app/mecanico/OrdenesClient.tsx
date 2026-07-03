@@ -65,6 +65,10 @@ export default function MecanicoOrdenesClient({
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }
 
+  function handleDelete(id: string) {
+    setOrders((prev) => prev.filter((o) => o.id !== id));
+  }
+
   function handleUpdate(updated: Order) {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
   }
@@ -184,6 +188,7 @@ export default function MecanicoOrdenesClient({
               currentUserId={profile.id}
               onStatusChange={handleStatusChange}
               onUpdate={handleUpdate}
+              onDelete={handleDelete}
             />
           ))}
         </div>

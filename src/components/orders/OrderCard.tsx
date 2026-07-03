@@ -49,6 +49,11 @@ export default function OrderCard({
   }
 
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
+  // Un mecánico solo puede eliminar sus propias órdenes (asignadas a él o
+  // creadas por él). El administrador puede eliminar cualquiera.
+  const isOwn =
+    !!currentUserId &&
+    (order.assigned_mechanic_id === currentUserId || order.created_by === currentUserId);
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const waLink = buildWhatsAppLink(
     order.client_whatsapp,
@@ -186,6 +191,13 @@ export default function OrderCard({
               Marcar como lista
             </Button>
           )}
+
+        {/* Mechanic: delete own orders (assigned to or created by them) */}
+        {role === 'mechanic' && isOwn && (
+          <Button variant="danger" size="sm" loading={loading} onClick={handleDelete}>
+            <Trash2 size={13} />
+          </Button>
+        )}
 
         {/* Status transition (admin) */}
         {role === 'admin' && nextStatuses[order.status].map((s) => (
