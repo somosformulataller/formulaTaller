@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data, error } = await service
+  const { data: created, error } = await service
     .from('orders')
     .insert({
       workshop_id: caller.workshopId,
@@ -74,10 +74,33 @@ export async function POST(req: Request) {
       created_by: caller.userId,
       status: body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico',
     })
-    .select(ORDER_SELECT)
+    .select('id')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const orderId = (created as unknown as { id: string }).id;
+
+  // Etapa de "Recepción" (posición 0): contiene los archivos adjuntados al
+  // crear la orden (fotos, video, notas de voz, documentos). Es información
+  // principal de la orden y se muestra aparte de las etapas del servicio, que
+  // van de la posición 1 en adelante (sembradas por un trigger en la BD).
+  await service.from('order_stages').insert({
+    order_id: orderId,
+    name: 'Recepción',
+    position: 0,
+    status: 'pending',
+    completed_at: null,
+  });
+
+  // Releer la orden ya con la etapa de recepción incluida.
+  const { data, error: selErr } = await service
+    .from('orders')
+    .select(ORDER_SELECT)
+    .eq('id', orderId)
+    .single();
+
+  if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 });
 
   return NextResponse.json(data, { status: 201 });
 }

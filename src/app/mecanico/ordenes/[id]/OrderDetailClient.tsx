@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import StageTimeline from '@/components/orders/StageTimeline';
+import InitialAttachments from '@/components/orders/InitialAttachments';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import {
@@ -62,6 +63,9 @@ export default function MecanicoOrderDetailClient({
   }
 
   const stages = order.stages ?? [];
+  // Etapas del servicio (posición 1+); la posición 0 es la "recepción" con los
+  // archivos adjuntados al crear la orden, mostrados aparte como info principal.
+  const serviceStages = stages.filter((s) => s.position > 0);
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: 16 }}>
@@ -209,6 +213,9 @@ export default function MecanicoOrderDetailClient({
         </div>
       </div>
 
+      {/* Archivos adjuntados al crear la orden */}
+      <InitialAttachments stages={stages} />
+
       {/* Stages */}
       <div>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
@@ -221,7 +228,7 @@ export default function MecanicoOrderDetailClient({
         )}
         <StageTimeline
           orderId={order.id}
-          initialStages={stages}
+          initialStages={serviceStages}
           canEdit={isMine && order.status !== 'lista'}
           canNotify={isMine}
           clientFirstName={order.client_first_name}

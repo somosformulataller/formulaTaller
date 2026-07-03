@@ -39,7 +39,12 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 };
 
 export default function TrackingClient({ order }: TrackingClientProps) {
-  const stages = (order.stages ?? []) as OrderStage[];
+  const allStages = (order.stages ?? []) as OrderStage[];
+  // La posición 0 es la "recepción" (archivos adjuntados al crear la orden):
+  // es información principal, no una etapa del servicio.
+  const intake = allStages.find((s) => s.position === 0);
+  const intakeAttachments = intake?.attachments ?? [];
+  const stages = allStages.filter((s) => s.position > 0);
   const done = stages.filter((s) => s.status === 'done').length;
   const progress = stages.length > 0 ? Math.round((done / stages.length) * 100) : 0;
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
@@ -169,6 +174,28 @@ export default function TrackingClient({ order }: TrackingClientProps) {
             value={formatDate(order.created_at)}
           />
         </div>
+
+        {order.notes && (
+          <>
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '12px 0' }} />
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: 6 }}>
+              Notas
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', whiteSpace: 'pre-wrap' }}>
+              {order.notes}
+            </p>
+          </>
+        )}
+
+        {intakeAttachments.length > 0 && (
+          <>
+            <div style={{ height: 1, background: 'var(--color-border)', margin: '12px 0' }} />
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+              Fotos y archivos
+            </p>
+            <AttachmentGallery attachments={intakeAttachments} tile={80} />
+          </>
+        )}
       </div>
 
       {/* Progress summary */}

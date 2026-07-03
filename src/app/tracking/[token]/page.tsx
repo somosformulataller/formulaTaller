@@ -39,6 +39,7 @@ export default async function TrackingPage({ params }: Props) {
       client_first_name,
       client_last_name,
       car_model,
+      notes,
       status,
       created_at,
       updated_at,

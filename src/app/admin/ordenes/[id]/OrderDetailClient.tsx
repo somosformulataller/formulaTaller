@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import StageTimeline from '@/components/orders/StageTimeline';
+import InitialAttachments from '@/components/orders/InitialAttachments';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   formatDate,
@@ -85,6 +86,10 @@ export default function OrderDetailClient({
   }
 
   const stages = order.stages ?? [];
+  // Las etapas del servicio van de la posición 1 en adelante; la posición 0 es
+  // la "recepción" (archivos adjuntados al crear la orden), que se muestra
+  // aparte como información principal (ver <InitialAttachments />).
+  const serviceStages = stages.filter((s) => s.position > 0);
 
   return (
     <div className="animate-fade-in" style={{ paddingTop: 16 }}>
@@ -256,6 +261,9 @@ export default function OrderDetailClient({
         </div>
       </div>
 
+      {/* Archivos adjuntados al crear la orden */}
+      <InitialAttachments stages={stages} />
+
       {/* Stages */}
       <div style={{ marginBottom: 8 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
@@ -263,7 +271,7 @@ export default function OrderDetailClient({
         </h2>
         <StageTimeline
           orderId={order.id}
-          initialStages={stages}
+          initialStages={serviceStages}
           canEdit={true}
           canNotify={true}
           clientFirstName={order.client_first_name}
