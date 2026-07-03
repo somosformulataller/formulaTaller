@@ -214,7 +214,11 @@ export default function MecanicoOrderDetailClient({
       </div>
 
       {/* Archivos adjuntados al crear la orden */}
-      <InitialAttachments stages={stages} />
+      <InitialAttachments
+        orderId={order.id}
+        stages={stages}
+        canEdit={isMine && order.status !== 'lista'}
+      />
 
       {/* Stages */}
       <div>

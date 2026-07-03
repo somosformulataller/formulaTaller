@@ -87,6 +87,15 @@ export default function AttachmentGallery({
           index={openIndex}
           onIndexChange={setOpenIndex}
           onClose={() => setOpenIndex(null)}
+          canDelete={canEdit && !!onDelete}
+          onDelete={
+            onDelete
+              ? (id) => {
+                  onDelete(id);
+                  setOpenIndex(null);
+                }
+              : undefined
+          }
         />
       )}
     </>
@@ -256,11 +265,15 @@ function Lightbox({
   index,
   onIndexChange,
   onClose,
+  canDelete,
+  onDelete,
 }: {
   attachments: StageAttachment[];
   index: number;
   onIndexChange: (i: number) => void;
   onClose: () => void;
+  canDelete?: boolean;
+  onDelete?: (id: string) => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -339,6 +352,11 @@ function Lightbox({
           <IconBtn label="Descargar" onClick={() => downloadFile(att.url, att.name)}>
             <Download size={18} />
           </IconBtn>
+          {canDelete && onDelete && (
+            <IconBtn label="Eliminar" onClick={() => onDelete(att.id)} danger>
+              <Trash2 size={18} />
+            </IconBtn>
+          )}
           <IconBtn label="Cerrar" onClick={onClose}>
             <X size={18} />
           </IconBtn>
@@ -489,10 +507,12 @@ function IconBtn({
   children,
   label,
   onClick,
+  danger,
 }: {
   children: React.ReactNode;
   label: string;
   onClick: () => void;
+  danger?: boolean;
 }) {
   return (
     <button
@@ -503,9 +523,9 @@ function IconBtn({
         width: 40,
         height: 40,
         borderRadius: '50%',
-        background: 'rgba(255,255,255,0.12)',
-        border: '1px solid rgba(255,255,255,0.2)',
-        color: '#fff',
+        background: danger ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.12)',
+        border: danger ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.2)',
+        color: danger ? '#fca5a5' : '#fff',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',

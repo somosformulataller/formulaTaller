@@ -4,7 +4,7 @@
 // change on every build; the browser's HTTP cache handles them. Caching them
 // here would serve stale chunks after a rebuild and break the whole page.
 
-const CACHE_NAME = 'formula-taller-v2';
+const CACHE_NAME = 'formula-taller-v3';
 const STATIC_ASSETS = [
   '/login',
   '/manifest.webmanifest',
@@ -70,6 +70,19 @@ self.addEventListener('fetch', (event) => {
 
   // Network-first for API and Supabase calls
   if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) {
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
+    return;
+  }
+
+  // Network-first for Next.js App Router data (RSC) requests.
+  // A client-side navigation (router.push / <Link>) doesn't reload the page:
+  // Next fetches the target route's RSC payload as a plain GET with the `RSC`
+  // header and a `?_rsc=<hash>` query param. Its request.mode is NOT 'navigate',
+  // so without this branch it would fall through to the cache-first strategy
+  // below and serve a stale (or empty prefetch) payload — that's the "la orden
+  // sale vacía hasta que recargo" bug. A full reload works because it IS a
+  // 'navigate' request. These payloads must always come from the network.
+  if (request.headers.get('RSC') === '1' || url.searchParams.has('_rsc')) {
     event.respondWith(fetch(request).catch(() => caches.match(request)));
     return;
   }

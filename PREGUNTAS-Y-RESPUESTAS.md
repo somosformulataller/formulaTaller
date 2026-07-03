@@ -216,3 +216,16 @@ que crezca. Recomendado:
 | ¿Está óptimo? | Bueno para MVP; mejoras claras de escala/robustez pendientes. |
 | ¿Seguridad? | Razonable; endurecer registro, borrado, Storage y rate limiting. |
 | ¿Documentos legales? | Sí: Términos + Privacidad (+cookies); usar generador y páginas `/terminos` y `/privacidad`. |
+
+Qué apliqué (gratis, sin plan pago)
+
+1. Páginas legales: /terminos y /privacidad con texto base en español (revísalo/ajústalo a tu negocio). Enlazadas en el footer del login.
+2. Aceptación en el registro: checkbox obligatorio "Acepto los Términos y la Política de Privacidad" — el botón "Crear taller" queda deshabilitado hasta marcarlo.
+3. Botón "Instalar app": aparece automáticamente en el login cuando el navegador (Android/Chrome) ofrece instalar la PWA. En iPhone no aparece porque ahí se instala desde Compartir → "Agregar a inicio".
+
+Lo que dejé para después (más adelante / requieren más trabajo o planes pagos)
+
+- Aviso in-app de "nueva versión disponible".
+- Endurecimiento de seguridad (rate limiting, CAPTCHA, Storage privado, pedir contraseña para borrar cuenta).
+- Verificación de correo / recuperar contraseña (necesita SMTP).
+- Pago real de suscripción (Stripe), backups, monitoreo, etc.

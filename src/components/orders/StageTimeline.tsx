@@ -70,18 +70,33 @@ export default function StageTimeline({
 
   async function deleteAttachment(stageId: string, attachmentId: string) {
     if (!confirm('¿Eliminar este adjunto?')) return;
-    const res = await fetch(
-      `/api/orders/${orderId}/stages/${stageId}/attachments?id=${attachmentId}`,
-      { method: 'DELETE' }
+
+    // Optimista: quitarlo de inmediato y revertir si el servidor falla.
+    const snapshot = stages;
+    setStages((prev) =>
+      prev.map((s) =>
+        s.id === stageId
+          ? { ...s, attachments: (s.attachments ?? []).filter((a) => a.id !== attachmentId) }
+          : s
+      )
     );
-    if (res.ok) {
-      setStages((prev) =>
-        prev.map((s) =>
-          s.id === stageId
-            ? { ...s, attachments: (s.attachments ?? []).filter((a) => a.id !== attachmentId) }
-            : s
-        )
+
+    let res: Response;
+    try {
+      res = await fetch(
+        `/api/orders/${orderId}/stages/${stageId}/attachments?id=${attachmentId}`,
+        { method: 'DELETE' }
       );
+    } catch {
+      setStages(snapshot);
+      alert('No se pudo eliminar el adjunto: revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+
+    if (!res.ok) {
+      setStages(snapshot);
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'No se pudo eliminar el adjunto. Intenta de nuevo.');
     }
   }
 

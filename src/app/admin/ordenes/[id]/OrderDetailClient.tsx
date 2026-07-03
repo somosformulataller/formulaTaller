@@ -262,7 +262,7 @@ export default function OrderDetailClient({
       </div>
 
       {/* Archivos adjuntados al crear la orden */}
-      <InitialAttachments stages={stages} />
+      <InitialAttachments orderId={order.id} stages={stages} canEdit={true} />
 
       {/* Stages */}
       <div style={{ marginBottom: 8 }}>
