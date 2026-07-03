@@ -40,7 +40,15 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
       return;
     }
 
-    // Get role and redirect
+    // ¿Es superadmin de plataforma? No tiene perfil de taller; se verifica con
+    // un endpoint seguro (platform_admins está bloqueada por RLS al navegador).
+    const saRes = await fetch('/api/superadmin/me');
+    if (saRes.ok) {
+      router.replace('/superadmin');
+      return;
+    }
+
+    // Si no, redirigir según el rol dentro del taller.
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
