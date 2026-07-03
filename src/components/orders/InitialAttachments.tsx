@@ -72,7 +72,7 @@ export default function InitialAttachments({
   }
 
   async function handleDelete(attachmentId: string) {
-    if (!stageId) return;
+    if (!stageId || !attachmentId) return;
     if (!confirm('¿Eliminar este adjunto?')) return;
 
     // Optimista: quitarlo de inmediato y revertir si el servidor falla.
@@ -82,7 +82,7 @@ export default function InitialAttachments({
     let res: Response;
     try {
       res = await fetch(
-        `/api/orders/${orderId}/stages/${stageId}/attachments?id=${attachmentId}`,
+        `/api/orders/${orderId}/stages/${stageId}/attachments/${attachmentId}`,
         { method: 'DELETE' }
       );
     } catch {

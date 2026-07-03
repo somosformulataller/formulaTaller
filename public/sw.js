@@ -4,7 +4,7 @@
 // change on every build; the browser's HTTP cache handles them. Caching them
 // here would serve stale chunks after a rebuild and break the whole page.
 
-const CACHE_NAME = 'formula-taller-v3';
+const CACHE_NAME = 'formula-taller-v4';
 const STATIC_ASSETS = [
   '/login',
   '/manifest.webmanifest',
@@ -12,14 +12,8 @@ const STATIC_ASSETS = [
   '/icons/icon-512.png',
 ];
 
-// Track whether this SW is REPLACING a previous one (an update) vs. a first
-// install. self.registration.active is non-null only when an older SW is
-// already running, i.e. we are upgrading.
-let isUpdate = false;
-
 // Install: cache core assets
 self.addEventListener('install', (event) => {
-  isUpdate = !!self.registration.active;
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS).catch(() => {
@@ -30,10 +24,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: delete old caches, take control, and — when we just replaced an
-// older SW — force every open tab to reload so it picks up fresh HTML/assets
-// through the new (fixed) fetch strategy. This makes a stale SW self-heal on
-// the next reload, with no manual unregister needed.
+// Activate: delete old caches and take control of open pages.
+//
+// NOTE: we intentionally do NOT force-reload open tabs here. A forced
+// `client.navigate()` yanks the page out from under the user and can abort an
+// in-flight request (e.g. deleting an attachment), which looked like "la web se
+// recarga sola y el archivo vuelve a aparecer". The new SW still self-heals:
+// navigations and RSC data are network-first and /_next/ is bypassed, so the
+// next natural navigation already gets fresh content.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
@@ -42,10 +40,6 @@ self.addEventListener('activate', (event) => {
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
       await self.clients.claim();
-      if (isUpdate) {
-        const clients = await self.clients.matchAll({ type: 'window' });
-        clients.forEach((client) => client.navigate(client.url));
-      }
     })()
   );
 });
