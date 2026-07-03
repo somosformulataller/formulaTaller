@@ -3,6 +3,9 @@ import { notFound } from 'next/navigation';
 import type { Order, Profile } from '@/lib/types';
 import OrderDetailClient from './OrderDetailClient';
 
+// Datos siempre frescos (incluye los mecánicos disponibles para asignar).
+export const dynamic = 'force-dynamic';
+
 interface Props {
   params: { id: string };
   searchParams: { edit?: string };

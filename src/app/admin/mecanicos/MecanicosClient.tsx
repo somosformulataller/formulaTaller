@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Mechanic } from '@/lib/types';
 import MechanicCard from '@/components/mechanics/MechanicCard';
 import MechanicForm from '@/components/mechanics/MechanicForm';
@@ -14,6 +15,7 @@ interface MecanicosClientProps {
 }
 
 export default function MecanicosClient({ initialMechanics, workshopName }: MecanicosClientProps) {
+  const router = useRouter();
   const [mechanics, setMechanics] = useState<Mechanic[]>(initialMechanics);
   // undefined = modal closed · null = create mode · Mechanic = edit mode
   const [formMechanic, setFormMechanic] = useState<Mechanic | null | undefined>(undefined);
@@ -47,16 +49,22 @@ export default function MecanicosClient({ initialMechanics, workshopName }: Meca
         : [...prev, mechanic];
       return next.sort((a, b) => a.full_name.localeCompare(b.full_name));
     });
+    // Refrescar los datos del servidor para que el mecánico nuevo/editado
+    // aparezca al instante en la lista de "mecánicos disponibles" al asignar
+    // órdenes (invalida la caché de rutas del cliente).
+    router.refresh();
   }
 
   function handleToggleActive(id: string, active: boolean) {
     setMechanics((prev) => prev.map((m) => (m.id === id ? { ...m, active } : m)));
+    router.refresh();
   }
 
   function handleDelete(id: string) {
     setMechanics((prev) =>
       prev.map((m) => (m.id === id ? { ...m, active: false } : m))
     );
+    router.refresh();
   }
 
   const active = mechanics.filter((m) => m.active);
