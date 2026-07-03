@@ -210,9 +210,50 @@ input, textarea, select {
   cursor: not-allowed;
 }
 
-select.form-input { cursor: pointer; }
+select.form-input {
+  cursor: pointer;
+  /* Ocultar la flecha nativa del navegador: usamos un ícono ChevronDown propio
+     superpuesto, así no se ve la flecha duplicada. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+/* Oculta la flecha nativa en IE/Edge legacy */
+select.form-input::-ms-expand { display: none; }
 
 textarea.form-input { resize: vertical; min-height: 80px; }
+
+/* Menú desplegable personalizado (selector de mecánico) */
+.select-menu {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 4px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.select-option:hover { background: var(--color-surface-3); }
+.select-option[aria-selected="true"] { background: var(--color-surface-3); }
 
 /* ============================================================
    Buttons

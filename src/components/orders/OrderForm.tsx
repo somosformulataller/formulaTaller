@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Order, Profile, CreateOrderPayload, OrderStage } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -12,6 +12,7 @@ import {
   Phone,
   Car,
   ChevronDown,
+  Check,
   Plus,
   X,
   Mic,
@@ -211,32 +212,12 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
       {/* Mechanic selector */}
       <div className="form-field">
         <label className="form-label">Mecánico asignado</label>
-        <div style={{ position: 'relative' }}>
-          <select
-            className="form-input"
-            value={form.assigned_mechanic_id ?? ''}
-            onChange={(e) => set('assigned_mechanic_id', e.target.value || null)}
-            style={{ paddingRight: 36 }}
-          >
-            <option value="">Sin asignar</option>
-            {mechanics.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.full_name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={16}
-            style={{
-              position: 'absolute',
-              right: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--color-text-muted)',
-              pointerEvents: 'none',
-            }}
-          />
-        </div>
+        <MechanicSelect
+          mechanics={mechanics}
+          value={form.assigned_mechanic_id ?? null}
+          onChange={(id) => set('assigned_mechanic_id', id)}
+          disabled={loading}
+        />
       </div>
 
       {/* Notes */}
@@ -305,6 +286,126 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
         <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} />
       )}
     </form>
+  );
+}
+
+/**
+ * Selector de mecánico personalizado: en lugar del <select> nativo (que en
+ * varios navegadores dibuja su propia flecha, duplicando el ícono) muestra un
+ * botón con una única flecha y despliega la lista EN FLUJO al hacer clic. Se
+ * despliega hacia abajo empujando el contenido —nunca flotante— para que el
+ * modal (overflow-y: auto) no la recorte.
+ */
+function MechanicSelect({
+  mechanics,
+  value,
+  onChange,
+  disabled,
+}: {
+  mechanics: Profile[];
+  value: string | null;
+  onChange: (id: string | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Cerrar al hacer clic fuera del selector.
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  const selected = mechanics.find((m) => m.id === value) ?? null;
+  const options: { id: string | null; name: string }[] = [
+    { id: null, name: 'Sin asignar' },
+    ...mechanics.map((m) => ({ id: m.id, name: m.full_name })),
+  ];
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        className="form-input"
+        onClick={() => !disabled && setOpen((o) => !o)}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          textAlign: 'left',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+        }}
+      >
+        <span
+          style={{
+            color: selected ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {selected ? selected.full_name : 'Sin asignar'}
+        </span>
+        <ChevronDown
+          size={16}
+          style={{
+            flexShrink: 0,
+            color: 'var(--color-text-muted)',
+            transition: 'transform 0.15s',
+            transform: open ? 'rotate(180deg)' : 'none',
+          }}
+        />
+      </button>
+
+      {open && (
+        <ul className="select-menu" role="listbox">
+          {options.map((opt) => {
+            const isSelected = opt.id === value;
+            return (
+              <li key={opt.id ?? '__none__'}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className="select-option"
+                  onClick={() => {
+                    onChange(opt.id);
+                    setOpen(false);
+                  }}
+                  style={{
+                    color:
+                      opt.id === null
+                        ? 'var(--color-text-muted)'
+                        : 'var(--color-text-primary)',
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {opt.name}
+                  </span>
+                  {isSelected && (
+                    <Check size={16} style={{ flexShrink: 0, color: 'var(--color-brand-500)' }} />
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
