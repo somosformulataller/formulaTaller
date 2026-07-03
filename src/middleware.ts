@@ -29,6 +29,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Superadmin API: the route handlers enforce platform-admin auth themselves
+  // (getPlatformAdmin). Don't run the workshop/profile logic here, and never
+  // redirect an API request.
+  if (pathname.startsWith('/api/superadmin')) {
+    return NextResponse.next();
+  }
+
+  // Superadmin panel. Superadmins have NO profiles row, so they must be handled
+  // before the profile-based logic below (which would bounce them to /login).
+  if (pathname.startsWith('/superadmin')) {
+    // Login page is public.
+    if (pathname.startsWith('/superadmin/login')) {
+      return await updateSession(request).then((r) => r.supabaseResponse);
+    }
+    const { supabaseResponse, user } = await updateSession(request);
+    if (!user) {
+      return NextResponse.redirect(new URL('/superadmin/login', request.url));
+    }
+    // Membership ("is this user a platform admin?") is verified server-side in
+    // the /superadmin page (getPlatformAdmin), which redirects non-admins to
+    // /superadmin/login.
+    return supabaseResponse;
+  }
+
   const { supabaseResponse, user, supabase } = await updateSession(request);
 
   // If not authenticated, redirect to login

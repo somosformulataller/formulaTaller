@@ -14,9 +14,22 @@ export interface Workshop {
   whatsapp: string | null;
   logo_url: string | null;
   order_limit: number;
+  is_subscribed: boolean;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Fila del panel de superadmin: taller + métricas derivadas.
+export interface WorkshopAdminRow {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  is_subscribed: boolean;
+  order_limit: number;
+  owner_name: string | null;
+  order_count: number;
 }
 
 export type WorkshopUpdate = Partial<Pick<Workshop, 'name' | 'whatsapp'>>;

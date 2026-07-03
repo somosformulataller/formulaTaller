@@ -13,11 +13,17 @@ interface OrdenesClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
   orderLimit: number;
+  isSubscribed: boolean;
 }
 
 type FilterStatus = 'all' | OrderStatus;
 
-export default function OrdenesClient({ initialOrders, mechanics, orderLimit }: OrdenesClientProps) {
+export default function OrdenesClient({
+  initialOrders,
+  mechanics,
+  orderLimit,
+  isSubscribed,
+}: OrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -25,7 +31,7 @@ export default function OrdenesClient({ initialOrders, mechanics, orderLimit }: 
   const [search, setSearch] = useState('');
 
   function handleNew() {
-    if (orders.length >= orderLimit) {
+    if (!isSubscribed && orders.length >= orderLimit) {
       setShowPaywall(true);
     } else {
       setShowCreate(true);

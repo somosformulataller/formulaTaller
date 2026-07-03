@@ -30,17 +30,21 @@ export default async function OrdenesAdminPage() {
       .eq('role', 'mechanic')
       .eq('active', true)
       .order('full_name'),
-    supabase.from('workshops').select('order_limit').eq('id', wid).single(),
+    supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
   ]);
 
-  const orderLimit =
-    (workshopRes.data as unknown as { order_limit: number } | null)?.order_limit ?? 3;
+  const workshop = workshopRes.data as unknown as
+    | { order_limit: number; is_subscribed: boolean }
+    | null;
+  const orderLimit = workshop?.order_limit ?? 3;
+  const isSubscribed = workshop?.is_subscribed ?? false;
 
   return (
     <OrdenesClient
       initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       orderLimit={orderLimit}
+      isSubscribed={isSubscribed}
     />
   );
 }
