@@ -9,6 +9,7 @@
     "lint": "next lint",
     "seed:admin": "node scripts/create-admin.mjs",
     "seed:superadmin": "node scripts/create-superadmin.mjs",
+    "set:superadmin-password": "node scripts/set-superadmin-password.mjs",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset"
   },

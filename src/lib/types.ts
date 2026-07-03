@@ -13,7 +13,8 @@ export interface Workshop {
   slug: string;
   whatsapp: string | null;
   logo_url: string | null;
-  order_limit: number;
+  // Override del límite gratuito para este taller; null = usar el global.
+  order_limit: number | null;
   is_subscribed: boolean;
   owner_id: string | null;
   created_at: string;
@@ -27,7 +28,8 @@ export interface WorkshopAdminRow {
   slug: string;
   created_at: string;
   is_subscribed: boolean;
-  order_limit: number;
+  // Override por taller (null = usa el límite global del plan gratuito).
+  order_limit: number | null;
   owner_name: string | null;
   order_count: number;
 }

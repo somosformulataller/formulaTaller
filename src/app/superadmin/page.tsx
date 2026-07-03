@@ -13,7 +13,7 @@ type WorkshopRow = {
   slug: string;
   created_at: string;
   owner_id: string | null;
-  order_limit: number;
+  order_limit: number | null;
   is_subscribed: boolean;
 };
 
@@ -23,14 +23,18 @@ export default async function SuperadminDashboardPage() {
 
   const service = createServiceClient();
 
-  const [workshopsRes, ordersRes] = await Promise.all([
+  const [workshopsRes, ordersRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
       .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed')
       .order('created_at', { ascending: false }),
     // Solo el workshop_id de cada orden: contamos por taller en memoria.
     service.from('orders').select('workshop_id'),
+    service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
+
+  const freeOrderLimit =
+    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
 
   const workshops = (workshopsRes.data ?? []) as unknown as WorkshopRow[];
   const orderRows = (ordersRes.data ?? []) as unknown as { workshop_id: string }[];
@@ -65,5 +69,7 @@ export default async function SuperadminDashboardPage() {
     order_count: countByWorkshop.get(w.id) ?? 0,
   }));
 
-  return <SuperadminClient rows={rows} adminEmail={admin.email} />;
+  return (
+    <SuperadminClient rows={rows} adminEmail={admin.email} freeOrderLimit={freeOrderLimit} />
+  );
 }

@@ -18,7 +18,7 @@ export default async function MecanicoPage() {
     .single();
   const wid = (me as unknown as Profile | null)?.workshop_id ?? '';
 
-  const [ordersRes, mechanicsRes, workshopRes] = await Promise.all([
+  const [ordersRes, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
@@ -37,12 +37,15 @@ export default async function MecanicoPage() {
       .eq('active', true)
       .order('full_name'),
     supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
+    supabase.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
   const profileRes = { data: me };
   const workshop = workshopRes.data as unknown as
-    | { order_limit: number; is_subscribed: boolean }
+    | { order_limit: number | null; is_subscribed: boolean }
     | null;
-  const orderLimit = workshop?.order_limit ?? 3;
+  const globalLimit =
+    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
+  const orderLimit = workshop?.order_limit ?? globalLimit;
   const isSubscribed = workshop?.is_subscribed ?? false;
 
   return (

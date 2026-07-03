@@ -37,15 +37,21 @@ export async function POST(req: Request) {
   const body: CreateOrderPayload = await req.json();
   const service = createServiceClient();
 
-  // Free-plan limit: block once the workshop reaches its order_limit, salvo que
-  // el taller esté suscrito (plan pago) → órdenes ilimitadas.
-  const { data: ws } = await service
-    .from('workshops')
-    .select('order_limit, is_subscribed')
-    .eq('id', caller.workshopId)
-    .single();
-  const workshop = ws as unknown as { order_limit: number; is_subscribed: boolean } | null;
-  const limit = workshop?.order_limit ?? 3;
+  // Free-plan limit: block once the workshop reaches its límite efectivo, salvo
+  // que el taller esté suscrito (plan pago) → órdenes ilimitadas.
+  // Límite efectivo = override del taller (order_limit) ?? límite global.
+  const [{ data: ws }, { data: settings }] = await Promise.all([
+    service
+      .from('workshops')
+      .select('order_limit, is_subscribed')
+      .eq('id', caller.workshopId)
+      .single(),
+    service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
+  ]);
+  const workshop = ws as unknown as { order_limit: number | null; is_subscribed: boolean } | null;
+  const globalLimit =
+    (settings as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
+  const limit = workshop?.order_limit ?? globalLimit;
 
   if (!workshop?.is_subscribed) {
     const { count } = await service
