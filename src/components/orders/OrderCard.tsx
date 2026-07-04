@@ -6,8 +6,9 @@ import type { Order, Profile, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
+import MechanicSelect from '@/components/orders/MechanicSelect';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
-import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, ChevronDown, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, UserCheck, CheckCircle2 } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -213,49 +214,18 @@ export default function OrderCard({
           </Button>
         )}
 
-        {/* Admin: asignar mecánico con un desplegable (si la orden no tiene uno) */}
+        {/* Admin: asignar mecánico con la lista desplegable propia (si no tiene uno) */}
         {role === 'admin' && !order.assigned_mechanic_id && mechanics.length > 0 && (
-          <div style={{ position: 'relative', display: 'inline-flex' }}>
-            <select
-              value=""
-              onChange={(e) => handleAssignMechanic(e.target.value)}
-              disabled={loading}
-              aria-label="Asignar mecánico"
-              style={{
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                padding: '8px 30px 8px 12px',
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--color-text-secondary)',
-                cursor: loading ? 'default' : 'pointer',
-              }}
-            >
-              <option value="" disabled>
-                Asignar mecánico
-              </option>
-              {mechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={14}
-              style={{
-                position: 'absolute',
-                right: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
+          <MechanicSelect
+            mechanics={mechanics}
+            value={null}
+            onChange={(id) => id && handleAssignMechanic(id)}
+            disabled={loading}
+            includeNone={false}
+            placeholder="Asignar mecánico"
+            compact
+            float
+          />
         )}
 
         {/* Status transition (admin) */}
