@@ -5,9 +5,13 @@ import TrackingClient from './TrackingClient';
 import type { Metadata } from 'next';
 
 // El seguimiento del cliente debe mostrar SIEMPRE el estado actual (etapas y
-// adjuntos recién guardados). Sin esto, Next.js cachea la página y el cliente
-// ve una versión vieja sin los archivos nuevos.
+// adjuntos recién guardados).
+// - force-dynamic: no cachear la PÁGINA (Full Route Cache).
+// - force-no-store: no cachear las CONSULTAS a Supabase (Data Cache). Como el
+//   tracking es público (sin cookies), sin esto Next.js servía datos viejos
+//   (p. ej. faltaban los adjuntos de las etapas de servicio recién subidos).
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 interface Props {
   params: { token: string };
