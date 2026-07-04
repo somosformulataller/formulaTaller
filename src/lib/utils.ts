@@ -54,7 +54,7 @@ export function buildTrackingMessage(
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
   return (
-    `Hola ${clientName}! 🔧 Tu vehículo está en ${workshopName}.\n\n` +
+    `Hola ${clientName}! Tu vehículo está en ${workshopName}.\n\n` +
     `Puedes hacer seguimiento a tu orden aquí:\n${url}\n\n` +
     `¡Cualquier duda estamos a tu disposición!`
   );
@@ -75,19 +75,19 @@ export function buildStageReminderMessage(
 
   if (isFinal && status === 'done') {
     return (
-      `¡${name}! 🎉 Ya se completó la reparación de tu vehículo (etapa final: ${stageName}).\n\n` +
+      `¡${name}! Ya se completó la reparación de tu vehículo (etapa final: ${stageName}).\n\n` +
       `Puedes verificarlo en el siguiente link:\n${url}`
     );
   }
   if (status === 'done') {
     return (
-      `¡${name}! ✅ Ya se completó la etapa «${stageName}».\n\n` +
+      `¡${name}! Ya se completó la etapa «${stageName}».\n\n` +
       `Recuerda que puedes verificar tu vehículo desde el siguiente link:\n${url}`
     );
   }
   if (status === 'in_progress') {
     return (
-      `¡${name}! 🔧 Estamos trabajando en la etapa «${stageName}».\n\n` +
+      `¡${name}! Estamos trabajando en la etapa «${stageName}».\n\n` +
       `Puedes seguir el avance de tu vehículo en el siguiente link:\n${url}`
     );
   }
@@ -105,9 +105,9 @@ export function buildCredentialsMessage(
   workshopName = 'el taller'
 ): string {
   return (
-    `Hola ${name}! 🔧 Estos son tus datos de acceso a ${workshopName}:\n\n` +
-    `👤 Usuario: ${email}\n` +
-    `🔑 Contraseña: ${password}\n\n` +
+    `Hola ${name}! Estos son tus datos de acceso a ${workshopName}:\n\n` +
+    `Usuario: ${email}\n` +
+    `Contraseña: ${password}\n\n` +
     `Ingresa aquí:\n${siteUrl}/login\n\n` +
     `Por seguridad, cambia tu contraseña después del primer ingreso.`
   );
