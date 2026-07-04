@@ -15,22 +15,25 @@ Qué puede hacer cada perfil, qué tiene disponible y sus límites.
 **Acceso:** inicia sesión con correo/contraseña → entra a **`/mecanico`**.
 Lo crea el administrador del taller (recibe sus credenciales).
 
+> **Mismo flujo que el administrador.** Sobre las órdenes de su taller, el mecánico gestiona igual
+> que el admin (crear, ver, editar, cambiar estado, asignar mecánico, etapas y adjuntos). La **única**
+> diferencia es **eliminar órdenes** (solo las suyas) y la administración del taller/plataforma.
+
 ### Puede hacer
 - **Ver todas las órdenes** del taller. Filtros: **Mis órdenes / Todas / por estado** + buscador.
 - **Crear órdenes** (con adjuntos iniciales: foto, video, nota de voz, documento).
 - **Autoasignarse** una orden ("Asignarme").
-- Sobre las órdenes **suyas** (asignadas a él o creadas por él):
+- Sobre **cualquier orden del taller** (mismo flujo que el admin, desde el resumen de la orden):
   - **Editar** los datos de la orden.
+  - **Cambiar el estado** y **asignar/reasignar mecánico** (selectores en el resumen).
   - **Gestionar las etapas**: iniciar/completar/reabrir, editar título y descripción, **reordenar**
     arrastrando, y **agregar/eliminar adjuntos** (en las etapas y en el resumen de recepción).
-  - **Marcar la orden como "lista"**.
   - **Avisar al cliente por WhatsApp** (por etapa).
-  - **Eliminar** la orden.
+- **Eliminar** una orden **solo si es suya** (asignada a él o creada por él).
 - **Enviar / copiar el enlace de tracking** al cliente.
 
 ### Límites / no puede
-- ❌ Editar, gestionar etapas o eliminar **órdenes de otros mecánicos** (aunque las vea).
-- ❌ Editar etapas de una orden **ya marcada como "lista"**.
+- ❌ Eliminar **órdenes de otros** (solo las suyas). *(Gestionarlas/editarlas sí puede.)*
 - ❌ **Gestionar mecánicos** (crear, editar, contraseñas) — es del administrador.
 - ❌ Entrar al **perfil del taller** (`/admin/taller`) ni a **`/admin/*`** ni al panel **`/superadmin`**.
 - ❌ Cambiar el **límite de órdenes** o la **suscripción** del taller.
@@ -117,7 +120,7 @@ No es un perfil con login, pero es un nivel de acceso: cualquier persona con el 
 |---|:---:|:---:|:---:|
 | Ver órdenes del taller | ✅ | ✅ | — |
 | Crear órdenes | ✅ | ✅ | — |
-| Editar / gestionar etapas | Solo las **suyas** | ✅ (todas) | — |
+| Editar / estado / asignar / etapas | ✅ (cualquiera del taller) | ✅ (cualquiera del taller) | — |
 | Eliminar órdenes | Solo las **suyas** | ✅ (todas) | — |
 | Autoasignarse órdenes | ✅ | — (asigna a cualquiera) | — |
 | Gestionar mecánicos | ❌ | ✅ | — |

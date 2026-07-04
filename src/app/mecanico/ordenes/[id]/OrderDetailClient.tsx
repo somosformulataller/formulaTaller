@@ -19,10 +19,10 @@ import {
   Calendar,
   MessageCircle,
   ExternalLink,
-  CheckCircle2,
   Edit2,
   UserCheck,
   Trash2,
+  ChevronDown,
 } from 'lucide-react';
 
 interface MecanicoOrderDetailClientProps {
@@ -32,6 +32,12 @@ interface MecanicoOrderDetailClientProps {
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
+  { value: 'sin_mecanico', label: 'Sin mecánico asignado' },
+  { value: 'con_mecanico', label: 'En progreso' },
+  { value: 'lista', label: 'Vehículo listo' },
+];
 
 export default function MecanicoOrderDetailClient({
   order: initialOrder,
@@ -145,6 +151,78 @@ export default function MecanicoOrderDetailClient({
           </>
         )}
 
+        <div style={{ height: 1, background: 'var(--color-border)', margin: '0 0 14px' }} />
+
+        {/* Cambiar estado */}
+        <div className="form-field" style={{ marginBottom: 12 }}>
+          <label className="form-label">Cambiar estado</label>
+          <div style={{ position: 'relative' }}>
+            <select
+              className="form-input"
+              value={order.status}
+              onChange={(e) => patchOrder({ status: e.target.value as OrderStatus })}
+              disabled={busy}
+              style={{ paddingRight: 36 }}
+              id="order-status-select"
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={15}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Asignar mecánico */}
+        <div className="form-field" style={{ marginBottom: 12 }}>
+          <label className="form-label">Asignar mecánico</label>
+          <div style={{ position: 'relative' }}>
+            <select
+              className="form-input"
+              value={order.assigned_mechanic_id ?? ''}
+              onChange={(e) => patchOrder({ assigned_mechanic_id: e.target.value || null })}
+              disabled={busy}
+              style={{ paddingRight: 36 }}
+              id="order-mechanic-select"
+            >
+              <option value="">Sin asignar</option>
+              {mechanics.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={15}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+          {mechanics.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+              No hay mecánicos disponibles.
+            </span>
+          )}
+        </div>
+
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <a
             href={waLink}
@@ -216,18 +294,6 @@ export default function MecanicoOrderDetailClient({
             Editar
           </Button>
 
-          {isMine && order.status !== 'lista' && (
-            <Button
-              variant="primary"
-              size="sm"
-              loading={busy}
-              onClick={() => patchOrder({ status: 'lista' as OrderStatus })}
-            >
-              <CheckCircle2 size={14} />
-              Marcar como lista
-            </Button>
-          )}
-
           {canDelete && (
             <Button variant="danger" size="sm" loading={busy} onClick={handleDelete}>
               <Trash2 size={13} />
@@ -238,27 +304,18 @@ export default function MecanicoOrderDetailClient({
       </div>
 
       {/* Archivos adjuntados al crear la orden */}
-      <InitialAttachments
-        orderId={order.id}
-        stages={stages}
-        canEdit={isMine && order.status !== 'lista'}
-      />
+      <InitialAttachments orderId={order.id} stages={stages} canEdit={true} />
 
       {/* Stages */}
       <div>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
           Etapas del servicio
         </h2>
-        {!isMine && (
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-            Asígnate esta orden para poder editar las etapas.
-          </p>
-        )}
         <StageTimeline
           orderId={order.id}
           initialStages={serviceStages}
-          canEdit={isMine && order.status !== 'lista'}
-          canNotify={isMine}
+          canEdit={true}
+          canNotify={true}
           clientFirstName={order.client_first_name}
           clientWhatsapp={order.client_whatsapp}
           publicToken={order.public_token}

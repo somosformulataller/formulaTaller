@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateOrderPayload } from '@/lib/types';
-import { getCaller, canManageOrder } from '@/lib/api-auth';
+import { getCaller, canManageOrder, canDeleteOrder } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
@@ -63,11 +63,12 @@ export async function PATCH(req: Request, { params }: Params) {
 
 // DELETE /api/orders/:id
 // Admin: cualquier orden de su taller. Mecánico: solo las suyas (asignadas a
-// él o creadas por él). Esto lo resuelve canManageOrder.
+// él o creadas por él). Esto lo resuelve canDeleteOrder (más estricto que
+// canManageOrder, que ahora permite a cualquier staff gestionar la orden).
 export async function DELETE(_: Request, { params }: Params) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(await canManageOrder(caller, params.id))) {
+  if (!(await canDeleteOrder(caller, params.id))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

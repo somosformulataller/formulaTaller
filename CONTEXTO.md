@@ -152,16 +152,17 @@ Panel por encima de los talleres, para el dueño del sistema. Acceso solo para c
   la opción de contraseña temporal).
 
 ### Órdenes
-- **Admin y mecánico** pueden **ver todas las órdenes**, **crearlas** y **asignar mecánicos**.
+- **Mismo flujo para admin y mecánico**: ambos pueden **ver todas las órdenes**, **crearlas**,
+  **editarlas**, **cambiar estado**, **asignar/reasignar mecánico** y **gestionar etapas/adjuntos** de
+  **cualquier** orden de su taller. En el **resumen de la orden** hay selectores de **Cambiar estado**
+  y **Asignar mecánico** (sin abrir "Editar"). (`canManageOrder` = cualquier staff de su taller.)
 - Al **crear** una orden se pueden **adjuntar datos iniciales** (foto/video/**nota de voz**/documento);
   se guardan en la etapa de **"Recepción" (posición 0)** y los ven admin, mecánico y **cliente** (tracking).
-  En el **resumen de la orden** esos adjuntos se pueden **ver, agregar y eliminar** (admin siempre; mecánico
-  si la orden es suya y no está "lista"). (`canManageOrder` permite gestionar al admin, al mecánico asignado
-  **o al creador** de la orden.)
-- El mecánico puede **autoasignarse** una orden ("Asignarme") y, una vez asignado, **editarla**.
+  En el resumen esos adjuntos se pueden **ver, agregar y eliminar**.
+- El mecánico puede **autoasignarse** una orden ("Asignarme").
 - **Filtro** en la vista del mecánico: **Mis órdenes / Todas** (+ por estado) y buscador.
-- **Eliminar órdenes:** el **admin** puede eliminar cualquier orden de su taller; el **mecánico** solo las
-  **suyas** (asignadas a él o creadas por él). Botón de eliminar en el detalle y en la tarjeta.
+- **Eliminar órdenes** (más estricto, `canDeleteOrder`): el **admin** puede eliminar cualquier orden de
+  su taller; el **mecánico** solo las **suyas** (asignadas a él o creadas por él).
 
 ### Tracking del cliente (público, sin login)
 - Enlace único por orden (`public_token`), que se puede **abrir**, **copiar** y **enviar por WhatsApp**.

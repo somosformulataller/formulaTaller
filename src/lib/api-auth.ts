@@ -62,11 +62,35 @@ export async function getPlatformAdmin(): Promise<PlatformAdmin | null> {
 }
 
 /**
- * True if the caller may manage the given order. The order must belong to the
- * caller's workshop (tenant isolation); then admins can manage any order and
- * mechanics only orders assigned to them.
+ * True if the caller may manage (edit / change status / assign / update stages
+ * and attachments) the given order. Any staff member (admin or mechanic) may
+ * manage any order of THEIR workshop — mismo flujo para admin y mecánico. La
+ * única frontera es el taller (aislamiento por tenant).
  */
 export async function canManageOrder(caller: Caller, orderId: string): Promise<boolean> {
+  if (!caller.workshopId) return false;
+  if (caller.role !== 'admin' && caller.role !== 'mechanic') return false;
+
+  const service = createServiceClient();
+  const { data } = await service
+    .from('orders')
+    .select('workshop_id')
+    .eq('id', orderId)
+    .single();
+
+  const order = data as unknown as { workshop_id: string } | null;
+  if (!order) return false;
+
+  // Solo órdenes del propio taller.
+  return order.workshop_id === caller.workshopId;
+}
+
+/**
+ * True if the caller may DELETE the given order. Más estricto que gestionar:
+ * el admin puede eliminar cualquier orden de su taller; el mecánico solo las
+ * suyas (asignadas a él o creadas por él).
+ */
+export async function canDeleteOrder(caller: Caller, orderId: string): Promise<boolean> {
   if (!caller.workshopId) return false;
   if (caller.role !== 'admin' && caller.role !== 'mechanic') return false;
 
@@ -81,11 +105,8 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
     | { assigned_mechanic_id: string | null; workshop_id: string; created_by: string | null }
     | null;
   if (!order) return false;
-
-  // Never allow acting on an order from another workshop.
   if (order.workshop_id !== caller.workshopId) return false;
 
   if (caller.role === 'admin') return true;
-  // Mechanics can manage orders they are assigned to or that they created.
   return order.assigned_mechanic_id === caller.userId || order.created_by === caller.userId;
 }
