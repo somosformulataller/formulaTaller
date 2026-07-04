@@ -52,6 +52,7 @@ export default function OrderDetailClient({
   const [order, setOrder] = useState<Order>(initialOrder);
   const [showEdit, setShowEdit] = useState(startInEdit);
   const [changingStatus, setChangingStatus] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
@@ -78,6 +79,17 @@ export default function OrderDetailClient({
       const updated = await res.json();
       setOrder(updated);
     }
+  }
+
+  async function handleAssignMechanic(mechanicId: string | null) {
+    setAssigning(true);
+    const res = await fetch(`/api/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
+    });
+    setAssigning(false);
+    if (res.ok) setOrder(await res.json());
   }
 
   function handleEdited(updated: Order) {
@@ -192,6 +204,44 @@ export default function OrderDetailClient({
               }}
             />
           </div>
+        </div>
+
+        {/* Assign mechanic — directamente desde el resumen, sin abrir "Editar" */}
+        <div className="form-field" style={{ marginBottom: 12 }}>
+          <label className="form-label">Asignar mecánico</label>
+          <div style={{ position: 'relative' }}>
+            <select
+              className="form-input"
+              value={order.assigned_mechanic_id ?? ''}
+              onChange={(e) => handleAssignMechanic(e.target.value || null)}
+              disabled={assigning}
+              style={{ paddingRight: 36 }}
+              id="order-mechanic-select"
+            >
+              <option value="">Sin asignar</option>
+              {mechanics.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={15}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--color-text-muted)',
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
+          {mechanics.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+              No hay mecánicos. Crea uno en la sección Mecánicos.
+            </span>
+          )}
         </div>
 
         {/* Action buttons */}
