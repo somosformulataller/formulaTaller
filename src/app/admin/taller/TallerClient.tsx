@@ -398,16 +398,7 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
             <div style={{ color: '#f87171', fontSize: 13 }}>{deleteError}</div>
           )}
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={() => setShowDelete(false)}
-              disabled={deleting}
-            >
-              Cancelar
-            </Button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Button
               type="button"
               variant="danger"
@@ -417,6 +408,15 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
               onClick={handleDeleteAccount}
             >
               Eliminar definitivamente
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowDelete(false)}
+              disabled={deleting}
+            >
+              Cancelar
             </Button>
           </div>
         </div>
