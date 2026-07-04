@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
+import MechanicSelect from '@/components/orders/MechanicSelect';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
@@ -209,34 +210,12 @@ export default function OrderDetailClient({
         {/* Assign mechanic — directamente desde el resumen, sin abrir "Editar" */}
         <div className="form-field" style={{ marginBottom: 12 }}>
           <label className="form-label">Asignar mecánico</label>
-          <div style={{ position: 'relative' }}>
-            <select
-              className="form-input"
-              value={order.assigned_mechanic_id ?? ''}
-              onChange={(e) => handleAssignMechanic(e.target.value || null)}
-              disabled={assigning}
-              style={{ paddingRight: 36 }}
-              id="order-mechanic-select"
-            >
-              <option value="">Sin asignar</option>
-              {mechanics.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.full_name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={15}
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
+          <MechanicSelect
+            mechanics={mechanics}
+            value={order.assigned_mechanic_id ?? null}
+            onChange={(id) => handleAssignMechanic(id)}
+            disabled={assigning}
+          />
           {mechanics.length === 0 && (
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
               No hay mecánicos. Crea uno en la sección Mecánicos.
