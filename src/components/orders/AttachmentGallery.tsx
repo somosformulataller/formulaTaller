@@ -59,6 +59,15 @@ export default function AttachmentGallery({
 
   if (!attachments || attachments.length === 0) return null;
 
+  // Mostrar siempre en el mismo orden: por fecha de subida (cronológico). Sin
+  // esto el orden lo decide la base de datos y puede variar entre cargas.
+  const ordered = [...attachments].sort((a, b) => {
+    const ta = a.created_at ?? '';
+    const tb = b.created_at ?? '';
+    if (ta !== tb) return ta < tb ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
   return (
     <>
       <div
@@ -69,7 +78,7 @@ export default function AttachmentGallery({
           marginTop: 10,
         }}
       >
-        {attachments.map((att, i) => (
+        {ordered.map((att, i) => (
           <Tile
             key={att.id}
             att={att}
@@ -83,7 +92,7 @@ export default function AttachmentGallery({
 
       {openIndex !== null && (
         <Lightbox
-          attachments={attachments}
+          attachments={ordered}
           index={openIndex}
           onIndexChange={setOpenIndex}
           onClose={() => setOpenIndex(null)}

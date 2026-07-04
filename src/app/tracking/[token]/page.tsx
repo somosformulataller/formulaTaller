@@ -4,6 +4,11 @@ import type { Order, OrderStage } from '@/lib/types';
 import TrackingClient from './TrackingClient';
 import type { Metadata } from 'next';
 
+// El seguimiento del cliente debe mostrar SIEMPRE el estado actual (etapas y
+// adjuntos recién guardados). Sin esto, Next.js cachea la página y el cliente
+// ve una versión vieja sin los archivos nuevos.
+export const dynamic = 'force-dynamic';
+
 interface Props {
   params: { token: string };
 }
@@ -45,7 +50,7 @@ export default async function TrackingPage({ params }: Props) {
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
       workshop:workshops(name, logo_url),
-      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, url, name, mime))
+      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, url, name, mime, created_at))
     `)
     .eq('public_token', params.token)
     .maybeSingle();
