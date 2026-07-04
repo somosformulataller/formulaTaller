@@ -43,16 +43,33 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
   async function handleDeleteAccount() {
     setDeleteError(null);
     setDeleting(true);
-    const res = await fetch(`/api/workshops/${workshop.id}`, { method: 'DELETE' });
+
+    let res: Response;
+    try {
+      res = await fetch(`/api/workshops/${workshop.id}`, { method: 'DELETE' });
+    } catch {
+      setDeleting(false);
+      setDeleteError('No se pudo conectar. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setDeleting(false);
       setDeleteError(data.error || 'No se pudo eliminar la cuenta.');
       return;
     }
-    // Account is gone: sign out and go to registration.
-    await createClient().auth.signOut();
-    router.replace('/registro');
+
+    // La cuenta (y el usuario) ya no existen. Cerramos sesión ignorando errores
+    // —el usuario ya fue borrado— y salimos con una RECARGA COMPLETA: un
+    // router.replace no siempre navegaba al borrar la propia cuenta, y parecía
+    // que "no pasaba nada". window.location limpia todo el estado del cliente.
+    try {
+      await createClient().auth.signOut();
+    } catch {
+      /* el usuario ya no existe; ignorar */
+    }
+    window.location.href = '/registro';
   }
 
   async function handleSubmit(e: React.FormEvent) {
