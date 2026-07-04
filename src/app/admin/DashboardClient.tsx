@@ -60,6 +60,10 @@ export default function AdminDashboardClient({
     );
   }
 
+  function handleUpdate(updated: Order) {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  }
+
   const FILTERS: { value: FilterStatus; label: string }[] = [
     { value: 'all', label: 'Todas' },
     { value: 'sin_mecanico', label: 'Sin asignar' },
@@ -184,6 +188,7 @@ export default function AdminDashboardClient({
               role="admin"
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              onUpdate={handleUpdate}
             />
           ))}
         </div>

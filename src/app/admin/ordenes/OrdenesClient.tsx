@@ -64,6 +64,10 @@ export default function OrdenesClient({
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   }
 
+  function handleUpdate(updated: Order) {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+  }
+
   const FILTERS: { value: FilterStatus; label: string }[] = [
     { value: 'all', label: `Todas (${orders.length})` },
     { value: 'sin_mecanico', label: 'Sin asignar' },
@@ -171,6 +175,7 @@ export default function OrdenesClient({
               role="admin"
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              onUpdate={handleUpdate}
             />
           ))}
         </div>
