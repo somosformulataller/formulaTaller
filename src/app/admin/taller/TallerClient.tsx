@@ -40,6 +40,19 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
 
   const loginUrl = `${SITE_URL}/login/${workshop.slug}`;
 
+  // Confirmación tolerante: ignora mayúsculas/minúsculas, acentos y espacios
+  // extra (antes exigía coincidencia EXACTA y el botón no se habilitaba si el
+  // nombre tenía mayúsculas o acentos).
+  const normalizeName = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  const nameMatches =
+    confirmName.trim().length > 0 && normalizeName(confirmName) === normalizeName(workshop.name);
+
   async function handleDeleteAccount() {
     setDeleteError(null);
     setDeleting(true);
@@ -400,7 +413,7 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
               variant="danger"
               fullWidth
               loading={deleting}
-              disabled={confirmName.trim() !== workshop.name.trim()}
+              disabled={!nameMatches}
               onClick={handleDeleteAccount}
             >
               Eliminar definitivamente
