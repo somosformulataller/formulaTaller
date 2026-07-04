@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
@@ -23,7 +24,6 @@ import {
   Edit2,
   UserCheck,
   Trash2,
-  ChevronDown,
 } from 'lucide-react';
 
 interface MecanicoOrderDetailClientProps {
@@ -157,33 +157,13 @@ export default function MecanicoOrderDetailClient({
         {/* Cambiar estado */}
         <div className="form-field" style={{ marginBottom: 12 }}>
           <label className="form-label">Cambiar estado</label>
-          <div style={{ position: 'relative' }}>
-            <select
-              className="form-input"
-              value={order.status}
-              onChange={(e) => patchOrder({ status: e.target.value as OrderStatus })}
-              disabled={busy}
-              style={{ paddingRight: 36 }}
-              id="order-status-select"
-            >
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={15}
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
+          <Select
+            options={STATUS_OPTIONS}
+            value={order.status}
+            onChange={(v) => patchOrder({ status: v as OrderStatus })}
+            disabled={busy}
+            id="order-status-select"
+          />
         </div>
 
         {/* Asignar mecánico */}
