@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Lock, X, MessageCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { buildWhatsAppLink } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 interface SubscriptionModalProps {
   onClose: () => void;
@@ -20,10 +21,31 @@ const WHATSAPP_MESSAGE =
 // numbers (managed from the superadmin panel) so the user can pay/subscribe.
 export default function SubscriptionModal({ onClose, message, phones }: SubscriptionModalProps) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
+  const [numbers, setNumbers] = useState<string[]>(
+    (phones ?? []).filter((p) => p.trim().length > 0)
+  );
 
-  const numbers = (phones ?? []).filter((p) => p.trim().length > 0);
+  useEffect(() => {
+    setMounted(true);
+    // Traer los números de atención al cliente desde la configuración global
+    // (lectura pública). Así aparecen SIEMPRE, sin importar desde qué pantalla
+    // se abra este modal (dashboard, lista, o al fallar la creación con 402).
+    let active = true;
+    createClient()
+      .from('platform_settings')
+      .select('support_phones')
+      .eq('id', 1)
+      .single()
+      .then(({ data }: { data: { support_phones?: string[] } | null }) => {
+        const list = (data?.support_phones ?? []).filter((p) => p.trim().length > 0);
+        if (active && list.length) setNumbers(list);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!mounted) return null;
 
   return createPortal(
     <div
