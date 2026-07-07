@@ -13,6 +13,7 @@ interface AdminDashboardClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
   orderLimit: number;
+  isSubscribed: boolean;
 }
 
 type FilterStatus = 'all' | OrderStatus;
@@ -21,6 +22,7 @@ export default function AdminDashboardClient({
   initialOrders,
   mechanics,
   orderLimit,
+  isSubscribed,
 }: AdminDashboardClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [showCreate, setShowCreate] = useState(false);
@@ -28,7 +30,7 @@ export default function AdminDashboardClient({
   const [filter, setFilter] = useState<FilterStatus>('all');
 
   function handleNew() {
-    if (orders.length >= orderLimit) {
+    if (!isSubscribed && orders.length >= orderLimit) {
       setShowPaywall(true);
     } else {
       setShowCreate(true);

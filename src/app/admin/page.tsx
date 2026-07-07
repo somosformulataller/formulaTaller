@@ -8,7 +8,7 @@ export default async function AdminDashboardPage() {
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [ordersRes, mechanicsRes, workshopRes] = await Promise.all([
+  const [ordersRes, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
@@ -26,17 +26,24 @@ export default async function AdminDashboardPage() {
       .eq('role', 'mechanic')
       .eq('active', true)
       .order('full_name', { ascending: true }),
-    supabase.from('workshops').select('order_limit').eq('id', wid).single(),
+    supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
+    supabase.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
 
-  const orderLimit =
-    (workshopRes.data as unknown as { order_limit: number } | null)?.order_limit ?? 3;
+  const workshop = workshopRes.data as unknown as
+    | { order_limit: number | null; is_subscribed: boolean }
+    | null;
+  const globalLimit =
+    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
+  const orderLimit = workshop?.order_limit ?? globalLimit;
+  const isSubscribed = workshop?.is_subscribed ?? false;
 
   return (
     <AdminDashboardClient
       initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       orderLimit={orderLimit}
+      isSubscribed={isSubscribed}
     />
   );
 }
