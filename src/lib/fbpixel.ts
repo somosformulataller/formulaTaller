@@ -53,3 +53,21 @@ export function trackFbEvent(name: string, custom: Record<string, unknown> = {})
     /* ignore */
   }
 }
+
+/**
+ * Igual que trackFbEvent, pero cuenta **una sola vez por usuario** (por
+ * navegador): si el usuario ya disparó ese evento antes, no se vuelve a contar
+ * aunque haga clic muchas veces. Ideal para conversiones de embudo (login,
+ * crear taller, registrar), para no inflar el conteo con clics repetidos.
+ */
+export function trackFbEventOnce(name: string, custom: Record<string, unknown> = {}): void {
+  if (typeof window === 'undefined') return;
+  const key = `fbq_once_${name}`;
+  try {
+    if (localStorage.getItem(key)) return; // ya contado para este usuario
+    localStorage.setItem(key, '1');
+  } catch {
+    /* sin localStorage: se dispara igual */
+  }
+  trackFbEvent(name, custom);
+}
