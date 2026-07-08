@@ -11,7 +11,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | **Pixel del navegador** (client-side) | ✅ Activo — dispara `PageView` en cada página. |
 | **Conversions API / CAPI** (server-side) | ✅ Activo — verificado (`/api/fb-event` responde `{"ok":true}`). |
 | **Deduplicación** navegador ↔ servidor | ✅ Por `event_id` (mismo id en Pixel y CAPI). |
-| **Conteo por usuario** | ✅ El evento se dispara **en cada clic**; Meta reporta aparte los **usuarios únicos** (el "1 por persona" lo da Meta, sin bloquear en el navegador). |
+| **Conteo por usuario** | ✅ Cada evento cuenta **1 sola vez por usuario/navegador** (no infla con clics repetidos). |
 
 - **Pixel ID:** `1688453135751029` (público; está en el código).
 - **Token de la CAPI:** secreto, vive en la variable de entorno **`FB_CAPI_ACCESS_TOKEN`** en **Vercel**
@@ -24,9 +24,9 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | Evento | Cuándo se dispara | Tipo | Conteo |
 |---|---|---|---|
 | `PageView` | Al abrir/navegar cualquier página | Estándar | Cada vista |
-| `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | Cada clic (Meta cuenta únicos) |
-| `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | Cada clic (Meta cuenta únicos) |
-| `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | Cada registro exitoso |
+| `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por usuario |
+| `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por usuario |
+| `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | 1 vez por usuario |
 
 > El botón final del formulario de registro se renombró de **"Crear taller"** a **"Registrar mi taller"**
 > para no confundirlo con el enlace "Crear taller" del login.
@@ -38,9 +38,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 2. En paralelo, el navegador llama a **`/api/fb-event`**, que reenvía el mismo evento (mismo `event_id`)
    a la **Conversions API** de Meta con el token secreto + IP/User-Agent + cookies `_fbp`/`_fbc`.
 3. Meta **deduplica** por `event_id` (no cuenta doble el navegador y el servidor).
-4. El evento se dispara **en cada clic**. Meta reporta aparte **usuarios únicos**, así que el
-   "1 por persona" lo obtienes en los informes de Meta sin bloquear nada en el navegador (esto
-   permite además verlos siempre en el Pixel Helper / "Probar eventos").
+4. Un evento se cuenta **una sola vez por usuario** (marca en `localStorage`), aunque haga muchos clics.
 
 ---
 
