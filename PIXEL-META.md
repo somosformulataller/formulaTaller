@@ -25,7 +25,6 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 |---|---|---|---|
 | `PageView` | Al abrir/navegar cualquier página | Estándar | Cada vista |
 | `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por usuario |
-| `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por usuario |
 | `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por usuario |
 | `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | 1 vez por usuario |
 
@@ -50,7 +49,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
   - **"Eventos de prueba"**: ver eventos en vivo (Navegador **y** Servidor/CAPI) y su deduplicación.
   - **"Descripción general"**: conteos por evento en el tiempo.
 - **Ads Manager**: conversiones atribuidas a los anuncios. Para usar los eventos como objetivo de
-  campaña, crear **Conversiones personalizadas** (basadas en `ClickIniciarSesion` / `ClickCrearTaller` /
+  campaña, crear **Conversiones personalizadas** (basadas en `ClickIniciarSesion` /
   `ClickRegistrarTaller`) y usar `CompleteRegistration` como conversión estándar.
 
 ---
@@ -63,7 +62,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `src/app/api/fb-event/route.ts` | Relay a la Conversions API (usa `FB_CAPI_ACCESS_TOKEN`). |
 | `src/app/layout.tsx` | Incluye `<FacebookPixel />`. |
 | `src/middleware.ts` | Deja pública la ruta `/api/fb-event`. |
-| `src/app/login/LoginForm.tsx` | Eventos `ClickIniciarSesion` y `ClickCrearTaller`. |
+| `src/app/login/LoginForm.tsx` | Evento `ClickIniciarSesion`. |
 | `src/app/registro/RegisterForm.tsx` | Eventos `ClickRegistrarTaller` y `CompleteRegistration` + botón renombrado. |
 
 ---

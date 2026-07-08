@@ -224,7 +224,6 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
           ¿No tienes taller registrado?{' '}
           <Link
             href="/registro"
-            onClick={() => trackFbEventOnce('ClickCrearTaller')}
             style={{ color: 'var(--color-brand-400)', fontWeight: 700, textDecoration: 'none' }}
           >
             Crear taller

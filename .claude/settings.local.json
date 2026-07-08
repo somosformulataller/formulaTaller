@@ -45,7 +45,9 @@
       "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{try{const a=JSON.parse\\(s\\);console.log\\('carpetas/objetos en raiz:',a.length\\);a.slice\\(0,10\\).forEach\\(x=>console.log\\('-',x.name\\)\\)}catch{console.log\\(s.slice\\(0,150\\)\\)}}\\)\")",
       "PowerShell(npx tsc --noEmit)",
       "PowerShell(npm run *)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "PowerShell(npx tsc --noEmit; if \\($?\\) { \"TYPECHECK OK\" })",
+      "Bash(Select-Object -Last 5)"
     ]
   }
 }
