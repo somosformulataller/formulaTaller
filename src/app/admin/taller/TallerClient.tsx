@@ -22,6 +22,10 @@ import type { Workshop } from '@/lib/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
+// Ocultar temporalmente la opción de eliminar la cuenta del taller.
+// Poner en true para volver a mostrarla.
+const SHOW_DELETE_ACCOUNT = false;
+
 export default function TallerClient({ workshop }: { workshop: Workshop }) {
   const router = useRouter();
   const [name, setName] = useState(workshop.name);
@@ -313,6 +317,8 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
         </form>
       </div>
 
+      {SHOW_DELETE_ACCOUNT && (
+        <>
       {/* Danger zone */}
       <div
         className="card"
@@ -421,6 +427,8 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
           </div>
         </div>
       </Modal>
+        </>
+      )}
     </div>
   );
 }
