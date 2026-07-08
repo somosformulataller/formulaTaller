@@ -42,6 +42,10 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
       return;
     }
 
+    // Dar ~400ms para que la petición del Pixel (facebook.com/tr) alcance a
+    // enviarse antes de cambiar de página; si no, el navegador la cancela.
+    await new Promise((r) => setTimeout(r, 400));
+
     // ¿Es superadmin de plataforma? No tiene perfil de taller; se verifica con
     // un endpoint seguro (platform_admins está bloqueada por RLS al navegador).
     const saRes = await fetch('/api/superadmin/me');
@@ -224,7 +228,13 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
           ¿No tienes taller registrado?{' '}
           <Link
             href="/registro"
-            onClick={() => trackFbEventOnce('ClickCrearTaller')}
+            onClick={(e) => {
+              // Disparar el evento y esperar ~400ms antes de navegar, para que
+              // la petición del Pixel (facebook.com/tr) no se cancele.
+              e.preventDefault();
+              trackFbEventOnce('ClickCrearTaller');
+              setTimeout(() => router.push('/registro'), 400);
+            }}
             style={{ color: 'var(--color-brand-400)', fontWeight: 700, textDecoration: 'none' }}
           >
             Crear taller

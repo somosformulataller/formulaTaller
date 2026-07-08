@@ -68,6 +68,10 @@ export default function RegisterForm() {
     // Registro completado con éxito → conversión estándar de Meta.
     trackFbEventOnce('CompleteRegistration');
 
+    // Dar ~400ms para que las peticiones del Pixel (ClickRegistrarTaller y
+    // CompleteRegistration) alcancen a enviarse antes de cambiar de página.
+    await new Promise((r) => setTimeout(r, 400));
+
     // Auto sign-in and go to the admin panel.
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: form.email.trim(),
