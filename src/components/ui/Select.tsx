@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Plus } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
   label: string;
   /** Texto atenuado (ej. la opción "Sin asignar"). */
   muted?: boolean;
+  /** Opción de acción (ej. "Agregar mecánico"): destacada, con +, separada. */
+  action?: boolean;
 }
 
 interface SelectProps {
@@ -123,7 +125,7 @@ export default function Select({
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
-              <li key={opt.value || '__none__'}>
+              <li key={opt.value || '__none__'} style={opt.action ? { borderTop: '1px solid var(--color-border)', marginTop: 2, paddingTop: 2 } : undefined}>
                 <button
                   type="button"
                   role="option"
@@ -134,13 +136,19 @@ export default function Select({
                     setOpen(false);
                   }}
                   style={{
-                    color: opt.muted ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                    color: opt.action
+                      ? 'var(--color-brand-400)'
+                      : opt.muted
+                      ? 'var(--color-text-muted)'
+                      : 'var(--color-text-primary)',
+                    fontWeight: opt.action ? 700 : undefined,
                   }}
                 >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {opt.action && <Plus size={15} style={{ flexShrink: 0 }} />}
                     {opt.label}
                   </span>
-                  {isSelected && (
+                  {isSelected && !opt.action && (
                     <Check size={16} style={{ flexShrink: 0, color: 'var(--color-brand-500)' }} />
                   )}
                 </button>

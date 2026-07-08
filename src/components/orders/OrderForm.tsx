@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Order, Profile, CreateOrderPayload, OrderStage } from '@/lib/types';
+import type { Order, Profile, Mechanic, CreateOrderPayload, OrderStage } from '@/lib/types';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 import PhoneInput from '@/components/ui/PhoneInput';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import MechanicForm from '@/components/mechanics/MechanicForm';
 import { uploadStageAttachment } from '@/lib/attachments';
 import {
   User,
@@ -24,6 +26,10 @@ interface OrderFormProps {
   order?: Order; // if editing
   onSuccess: (order: Order) => void;
   onCancel: () => void;
+  /** Solo el admin puede crear mecánicos: habilita la opción "Agregar mecánico". */
+  canCreateMechanic?: boolean;
+  /** Nombre del taller (para el mensaje de credenciales del mecánico nuevo). */
+  workshopName?: string;
 }
 
 const EMPTY: CreateOrderPayload = {
@@ -40,8 +46,18 @@ interface PendingFile {
   url: string | null; // object URL for image previews
 }
 
-export default function OrderForm({ mechanics, order, onSuccess, onCancel }: OrderFormProps) {
+export default function OrderForm({
+  mechanics,
+  order,
+  onSuccess,
+  onCancel,
+  canCreateMechanic = false,
+  workshopName,
+}: OrderFormProps) {
   const isEdit = !!order;
+  // Lista local de mecánicos: al crear uno nuevo desde aquí, se agrega y se selecciona.
+  const [mechanicsList, setMechanicsList] = useState<Profile[]>(mechanics);
+  const [showAddMechanic, setShowAddMechanic] = useState(false);
   const [form, setForm] = useState<CreateOrderPayload>(
     order
       ? {
@@ -71,6 +87,12 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
 
   function set(field: keyof CreateOrderPayload, value: string | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  // Mecánico creado desde el propio formulario: agregarlo a la lista y seleccionarlo.
+  function handleMechanicCreated(m: Mechanic) {
+    setMechanicsList((prev) => [...prev, m]);
+    set('assigned_mechanic_id', m.id);
   }
 
   function addFiles(files: File[]) {
@@ -209,10 +231,11 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
       <div className="form-field">
         <label className="form-label">Mecánico asignado</label>
         <MechanicSelect
-          mechanics={mechanics}
+          mechanics={mechanicsList}
           value={form.assigned_mechanic_id ?? null}
           onChange={(id) => set('assigned_mechanic_id', id)}
           disabled={loading}
+          onAddNew={canCreateMechanic ? () => setShowAddMechanic(true) : undefined}
         />
       </div>
 
@@ -280,6 +303,20 @@ export default function OrderForm({ mechanics, order, onSuccess, onCancel }: Ord
 
       {showPicker && (
         <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} />
+      )}
+
+      {showAddMechanic && (
+        <Modal
+          isOpen={showAddMechanic}
+          onClose={() => setShowAddMechanic(false)}
+          title="Nuevo mecánico"
+        >
+          <MechanicForm
+            workshopName={workshopName}
+            onSaved={handleMechanicCreated}
+            onClose={() => setShowAddMechanic(false)}
+          />
+        </Modal>
       )}
     </form>
   );

@@ -300,6 +300,8 @@ export default function OrderDetailClient({
           order={order}
           onSuccess={handleEdited}
           onCancel={() => setShowEdit(false)}
+          canCreateMechanic
+          workshopName={order.workshop?.name}
         />
       </Modal>
     </div>

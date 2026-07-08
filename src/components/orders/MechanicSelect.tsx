@@ -3,6 +3,8 @@
 import type { Profile } from '@/lib/types';
 import Select, { type SelectOption } from '@/components/ui/Select';
 
+const ADD_NEW = '__add_new_mechanic__';
+
 interface MechanicSelectProps {
   mechanics: Profile[];
   value: string | null;
@@ -16,6 +18,8 @@ interface MechanicSelectProps {
   compact?: boolean;
   /** Lista flotante (absoluta) en vez de empujar el contenido. */
   float?: boolean;
+  /** Si se pasa, agrega al final una opción para crear un mecánico nuevo. */
+  onAddNew?: () => void;
 }
 
 /**
@@ -31,17 +35,33 @@ export default function MechanicSelect({
   placeholder = 'Sin asignar',
   compact = false,
   float = false,
+  onAddNew,
 }: MechanicSelectProps) {
   const options: SelectOption[] = [
     ...(includeNone ? [{ value: '', label: 'Sin asignar', muted: true }] : []),
     ...mechanics.map((m) => ({ value: m.id, label: m.full_name })),
+    ...(onAddNew
+      ? [
+          {
+            value: ADD_NEW,
+            label: mechanics.length ? 'Agregar otro mecánico' : 'Agregar mecánico',
+            action: true,
+          },
+        ]
+      : []),
   ];
 
   return (
     <Select
       options={options}
       value={value ?? ''}
-      onChange={(v) => onChange(v || null)}
+      onChange={(v) => {
+        if (v === ADD_NEW) {
+          onAddNew?.();
+          return;
+        }
+        onChange(v || null);
+      }}
       disabled={disabled}
       placeholder={placeholder}
       compact={compact}

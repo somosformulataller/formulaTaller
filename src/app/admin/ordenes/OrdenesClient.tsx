@@ -191,6 +191,7 @@ export default function OrdenesClient({
           mechanics={mechanics}
           onSuccess={handleCreated}
           onCancel={() => setShowCreate(false)}
+          canCreateMechanic
         />
       </Modal>
 

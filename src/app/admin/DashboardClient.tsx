@@ -206,6 +206,7 @@ export default function AdminDashboardClient({
           mechanics={mechanics}
           onSuccess={handleCreated}
           onCancel={() => setShowCreate(false)}
+          canCreateMechanic
         />
       </Modal>
 
