@@ -11,7 +11,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | **Pixel del navegador** (client-side) | ✅ Activo — dispara `PageView` en cada página. |
 | **Conversions API / CAPI** (server-side) | ✅ Activo — verificado (`/api/fb-event` responde `{"ok":true}`). |
 | **Deduplicación** navegador ↔ servidor | ✅ Por `event_id` (mismo id en Pixel y CAPI). |
-| **Conteo por usuario** | ✅ Cada evento cuenta **1 sola vez por usuario/navegador** (no infla con clics repetidos). |
+| **Conteo por clic** | ✅ Cada evento se dispara **1 sola vez por carga de página** (no infla con clics repetidos/doble-clic). Al **recargar** (F5) se reinicia y puede volver a dispararse. Meta reporta aparte los **usuarios únicos**. |
 
 - **Pixel ID:** `1688453135751029` (público; está en el código).
 - **Token de la CAPI:** secreto, vive en la variable de entorno **`FB_CAPI_ACCESS_TOKEN`** en **Vercel**
@@ -24,10 +24,10 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | Evento | Cuándo se dispara | Tipo | Conteo |
 |---|---|---|---|
 | `PageView` | Al abrir/navegar cualquier página | Estándar | Cada vista |
-| `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por usuario |
-| `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por usuario |
-| `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por usuario |
-| `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | 1 vez por usuario |
+| `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por carga de página |
+| `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por carga de página |
+| `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por carga de página |
+| `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | 1 vez por carga de página |
 
 > El botón final del formulario de registro se renombró de **"Crear taller"** a **"Registrar mi taller"**
 > para no confundirlo con el enlace "Crear taller" del login.
@@ -39,7 +39,9 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 2. En paralelo, el navegador llama a **`/api/fb-event`**, que reenvía el mismo evento (mismo `event_id`)
    a la **Conversions API** de Meta con el token secreto + IP/User-Agent + cookies `_fbp`/`_fbc`.
 3. Meta **deduplica** por `event_id` (no cuenta doble el navegador y el servidor).
-4. Un evento se cuenta **una sola vez por usuario** (marca en `localStorage`), aunque haga muchos clics.
+4. Cada evento de clic se dispara **una sola vez por carga de página** (candado en memoria):
+   clics repetidos/doble-clic no lo cuentan otra vez. Al **recargar** (F5) el candado se reinicia,
+   así se puede volver a disparar y verificar en el Pixel Helper. Meta reporta **usuarios únicos**.
 
 ---
 
