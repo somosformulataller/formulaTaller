@@ -4,19 +4,18 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 /**
- * Dispara PageView del Pixel de Meta en cada navegación interna (la app es una
- * SPA). El Pixel se inicializa con un <script> inline en el layout, que también
- * dispara el PageView de la carga inicial.
+ * Única fuente del evento PageView del Pixel de Meta. Lo dispara una sola vez
+ * por ruta: en la carga inicial y en cada navegación interna (SPA), evitando
+ * disparos duplicados con datos idénticos. El Pixel se inicializa con el
+ * <script> inline del layout.
  */
 export default function FacebookPixel() {
   const pathname = usePathname();
-  const firstLoad = useRef(true);
+  const lastTracked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (firstLoad.current) {
-      firstLoad.current = false; // el PageView inicial lo dispara el script del layout
-      return;
-    }
+    if (lastTracked.current === pathname) return; // esta ruta ya se contó
+    lastTracked.current = pathname;
     if (typeof window !== 'undefined' && window.fbq) window.fbq('track', 'PageView');
   }, [pathname]);
 
