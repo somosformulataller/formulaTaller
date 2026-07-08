@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkshopAdminRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
@@ -464,6 +465,22 @@ export default function SuperadminClient({
                     label="Suscrito"
                   />
                 </div>
+
+                <Link
+                  href={`/superadmin/talleres/${row.id}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginTop: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--color-brand-400)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Ver detalle (órdenes y mecánicos) →
+                </Link>
 
                 {/* Editor del límite (solo si no está suscrito) */}
                 {row.is_subscribed ? (
