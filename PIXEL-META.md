@@ -83,7 +83,11 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 - 🧩 Crear las **Conversiones personalizadas** en Events Manager para usarlas como objetivo en anuncios.
 - 🍪 **Privacidad:** el Pixel es rastreo de terceros (Meta). Conviene mencionarlo en la **Política de
   Privacidad** y, si aplica por región, considerar un aviso de cookies.
-- 💡 Si se quiere afinar: `CompleteRegistration` hoy cuenta 1 vez por usuario; si prefieres contar **cada
-  registro real** (no por usuario), es un cambio de una línea.
+- 💡 Si se quiere afinar: `CompleteRegistration` hoy cuenta 1 vez por carga de página; si prefieres contar
+  **cada registro real**, es un cambio de una línea.
+- 🤖 **`SubscribedButtonClick`** es un evento **automático de Meta** (autocaptura de clics), no nuestro.
+  **No** se desactiva por código (probamos `autoConfig false` y ocultaba también nuestros eventos en el
+  Pixel Helper, así que se quitó). Para apagarlo, hazlo en **Events Manager → tu Pixel → Configuración →
+  "Seguimiento de eventos automático sin código"** y desactívalo. Es inofensivo si se deja.
 
 > Contexto general en `CONTEXTO.md`.
