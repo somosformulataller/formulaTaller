@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, Profile, OrderStatus } from '@/lib/types';
+import type { Order, Profile, Mechanic, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
+import MechanicForm from '@/components/mechanics/MechanicForm';
 import MechanicSelect from '@/components/orders/MechanicSelect';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
@@ -46,12 +47,14 @@ const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
 
 export default function OrderDetailClient({
   order: initialOrder,
-  mechanics,
+  mechanics: initialMechanics,
   startInEdit,
 }: OrderDetailClientProps) {
   const router = useRouter();
   const [order, setOrder] = useState<Order>(initialOrder);
+  const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
   const [showEdit, setShowEdit] = useState(startInEdit);
+  const [showAddMechanic, setShowAddMechanic] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
@@ -91,6 +94,12 @@ export default function OrderDetailClient({
     });
     setAssigning(false);
     if (res.ok) setOrder(await res.json());
+  }
+
+  // Mecánico creado desde el selector: agregarlo a la lista y asignarlo a la orden.
+  function handleMechanicCreated(m: Mechanic) {
+    setMechanics((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+    handleAssignMechanic(m.id);
   }
 
   function handleEdited(updated: Order) {
@@ -195,6 +204,7 @@ export default function OrderDetailClient({
             value={order.assigned_mechanic_id ?? null}
             onChange={(id) => handleAssignMechanic(id)}
             disabled={assigning}
+            onAddNew={() => setShowAddMechanic(true)}
           />
           {mechanics.length === 0 && (
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
@@ -302,8 +312,23 @@ export default function OrderDetailClient({
           onCancel={() => setShowEdit(false)}
           canCreateMechanic
           workshopName={order.workshop?.name}
+          onMechanicCreated={handleMechanicCreated}
         />
       </Modal>
+
+      {showAddMechanic && (
+        <Modal
+          isOpen={showAddMechanic}
+          onClose={() => setShowAddMechanic(false)}
+          title="Nuevo mecánico"
+        >
+          <MechanicForm
+            workshopName={order.workshop?.name}
+            onSaved={handleMechanicCreated}
+            onClose={() => setShowAddMechanic(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Order, Profile, OrderStatus } from '@/lib/types';
+import type { Order, Profile, Mechanic, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
@@ -20,11 +20,16 @@ type FilterStatus = 'all' | OrderStatus;
 
 export default function AdminDashboardClient({
   initialOrders,
-  mechanics,
+  mechanics: initialMechanics,
   orderLimit,
   isSubscribed,
 }: AdminDashboardClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
+
+  function handleMechanicCreated(m: Mechanic) {
+    setMechanics((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+  }
   const [showCreate, setShowCreate] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
@@ -191,6 +196,8 @@ export default function AdminDashboardClient({
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
               onUpdate={handleUpdate}
+              canCreateMechanic
+              onMechanicCreated={handleMechanicCreated}
             />
           ))}
         </div>
@@ -207,6 +214,7 @@ export default function AdminDashboardClient({
           onSuccess={handleCreated}
           onCancel={() => setShowCreate(false)}
           canCreateMechanic
+          onMechanicCreated={handleMechanicCreated}
         />
       </Modal>
 

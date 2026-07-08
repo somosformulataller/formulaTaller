@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, Profile, OrderStatus } from '@/lib/types';
+import type { Order, Profile, Mechanic, OrderStatus } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import Modal from '@/components/ui/Modal';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import MechanicForm from '@/components/mechanics/MechanicForm';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, UserCheck, CheckCircle2 } from 'lucide-react';
 
@@ -18,6 +20,11 @@ interface OrderCardProps {
   onDelete?: (id: string) => void;
   onStatusChange?: (id: string, status: OrderStatus) => void;
   onUpdate?: (order: Order) => void;
+  /** Solo admin: habilita "Agregar mecánico" en el selector de asignación. */
+  canCreateMechanic?: boolean;
+  /** Avisa al padre cuando se crea un mecánico (para actualizar la lista compartida). */
+  onMechanicCreated?: (m: Mechanic) => void;
+  workshopName?: string;
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -30,9 +37,13 @@ export default function OrderCard({
   onDelete,
   onStatusChange,
   onUpdate,
+  canCreateMechanic = false,
+  onMechanicCreated,
+  workshopName,
 }: OrderCardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showAddMechanic, setShowAddMechanic] = useState(false);
 
   async function handleAssignSelf() {
     if (!currentUserId) return;
@@ -90,6 +101,13 @@ export default function OrderCard({
     });
     setLoading(false);
     if (res.ok) onUpdate?.(await res.json());
+  }
+
+  // Mecánico creado desde la tarjeta: avisar al padre (lista compartida) y
+  // asignar esta orden al nuevo mecánico.
+  function handleMechanicCreated(m: Mechanic) {
+    onMechanicCreated?.(m);
+    handleAssignMechanic(m.id);
   }
 
   // Transiciones de estado por botón. La asignación de mecánico (cuando la orden
@@ -215,18 +233,21 @@ export default function OrderCard({
         )}
 
         {/* Admin: asignar mecánico con la lista desplegable propia (si no tiene uno) */}
-        {role === 'admin' && !order.assigned_mechanic_id && mechanics.length > 0 && (
-          <MechanicSelect
-            mechanics={mechanics}
-            value={null}
-            onChange={(id) => id && handleAssignMechanic(id)}
-            disabled={loading}
-            includeNone={false}
-            placeholder="Asignar mecánico"
-            compact
-            float
-          />
-        )}
+        {role === 'admin' &&
+          !order.assigned_mechanic_id &&
+          (mechanics.length > 0 || canCreateMechanic) && (
+            <MechanicSelect
+              mechanics={mechanics}
+              value={null}
+              onChange={(id) => id && handleAssignMechanic(id)}
+              disabled={loading}
+              includeNone={false}
+              placeholder="Asignar mecánico"
+              compact
+              float
+              onAddNew={canCreateMechanic ? () => setShowAddMechanic(true) : undefined}
+            />
+          )}
 
         {/* Status transition (admin) */}
         {role === 'admin' && nextStatuses[order.status].map((s) => (
@@ -257,6 +278,20 @@ export default function OrderCard({
           </>
         )}
       </div>
+
+      {showAddMechanic && (
+        <Modal
+          isOpen={showAddMechanic}
+          onClose={() => setShowAddMechanic(false)}
+          title="Nuevo mecánico"
+        >
+          <MechanicForm
+            workshopName={workshopName}
+            onSaved={handleMechanicCreated}
+            onClose={() => setShowAddMechanic(false)}
+          />
+        </Modal>
+      )}
     </article>
   );
 }

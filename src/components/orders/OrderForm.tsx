@@ -30,6 +30,8 @@ interface OrderFormProps {
   canCreateMechanic?: boolean;
   /** Nombre del taller (para el mensaje de credenciales del mecánico nuevo). */
   workshopName?: string;
+  /** Se llama al crear un mecánico, para que el padre actualice su lista compartida. */
+  onMechanicCreated?: (m: Mechanic) => void;
 }
 
 const EMPTY: CreateOrderPayload = {
@@ -53,6 +55,7 @@ export default function OrderForm({
   onCancel,
   canCreateMechanic = false,
   workshopName,
+  onMechanicCreated,
 }: OrderFormProps) {
   const isEdit = !!order;
   // Lista local de mecánicos: al crear uno nuevo desde aquí, se agrega y se selecciona.
@@ -89,10 +92,12 @@ export default function OrderForm({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Mecánico creado desde el propio formulario: agregarlo a la lista y seleccionarlo.
+  // Mecánico creado desde el propio formulario: agregarlo a la lista, seleccionarlo
+  // y avisar al padre para que actualice su lista compartida.
   function handleMechanicCreated(m: Mechanic) {
-    setMechanicsList((prev) => [...prev, m]);
+    setMechanicsList((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
     set('assigned_mechanic_id', m.id);
+    onMechanicCreated?.(m);
   }
 
   function addFiles(files: File[]) {
