@@ -2,12 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import Script from 'next/script';
-import { FB_PIXEL_ID } from '@/lib/fbpixel';
 
 /**
- * Carga el Pixel de Facebook y dispara PageView en la carga inicial y en cada
- * navegación interna (la app es una SPA).
+ * Dispara PageView del Pixel de Meta en cada navegación interna (la app es una
+ * SPA). El Pixel se inicializa con un <script> inline en el layout, que también
+ * dispara el PageView de la carga inicial.
  */
 export default function FacebookPixel() {
   const pathname = usePathname();
@@ -15,24 +14,11 @@ export default function FacebookPixel() {
 
   useEffect(() => {
     if (firstLoad.current) {
-      // El snippet ya dispara el PageView inicial; evitar duplicarlo.
-      firstLoad.current = false;
+      firstLoad.current = false; // el PageView inicial lo dispara el script del layout
       return;
     }
     if (typeof window !== 'undefined' && window.fbq) window.fbq('track', 'PageView');
   }, [pathname]);
 
-  return (
-    <Script
-      id="fb-pixel"
-      strategy="afterInteractive"
-      dangerouslySetInnerHTML={{
-        __html: `
-          !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init','${FB_PIXEL_ID}');
-          fbq('track','PageView');
-        `,
-      }}
-    />
-  );
+  return null;
 }
