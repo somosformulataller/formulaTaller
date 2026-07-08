@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import FacebookPixel from '@/components/FacebookPixel';
 
 export const metadata: Metadata = {
   title: 'Formula Taller',
@@ -43,6 +44,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <FacebookPixel />
         {children}
         {/* Service Worker: register in production only. In development we
             actively unregister it and clear its caches, since a cache-first SW

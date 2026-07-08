@@ -8,6 +8,7 @@ import { Wrench, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import InstallButton from '@/components/pwa/InstallButton';
+import { trackFbEvent } from '@/lib/fbpixel';
 
 interface LoginFormProps {
   workshopName?: string;
@@ -26,6 +27,7 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    trackFbEvent('ClickIniciarSesion');
     setError(null);
     setLoading(true);
 
@@ -222,6 +224,7 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
           ¿No tienes taller registrado?{' '}
           <Link
             href="/registro"
+            onClick={() => trackFbEvent('ClickCrearTaller')}
             style={{ color: 'var(--color-brand-400)', fontWeight: 700, textDecoration: 'none' }}
           >
             Crear taller
