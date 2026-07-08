@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
+import SupportButton from '@/components/layout/SupportButton';
 import type { Profile } from '@/lib/types';
 
 export default async function MecanicoLayout({
@@ -35,6 +36,7 @@ export default async function MecanicoLayout({
     <>
       <TopBar profile={profile as Profile} title={workshopName} />
       <main className="page-container">{children}</main>
+      <SupportButton />
       <BottomNav role="mechanic" />
     </>
   );
