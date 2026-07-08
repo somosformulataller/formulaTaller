@@ -8,7 +8,7 @@ import { Wrench, Store, Mail, User, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { trackFbEventOnce } from '@/lib/fbpixel';
+import { trackFbEvent } from '@/lib/fbpixel';
 import type { RegisterWorkshopPayload } from '@/lib/types';
 
 export default function RegisterForm() {
@@ -35,7 +35,7 @@ export default function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     // Click en "Registrar mi taller" (intención de terminar el registro).
-    trackFbEventOnce('ClickRegistrarTaller');
+    trackFbEvent('ClickRegistrarTaller');
     setError(null);
 
     if (!accepted) {
@@ -66,7 +66,7 @@ export default function RegisterForm() {
     }
 
     // Registro completado con éxito → conversión estándar de Meta.
-    trackFbEventOnce('CompleteRegistration');
+    trackFbEvent('CompleteRegistration');
 
     // Auto sign-in and go to the admin panel.
     const { error: signInError } = await supabase.auth.signInWithPassword({
