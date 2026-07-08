@@ -57,16 +57,9 @@ export default function RootLayout({
             `,
           }}
         />
-        <noscript>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            height="1"
-            width="1"
-            style={{ display: 'none' }}
-            alt=""
-            src="https://www.facebook.com/tr?id=1688453135751029&ev=PageView&noscript=1"
-          />
-        </noscript>
+        {/* Sin fallback <noscript>: el navegador lo precargaba y, con JS activado,
+            nunca lo usaba (aviso "preloaded but not used"). El Pixel + la CAPI
+            cubren a todos los visitantes con JavaScript. */}
         <FacebookPixel />
         {children}
         {/* Service Worker: register in production only. In development we
