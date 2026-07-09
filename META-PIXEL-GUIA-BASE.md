@@ -155,10 +155,41 @@ redeployar** tras cambiarla, no se aplica sola).
 
 ---
 
-## 4. Evento "paraguas" (combinación de varios eventos)
+## 4. Evento "paraguas" (agrupa varios eventos en uno)
 
-Patrón para cuando necesitas un evento extra que se dispare **solo cuando el usuario ya
-completó varias acciones distintas**, sin importar el orden:
+Patrón para cuando necesitas un evento extra que agrupe varios botones/acciones de
+conversión en una sola métrica. Hay dos variantes según lo que necesites — elige una:
+
+### 4a. Dispara con CUALQUIERA de los eventos (la usada en este proyecto)
+
+Basta con que el usuario haga **uno solo** de los N clics para que se cuente. Es la variante
+más simple y la más común cuando se quiere una métrica de "hubo algún tipo de interacción de
+conversión".
+
+```ts
+export function trackEventoParaguas(): void {
+  if (typeof window === 'undefined') return;
+  if (firedThisLoad.has('EventoParaguas')) return; // ya se disparó, no repetir
+
+  // Desfase ver sección 6 — evita el choque visual en Pixel Helper.
+  setTimeout(() => trackFbEventOnce('EventoParaguas'), 250);
+}
+```
+
+Se llama **junto a cada uno** de los eventos individuales que quieras agrupar:
+
+```ts
+trackFbEventOnce('EventoA');
+trackEventoParaguas(); // dispara EventoParaguas (si no se había disparado ya)
+```
+
+El propio candado de `firedThisLoad` (que ya usa `trackFbEventOnce` por dentro) es lo único
+que evita que se dispare más de una vez, aunque el usuario toque varios de los botones
+agrupados en la misma carga de página.
+
+### 4b. Dispara solo cuando se completan TODOS los eventos (variante "combo")
+
+Útil si necesitas medir que el usuario pasó por **todo** un embudo, no solo por una parte.
 
 ```ts
 const EVENTOS_REQUERIDOS = ['EventoA', 'EventoB', 'EventoC'];
@@ -168,25 +199,20 @@ export function trackEventoComboSiCompleto(): void {
   if (firedThisLoad.has('EventoCombo')) return;
 
   const yaCompleto = EVENTOS_REQUERIDOS.every((name) => firedThisLoad.has(name));
-  if (!yaCompleto) return;
+  if (!yaCompleto) return; // faltan uno o más, no dispara todavía
 
-  // Desfase ver sección 6 — evita el choque visual en Pixel Helper.
   setTimeout(() => trackFbEventOnce('EventoCombo'), 250);
 }
 ```
 
-Se llama **junto a cada uno** de los eventos individuales (no en un lugar centralizado
-distinto), justo después de disparar el evento correspondiente:
+Se llama igual, junto a cada uno de los eventos individuales — la diferencia está solo
+adentro de la función: en 4a dispara siempre (si no se disparó antes), en 4b revisa que
+**todos** los requeridos ya estén en `firedThisLoad` antes de disparar.
 
-```ts
-trackFbEventOnce('EventoA');
-trackEventoComboSiCompleto(); // no-op hasta que también se disparen B y C
-```
-
-Como `firedThisLoad` es un Set a nivel de módulo, **persiste durante toda la sesión de la
-pestaña** (sobrevive a navegación tipo SPA/client-side, como `router.push` en Next.js), pero
-se reinicia con un F5. Por eso este patrón funciona aunque los 3 eventos ocurran en páginas
-distintas dentro del mismo flujo (ej. login → registro).
+En ambas variantes: como `firedThisLoad` es un `Set` a nivel de módulo, **persiste durante
+toda la sesión de la pestaña** (sobrevive a navegación tipo SPA/client-side, como
+`router.push` en Next.js), pero se reinicia con un F5. Por eso el patrón funciona aunque los
+eventos agrupados ocurran en páginas distintas dentro del mismo flujo (ej. login → registro).
 
 ---
 
@@ -346,11 +372,10 @@ por aquí para mantener un solo punto de verdad.
   `firedThisLoad` para no disparar el mismo evento dos veces en la misma carga de página.
   **Esta es la función que se usa en los componentes de botones/formularios**, no
   `trackFbEvent` directamente.
-- `EVENTOS_REQUERIDOS_INTERACCION` + `trackInteraccionFormulaTaller()` — el evento
-  "paraguas" (patrón de la sección 4). Revisa si `ClickIniciarSesion`, `ClickCrearTaller` y
-  `ClickRegistrarTaller` **ya están los 3** en `firedThisLoad` antes de disparar
-  `interaccionFormulaTaller`, con el `setTimeout` de 250ms (sección 6) para que el Pixel
-  Helper no colapse el evento con el que lo completó.
+- `trackInteraccionFormulaTaller()` — el evento "paraguas" (patrón 4a de la sección 4): se
+  dispara con **cualquiera** de los 3 eventos de clic (basta uno solo), con el `setTimeout`
+  de 250ms (sección 6) para que el Pixel Helper no colapse el evento paraguas con el evento
+  específico del mismo clic.
 
 ### `src/app/api/fb-event/route.ts` — relay a la Conversions API (servidor)
 
@@ -395,8 +420,8 @@ Componente cliente con el formulario de "Iniciar sesión".
 - `handleLogin` (submit del `<form>`):
   - `trackFbEventOnce('ClickIniciarSesion')` — primera línea del handler, antes de cualquier
     `await`, para capturar la intención del clic aunque el login después falle.
-  - `trackInteraccionFormulaTaller()` — evalúa si con este clic ya se completó la combinación
-    de los 3 eventos (sección 4).
+  - `trackInteraccionFormulaTaller()` — dispara el evento paraguas (basta este clic solo,
+    sección 4a).
   - Después del `await supabase.auth.signInWithPassword(...)`, si hay error, hace `return`
     temprano (el usuario se queda en la página — los eventos ya disparados no se pierden).
   - Si el login fue exitoso, `await new Promise((r) => setTimeout(r, 400))` **antes** de
