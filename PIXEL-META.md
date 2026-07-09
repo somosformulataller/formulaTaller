@@ -27,7 +27,6 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por carga de página |
 | `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por carga de página |
 | `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por carga de página |
-| `CompleteRegistration` | Cuando el registro **se completa con éxito** (conversión real) | Estándar | 1 vez por carga de página |
 
 > El botón final del formulario de registro se renombró de **"Crear taller"** a **"Registrar mi taller"**
 > para no confundirlo con el enlace "Crear taller" del login.
@@ -52,8 +51,8 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
   - **"Eventos de prueba"**: ver eventos en vivo (Navegador **y** Servidor/CAPI) y su deduplicación.
   - **"Descripción general"**: conteos por evento en el tiempo.
 - **Ads Manager**: conversiones atribuidas a los anuncios. Para usar los eventos como objetivo de
-  campaña, crear **Conversiones personalizadas** (basadas en `ClickIniciarSesion` / `ClickCrearTaller` /
-  `ClickRegistrarTaller`) y usar `CompleteRegistration` como conversión estándar.
+  campaña, crear **Conversiones personalizadas** basadas en `ClickIniciarSesion` / `ClickCrearTaller` /
+  `ClickRegistrarTaller`.
 
 ---
 
@@ -66,7 +65,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `src/app/layout.tsx` | Incluye `<FacebookPixel />`. |
 | `src/middleware.ts` | Deja pública la ruta `/api/fb-event`. |
 | `src/app/login/LoginForm.tsx` | Eventos `ClickIniciarSesion` y `ClickCrearTaller`. |
-| `src/app/registro/RegisterForm.tsx` | Eventos `ClickRegistrarTaller` y `CompleteRegistration` + botón renombrado. |
+| `src/app/registro/RegisterForm.tsx` | Evento `ClickRegistrarTaller` + botón renombrado. |
 
 ---
 
@@ -83,8 +82,6 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 - 🧩 Crear las **Conversiones personalizadas** en Events Manager para usarlas como objetivo en anuncios.
 - 🍪 **Privacidad:** el Pixel es rastreo de terceros (Meta). Conviene mencionarlo en la **Política de
   Privacidad** y, si aplica por región, considerar un aviso de cookies.
-- 💡 Si se quiere afinar: `CompleteRegistration` hoy cuenta 1 vez por carga de página; si prefieres contar
-  **cada registro real**, es un cambio de una línea.
 - 🤖 **`SubscribedButtonClick`** es un evento **automático de Meta** (autocaptura de clics). Evidencia real
   (captura del Pixel Helper) mostró que, con la autocaptura activa, Meta mostraba `SubscribedButtonClick`
   en vez de nuestros eventos propios (`ClickIniciarSesion`, etc.) en el panel "Events on this page" —
