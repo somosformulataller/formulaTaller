@@ -27,19 +27,20 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por carga de página |
 | `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por carga de página |
 | `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por carga de página |
-| `interaccionFormulaTaller` | Se dispara **junto con** cada uno de los 3 eventos anteriores (mismo clic, mismo instante) | Personalizado | 1 vez por carga de página |
+| `interaccionFormulaTaller` | Se dispara cuando el usuario **ya hizo clic en los 3 eventos anteriores** (en cualquier orden) | Personalizado | 1 vez por carga de página |
 
 > El botón final del formulario de registro se renombró de **"Crear taller"** a **"Registrar mi taller"**
 > para no confundirlo con el enlace "Crear taller" del login.
 >
-> `interaccionFormulaTaller` es un evento "paraguas": no tiene su propio botón, sino que se
-> dispara en los 3 mismos puntos que `ClickIniciarSesion` / `ClickCrearTaller` /
-> `ClickRegistrarTaller`, sin importar el orden en que el usuario haga clic en cada botón. Sirve
-> para tener una sola conversión que agrupe **cualquier** interacción relevante del usuario, útil
-> como objetivo amplio de campaña en Ads Manager.
+> `interaccionFormulaTaller` es un evento "paraguas" que exige la **combinación completa**: solo
+> se dispara cuando `ClickIniciarSesion`, `ClickCrearTaller` **y** `ClickRegistrarTaller` ya
+> ocurrieron los 3 en la misma carga de página (sin importar el orden). No se dispara con el
+> primer clic, ni con el segundo — solo al completarse el tercero. Lógica centralizada en
+> `trackInteraccionFormulaTaller()` (`src/lib/fbpixel.ts`), llamada junto a cada uno de los 3
+> eventos; internamente revisa si ya se cumplieron los 3 antes de disparar.
 >
-> Se dispara con un **pequeño desfase (150–250ms)** respecto al evento principal del mismo clic
-> (`setTimeout`), no en el mismo instante. Motivo: cuando dos eventos personalizados salen en el
+> Se dispara con un **desfase de 250ms** (`setTimeout`) respecto al evento que completa la
+> combinación, no en el mismo instante. Motivo: cuando dos eventos personalizados salen en el
 > mismo tick de JavaScript, el **Pixel Helper solo alcanza a mostrar uno de los dos** en su panel
 > "Events on this page" (aunque ambos llegan a Meta correctamente — mismo problema de "un solo
 > espacio visual por interacción" que `SubscribedButtonClick`, ver más abajo). Separarlos en el

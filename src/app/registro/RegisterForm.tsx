@@ -8,7 +8,7 @@ import { Wrench, Store, Mail, User, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import PhoneInput from '@/components/ui/PhoneInput';
-import { trackFbEventOnce } from '@/lib/fbpixel';
+import { trackFbEventOnce, trackInteraccionFormulaTaller } from '@/lib/fbpixel';
 import type { RegisterWorkshopPayload } from '@/lib/types';
 
 export default function RegisterForm() {
@@ -36,10 +36,7 @@ export default function RegisterForm() {
     e.preventDefault();
     // Click en "Registrar mi taller" (intención de terminar el registro).
     trackFbEventOnce('ClickRegistrarTaller');
-    // Desfasado ~250ms: dos eventos personalizados en el mismo instante hacen
-    // que el Pixel Helper solo muestre uno de los dos en su panel (aunque
-    // ambos llegan a Meta).
-    setTimeout(() => trackFbEventOnce('interaccionFormulaTaller'), 250);
+    trackInteraccionFormulaTaller();
     setError(null);
 
     if (!accepted) {
