@@ -36,6 +36,10 @@ export default function RegisterForm() {
     e.preventDefault();
     // Click en "Registrar mi taller" (intención de terminar el registro).
     trackFbEventOnce('ClickRegistrarTaller');
+    // Desfasado ~250ms: dos eventos personalizados en el mismo instante hacen
+    // que el Pixel Helper solo muestre uno de los dos en su panel (aunque
+    // ambos llegan a Meta).
+    setTimeout(() => trackFbEventOnce('interaccionFormulaTaller'), 250);
     setError(null);
 
     if (!accepted) {

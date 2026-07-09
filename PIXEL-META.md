@@ -1,6 +1,6 @@
 # 📈 Pixel de Meta (Facebook) — Estado final
 
-Instalación del Pixel + Conversions API y eventos de conversión. Última actualización: **2026-07-08**.
+Instalación del Pixel + Conversions API y eventos de conversión. Última actualización: **2026-07-09**.
 
 ---
 
@@ -27,9 +27,23 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `ClickIniciarSesion` | Clic en **Entrar** (login) | Personalizado | 1 vez por carga de página |
 | `ClickCrearTaller` | Clic en el enlace **Crear taller** del login (inicia registro) | Personalizado | 1 vez por carga de página |
 | `ClickRegistrarTaller` | Clic en el botón final **Registrar mi taller** | Personalizado | 1 vez por carga de página |
+| `interaccionFormulaTaller` | Se dispara **junto con** cada uno de los 3 eventos anteriores (mismo clic, mismo instante) | Personalizado | 1 vez por carga de página |
 
 > El botón final del formulario de registro se renombró de **"Crear taller"** a **"Registrar mi taller"**
 > para no confundirlo con el enlace "Crear taller" del login.
+>
+> `interaccionFormulaTaller` es un evento "paraguas": no tiene su propio botón, sino que se
+> dispara en los 3 mismos puntos que `ClickIniciarSesion` / `ClickCrearTaller` /
+> `ClickRegistrarTaller`, sin importar el orden en que el usuario haga clic en cada botón. Sirve
+> para tener una sola conversión que agrupe **cualquier** interacción relevante del usuario, útil
+> como objetivo amplio de campaña en Ads Manager.
+>
+> Se dispara con un **pequeño desfase (150–250ms)** respecto al evento principal del mismo clic
+> (`setTimeout`), no en el mismo instante. Motivo: cuando dos eventos personalizados salen en el
+> mismo tick de JavaScript, el **Pixel Helper solo alcanza a mostrar uno de los dos** en su panel
+> "Events on this page" (aunque ambos llegan a Meta correctamente — mismo problema de "un solo
+> espacio visual por interacción" que `SubscribedButtonClick`, ver más abajo). Separarlos en el
+> tiempo evita ese choque visual en la extensión.
 
 ---
 
@@ -52,7 +66,7 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
   - **"Descripción general"**: conteos por evento en el tiempo.
 - **Ads Manager**: conversiones atribuidas a los anuncios. Para usar los eventos como objetivo de
   campaña, crear **Conversiones personalizadas** basadas en `ClickIniciarSesion` / `ClickCrearTaller` /
-  `ClickRegistrarTaller`.
+  `ClickRegistrarTaller` / `interaccionFormulaTaller`.
 
 ---
 
@@ -64,8 +78,8 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
 | `src/app/api/fb-event/route.ts` | Relay a la Conversions API (usa `FB_CAPI_ACCESS_TOKEN`). |
 | `src/app/layout.tsx` | Incluye `<FacebookPixel />`. |
 | `src/middleware.ts` | Deja pública la ruta `/api/fb-event`. |
-| `src/app/login/LoginForm.tsx` | Eventos `ClickIniciarSesion` y `ClickCrearTaller`. |
-| `src/app/registro/RegisterForm.tsx` | Evento `ClickRegistrarTaller` + botón renombrado. |
+| `src/app/login/LoginForm.tsx` | Eventos `ClickIniciarSesion`, `ClickCrearTaller` e `interaccionFormulaTaller`. |
+| `src/app/registro/RegisterForm.tsx` | Eventos `ClickRegistrarTaller` e `interaccionFormulaTaller` + botón renombrado. |
 
 ---
 

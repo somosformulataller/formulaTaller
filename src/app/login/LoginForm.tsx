@@ -28,6 +28,10 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     trackFbEventOnce('ClickIniciarSesion');
+    // Disparado con un pequeño desfase: si dos eventos personalizados salen en
+    // el mismo instante, el Pixel Helper solo alcanza a mostrar uno de los dos
+    // en su panel (aunque ambos llegan a Meta). Separarlos evita ese choque visual.
+    setTimeout(() => trackFbEventOnce('interaccionFormulaTaller'), 250);
     setError(null);
     setLoading(true);
 
@@ -230,9 +234,12 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
             href="/registro"
             onClick={(e) => {
               // Disparar el evento y esperar ~400ms antes de navegar, para que
-              // la petición del Pixel (facebook.com/tr) no se cancele.
+              // la petición del Pixel (facebook.com/tr) no se cancele. El
+              // segundo evento sale con desfase para que el Pixel Helper no
+              // colapse los dos en un solo renglón visual.
               e.preventDefault();
               trackFbEventOnce('ClickCrearTaller');
+              setTimeout(() => trackFbEventOnce('interaccionFormulaTaller'), 150);
               setTimeout(() => router.push('/registro'), 400);
             }}
             style={{ color: 'var(--color-brand-400)', fontWeight: 700, textDecoration: 'none' }}
