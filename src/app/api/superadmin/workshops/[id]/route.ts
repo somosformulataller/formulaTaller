@@ -4,22 +4,30 @@ import { getPlatformAdmin } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
-// PATCH /api/superadmin/workshops/:id — actualiza la suscripción y/o el override
-// del límite de órdenes del taller. Solo superadmins de plataforma.
-// Body admite: { is_subscribed?: boolean, order_limit?: number | null }
+// PATCH /api/superadmin/workshops/:id — actualiza la suscripción, la etiqueta
+// de prueba y/o el override del límite de órdenes del taller. Solo
+// superadmins de plataforma.
+// Body admite: { is_subscribed?: boolean, is_test?: boolean, order_limit?: number | null }
 //   order_limit = null → el taller vuelve a usar el límite global.
 export async function PATCH(req: Request, { params }: Params) {
   const admin = await getPlatformAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  const updates: { is_subscribed?: boolean; order_limit?: number | null } = {};
+  const updates: { is_subscribed?: boolean; is_test?: boolean; order_limit?: number | null } = {};
 
   if ('is_subscribed' in (body ?? {})) {
     if (typeof body.is_subscribed !== 'boolean') {
       return NextResponse.json({ error: 'is_subscribed debe ser booleano' }, { status: 400 });
     }
     updates.is_subscribed = body.is_subscribed;
+  }
+
+  if ('is_test' in (body ?? {})) {
+    if (typeof body.is_test !== 'boolean') {
+      return NextResponse.json({ error: 'is_test debe ser booleano' }, { status: 400 });
+    }
+    updates.is_test = body.is_test;
   }
 
   if ('order_limit' in (body ?? {})) {
@@ -42,7 +50,7 @@ export async function PATCH(req: Request, { params }: Params) {
     .from('workshops')
     .update(updates)
     .eq('id', params.id)
-    .select('id, is_subscribed, order_limit')
+    .select('id, is_subscribed, is_test, order_limit')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

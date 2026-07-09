@@ -73,9 +73,11 @@ export default function SuperadminClient({
   >({});
 
   const metrics = useMemo(() => {
-    const total = rows.length;
-    const subscribed = rows.filter((r) => r.is_subscribed).length;
-    const orders = rows.reduce((sum, r) => sum + r.order_count, 0);
+    // Los talleres de prueba (etiqueta Test) no cuentan en el total.
+    const real = rows.filter((r) => !r.is_test);
+    const total = real.length;
+    const subscribed = real.filter((r) => r.is_subscribed).length;
+    const orders = real.reduce((sum, r) => sum + r.order_count, 0);
     return { total, subscribed, orders };
   }, [rows]);
 
@@ -148,6 +150,25 @@ export default function SuperadminClient({
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: !next } : r)));
       const data = await res.json().catch(() => ({}));
       alert(data.error || 'No se pudo actualizar la suscripción.');
+    }
+  }
+
+  async function toggleTest(row: WorkshopAdminRow) {
+    const next = !row.is_test;
+    setSavingId(row.id);
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_test: next } : r)));
+
+    const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_test: next }),
+    });
+    setSavingId(null);
+
+    if (!res.ok) {
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_test: !next } : r)));
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'No se pudo actualizar la etiqueta de prueba.');
     }
   }
 
@@ -448,6 +469,22 @@ export default function SuperadminClient({
                           PRO
                         </span>
                       )}
+                      {row.is_test && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: 'var(--color-text-secondary)',
+                            background: 'var(--color-surface-3)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 999,
+                            padding: '2px 8px',
+                            flexShrink: 0,
+                          }}
+                        >
+                          TEST
+                        </span>
+                      )}
                     </div>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
                       {row.owner_name ? `${row.owner_name} · ` : ''}
@@ -458,12 +495,30 @@ export default function SuperadminClient({
                     </p>
                   </div>
 
-                  <Toggle
-                    checked={row.is_subscribed}
-                    disabled={busy}
-                    onChange={() => toggleSubscription(row)}
-                    label="Suscrito"
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                        Suscrito
+                      </span>
+                      <Toggle
+                        checked={row.is_subscribed}
+                        disabled={busy}
+                        onChange={() => toggleSubscription(row)}
+                        label="Suscrito"
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
+                        Test
+                      </span>
+                      <Toggle
+                        checked={row.is_test}
+                        disabled={busy}
+                        onChange={() => toggleTest(row)}
+                        label="Test"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <Link

@@ -16,6 +16,8 @@ export interface Workshop {
   // Override del límite gratuito para este taller; null = usar el global.
   order_limit: number | null;
   is_subscribed: boolean;
+  // Taller de prueba (QA/demo): se excluye del conteo total en el panel de superadmin.
+  is_test: boolean;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
@@ -28,6 +30,7 @@ export interface WorkshopAdminRow {
   slug: string;
   created_at: string;
   is_subscribed: boolean;
+  is_test: boolean;
   // Override por taller (null = usa el límite global del plan gratuito).
   order_limit: number | null;
   owner_name: string | null;

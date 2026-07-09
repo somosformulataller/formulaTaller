@@ -15,6 +15,7 @@ type WorkshopRow = {
   owner_id: string | null;
   order_limit: number | null;
   is_subscribed: boolean;
+  is_test: boolean;
   whatsapp: string | null;
 };
 
@@ -27,7 +28,7 @@ export default async function SuperadminDashboardPage() {
   const [workshopsRes, ordersRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
-      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, whatsapp')
+      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, whatsapp')
       .order('created_at', { ascending: false }),
     // Solo el workshop_id de cada orden: contamos por taller en memoria.
     service.from('orders').select('workshop_id'),
@@ -79,6 +80,7 @@ export default async function SuperadminDashboardPage() {
     slug: w.slug,
     created_at: w.created_at,
     is_subscribed: w.is_subscribed,
+    is_test: w.is_test,
     order_limit: w.order_limit,
     owner_name: w.owner_id ? ownerNameById.get(w.owner_id) ?? null : null,
     owner_email: w.owner_id ? emailById.get(w.owner_id) ?? null : null,
