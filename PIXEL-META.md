@@ -85,9 +85,11 @@ Instalación del Pixel + Conversions API y eventos de conversión. Última actua
   Privacidad** y, si aplica por región, considerar un aviso de cookies.
 - 💡 Si se quiere afinar: `CompleteRegistration` hoy cuenta 1 vez por carga de página; si prefieres contar
   **cada registro real**, es un cambio de una línea.
-- 🤖 **`SubscribedButtonClick`** es un evento **automático de Meta** (autocaptura de clics), no nuestro.
-  **No** se desactiva por código (probamos `autoConfig false` y ocultaba también nuestros eventos en el
-  Pixel Helper, así que se quitó). Para apagarlo, hazlo en **Events Manager → tu Pixel → Configuración →
-  "Seguimiento de eventos automático sin código"** y desactívalo. Es inofensivo si se deja.
+- 🤖 **`SubscribedButtonClick`** es un evento **automático de Meta** (autocaptura de clics). Evidencia real
+  (captura del Pixel Helper) mostró que, con la autocaptura activa, Meta mostraba `SubscribedButtonClick`
+  en vez de nuestros eventos propios (`ClickIniciarSesion`, etc.) en el panel "Events on this page" —
+  competían por el mismo espacio. Por eso el código vuelve a incluir
+  `fbq('set','autoConfig',false,'1688453135751029')` justo después de cargar el script, para que solo se
+  muestren/cuenten nuestros eventos explícitos.
 
 > Contexto general en `CONTEXTO.md`.
