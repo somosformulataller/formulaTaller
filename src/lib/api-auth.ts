@@ -38,6 +38,27 @@ export interface PlatformAdmin {
 }
 
 /**
+ * Correo de cada usuario (vive en auth.users, no en profiles). La admin API
+ * pagina de a 1000; hay que recorrer TODAS las páginas o los dueños que caen
+ * fuera de la primera se pintarían como "sin correo" y sin botón de reset. Se
+ * detiene cuando una página trae menos de perPage (la última).
+ */
+export async function fetchAllAuthEmails(
+  service: ReturnType<typeof createServiceClient>
+): Promise<Map<string, string | null>> {
+  const emailById = new Map<string, string | null>();
+  const perPage = 1000;
+  for (let page = 1; ; page++) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
+    if (error) break;
+    const users = data?.users ?? [];
+    for (const u of users) emailById.set(u.id, u.email ?? null);
+    if (users.length < perPage) break;
+  }
+  return emailById;
+}
+
+/**
  * Resolves the current user IF they are a platform superadmin (a row in
  * platform_admins). Uses the service client to read that table, which is
  * locked by RLS. Returns null for anyone who isn't a platform admin.

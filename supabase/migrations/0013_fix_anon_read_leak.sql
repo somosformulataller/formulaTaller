@@ -1,0 +1,32 @@
+-- ============================================================================
+-- Formula Taller — Cerrar la lectura anónima de órdenes y etapas
+-- ============================================================================
+-- SETUP.sql creó dos políticas de lectura con `using (true)`:
+--
+--   "anon can read order by token"  on public.orders
+--   "anon can read stages"          on public.order_stages
+--
+-- La idea era servir el tracking público filtrando por el token en la consulta.
+-- Pero RLS combina políticas con OR: una que devuelve `true` deja sin efecto a
+-- todas las demás. Es decir, el filtro por taller que 0005_multi_tenant.sql le
+-- puso a "staff can read orders" nunca llegó a aplicarse, porque esta otra
+-- política respondía que sí antes.
+--
+-- El resultado medible (15/09/2026, antes de esta migración): con solo la anon
+-- key —que es pública, va en el bundle del navegador— se leían las 21 órdenes y
+-- las 126 etapas de los 18 talleres, incluyendo client_whatsapp y public_token,
+-- que es la llave del enlace de seguimiento de cada orden.
+--
+-- Se pueden borrar sin romper nada: el tracking público NO depende de ellas.
+-- Tanto src/app/tracking/[token]/page.tsx como src/app/api/tracking/[token]/route.ts
+-- leen con createServiceClient(), que pasa por encima de RLS. La lectura anónima
+-- por RLS no la usa ningún camino de la app.
+--
+-- Al quitarlas quedan vigentes las políticas por taller de 0005_multi_tenant.sql,
+-- que es lo que siempre se quiso: cada taller ve solo lo suyo.
+--
+-- Seguro de correr más de una vez (idempotente).
+-- ----------------------------------------------------------------------------
+
+drop policy if exists "anon can read order by token" on public.orders;
+drop policy if exists "anon can read stages" on public.order_stages;

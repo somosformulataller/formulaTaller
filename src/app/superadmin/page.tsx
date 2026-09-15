@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getPlatformAdmin } from '@/lib/api-auth';
+import { getPlatformAdmin, fetchAllAuthEmails } from '@/lib/api-auth';
 import type { WorkshopAdminRow } from '@/lib/types';
 import SuperadminClient from './SuperadminClient';
 
@@ -25,13 +25,15 @@ export default async function SuperadminDashboardPage() {
 
   const service = createServiceClient();
 
-  const [workshopsRes, ordersRes, settingsRes] = await Promise.all([
+  const [workshopsRes, countsRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
       .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, whatsapp')
       .order('created_at', { ascending: false }),
-    // Solo el workshop_id de cada orden: contamos por taller en memoria.
-    service.from('orders').select('workshop_id'),
+    // Conteo por taller agregado en Postgres (GROUP BY): no lo topa el límite
+    // de 1000 filas de PostgREST, a diferencia de traer todas las órdenes.
+    // La RPC solo la puede ejecutar el service_role (ver 0015_order_counts_rpc.sql).
+    service.rpc('admin_order_counts_by_workshop'),
     service
       .from('platform_settings')
       .select('free_order_limit, support_phones')
@@ -46,12 +48,15 @@ export default async function SuperadminDashboardPage() {
   const supportPhones = settings?.support_phones ?? [];
 
   const workshops = (workshopsRes.data ?? []) as unknown as WorkshopRow[];
-  const orderRows = (ordersRes.data ?? []) as unknown as { workshop_id: string }[];
+  const countRows = (countsRes.data ?? []) as unknown as {
+    workshop_id: string;
+    order_count: number;
+  }[];
 
-  // Conteo de órdenes por taller.
+  // Conteo de órdenes por taller (ya viene agrupado del servidor).
   const countByWorkshop = new Map<string, number>();
-  for (const o of orderRows) {
-    countByWorkshop.set(o.workshop_id, (countByWorkshop.get(o.workshop_id) ?? 0) + 1);
+  for (const c of countRows) {
+    countByWorkshop.set(c.workshop_id, Number(c.order_count));
   }
 
   // Nombre del dueño de cada taller (join manual a profiles).
@@ -67,12 +72,9 @@ export default async function SuperadminDashboardPage() {
     }
   }
 
-  // Correo de registro del dueño (vive en auth.users; se lee con la admin API).
-  const emailById = new Map<string, string | null>();
-  const { data: usersData } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  for (const u of usersData?.users ?? []) {
-    emailById.set(u.id, u.email ?? null);
-  }
+  // Correo de registro del dueño (vive en auth.users; se lee con la admin API,
+  // recorriendo todas las páginas para no perder dueños tras los primeros 1000).
+  const emailById = await fetchAllAuthEmails(service);
 
   const rows: WorkshopAdminRow[] = workshops.map((w) => ({
     id: w.id,

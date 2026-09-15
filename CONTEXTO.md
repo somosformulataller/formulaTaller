@@ -1,6 +1,17 @@
 # 🧭 Contexto del proyecto — Formula Taller
 
-Documento de estado general del proyecto. Última actualización: **2026-07-03**.
+Documento de estado general del proyecto. Última actualización: **2026-09-15**.
+
+> **Novedades 2026-09-15** (esta sesión): tras **restaurar el proyecto en Supabase** (datos, Auth y
+> Storage verificados: 18 talleres, 23 perfiles, 21 órdenes, 126 etapas, 43 adjuntos), se hizo una
+> **auditoría de seguridad** (ver `AUDITORIA-SEGURIDAD-2026-09-15.md`). Se cerraron tres agujeros de
+> aislamiento multi-tenant con las migraciones **0013, 0014 y 0015**: la lectura anónima de órdenes,
+> el acceso cruzado a etapas/adjuntos entre talleres, la auto-escalada de rol/taller de un mecánico y
+> el bypass del paywall (`is_subscribed`). También se corrigió el **conteo de órdenes del panel de
+> superadmin** (traía todo y lo topaba el límite de 1000 filas de PostgREST → ahora agregado en
+> servidor). **Pendiente de tu parte:** correr `0015` en el SQL Editor, desplegar el código del panel,
+> y **verificar que el registro público de Supabase esté desactivado** (Authentication → Providers).
+> Detalle al final, sección "Actualización 2026-09-15".
 
 > **Novedades 2026-07-03** (esta sesión): panel de **superadmin de plataforma**
 > (seguimiento de talleres, suscripciones, correo/teléfono, restablecer contraseña),
@@ -85,6 +96,16 @@ ni taller).
    existentes con el default 3 quedan en `null`). **Correr ANTES del código.**
 10. `0011_support_phones.sql` (columna **`platform_settings.support_phones`** `text[]`, con el número
     de atención sembrado). **Correr ANTES del código.**
+11. `0012_workshop_test_tag.sql` (columna **`workshops.is_test`**: talleres de prueba excluidos del
+    conteo total del panel).
+12. `0013_fix_anon_read_leak.sql` (**seguridad**: borra las políticas `using(true)` que dejaban leer
+    órdenes y etapas de todos los talleres con la anon key pública). ✅ corrida 15/09.
+13. `0014_tenant_isolation_hardening.sql` (**seguridad**: aísla etapas/adjuntos por taller, añade
+    `WITH CHECK` a los UPDATE y dos triggers que blindan `profiles.role/workshop_id` y las columnas
+    sensibles del taller —`is_subscribed`, `order_limit`, `is_test`, `owner_id`— para que solo las
+    cambie la plataforma). ✅ corrida 15/09, verificada en vivo.
+14. `0015_order_counts_rpc.sql` (RPC `admin_order_counts_by_workshop`, solo `service_role`, para que
+    el panel cuente órdenes por taller con GROUP BY en vez de traerlas todas). ⏳ **pendiente de correr.**
 
 > Las migraciones se corren manualmente en el **SQL Editor de Supabase** antes de subir el código
 > que las usa (si no, las vistas fallan al buscar la tabla/columna nueva).

@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getPlatformAdmin } from '@/lib/api-auth';
+import { getPlatformAdmin, fetchAllAuthEmails } from '@/lib/api-auth';
 import Badge from '@/components/ui/Badge';
 import { formatDate } from '@/lib/utils';
 import type { OrderStatus } from '@/lib/types';
@@ -58,26 +58,34 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
   const workshop = wsData as unknown as WorkshopRow | null;
   if (!workshop) notFound();
 
-  const [ordersRes, profilesRes] = await Promise.all([
+  const [ordersRes, orderCountRes, profilesRes, settingsRes] = await Promise.all([
+    // La lista visible; se pagina a 1000 (suficiente para el detalle de un taller).
     service
       .from('orders')
       .select('id, client_first_name, client_last_name, car_model, status, created_at, assigned_mechanic_id, created_by')
       .eq('workshop_id', params.id)
       .order('created_at', { ascending: false }),
+    // El TOTAL real, sin traer las filas: no lo topa el límite de 1000.
+    service
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('workshop_id', params.id),
     service
       .from('profiles')
       .select('id, full_name, role, phone, active')
       .eq('workshop_id', params.id)
       .order('role', { ascending: true }),
+    service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
 
   const orders = (ordersRes.data ?? []) as unknown as OrderRow[];
+  const orderTotal = orderCountRes.count ?? orders.length;
   const profiles = (profilesRes.data ?? []) as unknown as ProfileRow[];
+  const freeOrderLimit =
+    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
 
-  // Correos (viven en auth.users).
-  const emailById = new Map<string, string | null>();
-  const { data: usersData } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  for (const u of usersData?.users ?? []) emailById.set(u.id, u.email ?? null);
+  // Correos (viven en auth.users; se recorren todas las páginas, no solo la 1ª).
+  const emailById = await fetchAllAuthEmails(service);
 
   const nameById = new Map(profiles.map((p) => [p.id, p.full_name]));
 
@@ -93,7 +101,7 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
   const admins = profiles.filter((p) => p.role === 'admin');
   const globalLimitLabel = workshop.is_subscribed
     ? 'Ilimitado (suscrito)'
-    : `${orders.length} / ${workshop.order_limit ?? '(límite global)'}`;
+    : `${orderTotal} / ${workshop.order_limit ?? freeOrderLimit}`;
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px 48px' }}>
@@ -165,7 +173,7 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
 
       {/* Órdenes */}
       <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <ClipboardList size={16} /> Órdenes ({orders.length})
+        <ClipboardList size={16} /> Órdenes ({orderTotal})
       </h2>
       {orders.length === 0 ? (
         <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Este taller no tiene órdenes.</p>
