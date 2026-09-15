@@ -258,11 +258,25 @@ export default function SuperadminClient({
             ? { kind: 'email', email: data.email }
             : { kind: 'temp', email: data.email, password: data.password },
       }));
+      // La contraseña temporal no debe quedarse en pantalla (ni en memoria del
+      // navegador) indefinidamente: se borra sola a los 90 s. Antes de eso, el
+      // superadmin la copia; también puede ocultarla a mano con el botón.
+      if (mode === 'temp') {
+        setTimeout(() => clearResetResult(row.id), 90_000);
+      }
     } catch {
       alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
       setResetting(null);
     }
+  }
+
+  function clearResetResult(id: string) {
+    setResetResult((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   async function handleLogout() {
@@ -699,7 +713,29 @@ export default function SuperadminClient({
                           <Copy size={12} />
                           Copiar
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => clearResetResult(row.id)}
+                          aria-label="Ocultar contraseña"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '4px 8px',
+                            background: 'var(--color-surface-3)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 6,
+                            color: 'var(--color-text-secondary)',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Ocultar
+                        </button>
                       </div>
+                      <p style={{ color: 'var(--color-text-muted)', marginTop: 6, fontSize: 11 }}>
+                        Se ocultará sola en 90 s. Cópiala y compártela ahora.
+                      </p>
                     </div>
                   )}
                 </div>

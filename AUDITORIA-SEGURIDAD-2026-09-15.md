@@ -24,9 +24,9 @@ manipular datos de otros talleres. Son reparables con SQL, sin tocar la app.
 | 4 | UPDATE de orders/workshops sin `WITH CHECK` → bypass del paywall | RLS | 🟠 ALTO | ✅ RESUELTO (0014, verificado en vivo 15/09) |
 | 5 | Métricas del panel sobre consultas truncadas a 1000 filas | Frontend | 🟠 ALTO | 🔧 Corregido en código (0015 + panel); pendiente correr 0015 y desplegar |
 | 6 | **Signup público activo → toma de control de cualquier taller** | Auth | 🔴 CRÍTICO | ✅ RESUELTO 15/09 — signup desactivado; ataque da 422 y el registro legítimo sigue OK |
-| 7 | Contraseña temporal: PRNG débil, sin caducidad, se queda en el DOM | Backend/Front | 🟡 MEDIO | Pendiente |
+| 7 | Contraseña temporal: PRNG débil, sin caducidad, se queda en el DOM | Backend/Front | 🟡 MEDIO | ✅ RESUELTO (crypto.randomInt + auto-ocultar 90s + botón Ocultar) |
 | 8 | Fetches del panel sin try/catch → interruptores que mienten | Frontend | 🟡 MEDIO | ✅ RESUELTO (try/catch/finally + rollback en los 6 fetch) |
-| 9 | Server Components no revisan `.error` → un fallo se ve como "0 datos" | Frontend | 🟡 MEDIO | Pendiente |
+| 9 | Server Components no revisan `.error` → un fallo se ve como "0 datos" | Frontend | 🟡 MEDIO | ✅ RESUELTO (LoadError en el panel y el detalle de taller) |
 | 10 | Bucket `stage-files` público: fotos de clientes sin caducidad | Storage | 🟡 MEDIO | ✅ RESUELTO (fotos en bucket privado + URLs firmadas; logos en bucket público aparte) |
 | 11 | INSERT sin filtro de taller; sin límites de rango; sin auditoría | Varios | ⚪ MENOR | Pendiente |
 

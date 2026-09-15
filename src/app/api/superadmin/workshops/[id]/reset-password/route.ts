@@ -1,16 +1,31 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getPlatformAdmin } from '@/lib/api-auth';
+import { randomInt } from 'node:crypto';
 
 type Params = { params: { id: string } };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-// Contraseña temporal legible (may/min/número), >= 8 caracteres.
+// Contraseña temporal fuerte y legible. Antes usaba Math.random() —no
+// criptográfico y con estado predecible— para una credencial; ahora usa
+// randomInt (CSPRNG). Alfabeto sin caracteres ambiguos (0/O, 1/l/I) para
+// poder dictarla por teléfono/WhatsApp. ~12 caracteres, con al menos una
+// minúscula, una mayúscula y un dígito garantizados.
 function tempPassword(): string {
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const num = Math.floor(10 + Math.random() * 89);
-  return `FT${rand}${num}`;
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const all = lower + upper + digits;
+  const pick = (set: string) => set[randomInt(set.length)];
+  const chars = [pick(lower), pick(upper), pick(digits)];
+  while (chars.length < 12) chars.push(pick(all));
+  // Baraja (Fisher–Yates con CSPRNG) para no dejar las 3 fijas al inicio.
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return `FT-${chars.join('')}`;
 }
 
 // POST /api/superadmin/workshops/:id/reset-password

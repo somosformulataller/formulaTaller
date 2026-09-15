@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getPlatformAdmin, fetchAllAuthEmails } from '@/lib/api-auth';
 import type { WorkshopAdminRow } from '@/lib/types';
+import LoadError from '@/components/ui/LoadError';
 import SuperadminClient from './SuperadminClient';
 
 // Datos siempre frescos.
@@ -40,6 +41,18 @@ export default async function SuperadminDashboardPage() {
       .eq('id', 1)
       .single(),
   ]);
+
+  // Si falla la consulta de talleres, NO seguir con una lista vacía (parecería
+  // "0 talleres" cuando en realidad hubo un error). El conteo (RPC) y los ajustes
+  // sí degradan: si faltan, el panel muestra 0 órdenes / límite por defecto.
+  if (workshopsRes.error) {
+    return (
+      <LoadError
+        message="No se pudieron cargar los talleres. Reintenta en un momento."
+        detail={workshopsRes.error.message}
+      />
+    );
+  }
 
   const settings = settingsRes.data as unknown as
     | { free_order_limit: number; support_phones: string[] | null }

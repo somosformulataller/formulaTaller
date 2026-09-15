@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getPlatformAdmin, fetchAllAuthEmails } from '@/lib/api-auth';
 import Badge from '@/components/ui/Badge';
+import LoadError from '@/components/ui/LoadError';
 import { formatDate } from '@/lib/utils';
 import type { OrderStatus } from '@/lib/types';
 import { ArrowLeft, Car, Mail, Phone, User, ChevronRight, ClipboardList, Users } from 'lucide-react';
@@ -50,11 +51,21 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
 
   const service = createServiceClient();
 
-  const { data: wsData } = await service
+  const { data: wsData, error: wsError } = await service
     .from('workshops')
     .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, whatsapp')
     .eq('id', params.id)
     .maybeSingle();
+  // Distinguir "el taller no existe" (404) de "la consulta falló" (error): sin
+  // esto, un fallo de base de datos se veía como un taller inexistente.
+  if (wsError) {
+    return (
+      <LoadError
+        message="No se pudo cargar el taller. Reintenta en un momento."
+        detail={wsError.message}
+      />
+    );
+  }
   const workshop = wsData as unknown as WorkshopRow | null;
   if (!workshop) notFound();
 
@@ -77,6 +88,17 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
       .order('role', { ascending: true }),
     service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
+
+  // Si fallan las órdenes o los perfiles, avisar en vez de mostrar el taller
+  // como si estuviera vacío (0 órdenes / 0 mecánicos serían datos falsos).
+  if (ordersRes.error || profilesRes.error) {
+    return (
+      <LoadError
+        message="No se pudieron cargar las órdenes o los mecánicos del taller. Reintenta en un momento."
+        detail={(ordersRes.error ?? profilesRes.error)?.message}
+      />
+    );
+  }
 
   const orders = (ordersRes.data ?? []) as unknown as OrderRow[];
   const orderTotal = orderCountRes.count ?? orders.length;
