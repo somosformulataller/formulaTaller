@@ -47,6 +47,18 @@ export async function DELETE(_: Request, { params }: Params) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Limpiar los archivos de Storage antes de borrar la etapa: el cascade borra
+  // las filas de stage_attachments pero no los objetos del bucket (fotos
+  // privadas de clientes → coste + huérfanos).
+  const { data: atts } = await service
+    .from('stage_attachments')
+    .select('path')
+    .eq('stage_id', params.sid);
+  const paths = (atts as unknown as { path: string }[] | null)?.map((a) => a.path) ?? [];
+  if (paths.length > 0) {
+    await service.storage.from('stage-files').remove(paths);
+  }
+
   const { error } = await service
     .from('order_stages')
     .delete()

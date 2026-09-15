@@ -42,10 +42,32 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const body: UpdateOrderPayload = await req.json();
 
+  // Lista blanca de campos editables. NO se hace `{ ...body }`: el service
+  // client salta el WITH CHECK de RLS (0014) y no hay trigger de columnas en
+  // orders, así que un `{ ...body }` dejaría a cualquier staff enviar
+  // workshop_id / public_token / created_by / id en el PATCH y moverse la orden
+  // a otro taller o pisar el token de seguimiento. Solo se copian estos campos.
+  const ALLOWED = [
+    'client_first_name',
+    'client_last_name',
+    'client_whatsapp',
+    'car_model',
+    'notes',
+    'status',
+    'assigned_mechanic_id',
+  ] as const;
+  const updates: UpdateOrderPayload = {};
+  for (const k of ALLOWED) {
+    if (k in body) (updates as Record<string, unknown>)[k] = (body as Record<string, unknown>)[k];
+  }
+
   // Auto-set status from mechanic assignment unless status is explicit.
-  const updates: UpdateOrderPayload = { ...body };
   if ('assigned_mechanic_id' in body && !('status' in body)) {
     updates.status = body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico';
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }
 
   const service = createServiceClient();
@@ -73,6 +95,19 @@ export async function DELETE(_: Request, { params }: Params) {
   }
 
   const service = createServiceClient();
+
+  // Limpiar los archivos de Storage ANTES de borrar la orden: el cascade de FK
+  // borra las filas de stage_attachments, pero no los objetos del bucket, que
+  // quedarían huérfanos (ahora son fotos privadas de clientes: coste + fuga).
+  const { data: atts } = await service
+    .from('stage_attachments')
+    .select('path')
+    .eq('order_id', params.id);
+  const paths = (atts as unknown as { path: string }[] | null)?.map((a) => a.path) ?? [];
+  if (paths.length > 0) {
+    await service.storage.from('stage-files').remove(paths);
+  }
+
   const { error } = await service
     .from('orders')
     .delete()

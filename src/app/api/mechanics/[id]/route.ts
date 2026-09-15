@@ -5,17 +5,20 @@ import { getCaller, type Caller } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
-// True if the target mechanic exists and belongs to the caller's workshop.
+// True if the target es un MECÁNICO del taller del que llama. Se exige
+// role='mechanic' a propósito: sin eso, un admin podía gestionar (cambiar
+// email/clave, desactivar) a OTRO admin del mismo taller por la API. Este CRUD
+// es solo para mecánicos.
 async function sameWorkshop(caller: Caller, mechanicId: string): Promise<boolean> {
   if (!caller.workshopId) return false;
   const service = createServiceClient();
   const { data } = await service
     .from('profiles')
-    .select('workshop_id')
+    .select('workshop_id, role')
     .eq('id', mechanicId)
     .single();
-  const wid = (data as unknown as { workshop_id: string } | null)?.workshop_id;
-  return wid === caller.workshopId;
+  const row = data as unknown as { workshop_id: string; role: string } | null;
+  return row?.workshop_id === caller.workshopId && row?.role === 'mechanic';
 }
 
 // PATCH /api/mechanics/:id  (admin of the same workshop only)

@@ -52,6 +52,28 @@ export async function DELETE(_: Request, { params }: Params) {
     .eq('workshop_id', params.id);
   const userIds = ((profiles ?? []) as unknown as { id: string }[]).map((p) => p.id);
 
+  // Limpiar Storage ANTES del cascade (que borra las filas pero no los objetos).
+  // Fotos privadas de las etapas (stage-files) de todas las órdenes del taller:
+  const { data: ords } = await service.from('orders').select('id').eq('workshop_id', params.id);
+  const orderIds = ((ords ?? []) as unknown as { id: string }[]).map((o) => o.id);
+  if (orderIds.length > 0) {
+    const { data: atts } = await service
+      .from('stage_attachments')
+      .select('path')
+      .in('order_id', orderIds);
+    const paths = ((atts ?? []) as unknown as { path: string }[]).map((a) => a.path);
+    if (paths.length > 0) await service.storage.from('stage-files').remove(paths);
+  }
+  // Logo del taller (bucket público workshop-logos):
+  const { data: wsRow } = await service
+    .from('workshops')
+    .select('logo_url')
+    .eq('id', params.id)
+    .single();
+  const logoUrl = (wsRow as unknown as { logo_url: string | null } | null)?.logo_url;
+  const logoPath = logoUrl?.match(/\/workshop-logos\/(.+)$/)?.[1];
+  if (logoPath) await service.storage.from('workshop-logos').remove([logoPath]);
+
   // Deleting the workshop cascades: profiles, orders → stages → attachments.
   const { error } = await service.from('workshops').delete().eq('id', params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
