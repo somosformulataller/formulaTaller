@@ -6,6 +6,19 @@ type Params = { params: { id: string; sid: string } };
 
 const BUCKET = 'stage-files';
 
+// El bucket es privado (auditoría 15/09/2026, hallazgo 10): la columna `url`
+// guarda la URL pública (que ya no abre), pero al RESPONDER una subida hay que
+// devolver una URL FIRMADA para que el cliente pueda mostrar la imagen recién
+// adjuntada sin recargar. Al recargar, las páginas del servidor la vuelven a
+// firmar desde `path` (ver signStageAttachments).
+async function signedResponse(
+  service: ReturnType<typeof createServiceClient>,
+  row: Record<string, unknown> & { path: string; url: string }
+) {
+  const { data } = await service.storage.from(BUCKET).createSignedUrl(row.path, 60 * 60);
+  return { ...row, url: data?.signedUrl ?? row.url };
+}
+
 // POST /api/orders/:id/stages/:sid/attachments — register or upload a file
 //
 // Two modes:
@@ -48,7 +61,10 @@ export async function POST(req: Request, { params }: Params) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(
+      await signedResponse(service, data as unknown as { path: string; url: string }),
+      { status: 201 }
+    );
   }
 
   // --- Mode 2: multipart upload through the server -------------------------
@@ -87,7 +103,10 @@ export async function POST(req: Request, { params }: Params) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json(
+    await signedResponse(service, data as unknown as { path: string; url: string }),
+    { status: 201 }
+  );
 }
 
 // DELETE /api/orders/:id/stages/:sid/attachments?id=<attachmentId>
