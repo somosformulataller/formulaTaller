@@ -47,8 +47,8 @@ export default function RegisterForm() {
       setError('Las contraseñas no coinciden.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (form.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
       return;
     }
 
@@ -189,6 +189,8 @@ export default function RegisterForm() {
             value={form.password}
             onChange={(e) => set('password', e.target.value)}
             required
+            minLength={8}
+            hint="Mínimo 8 caracteres"
             autoComplete="new-password"
             icon={<Lock size={15} />}
             id="reg-password"
@@ -201,6 +203,8 @@ export default function RegisterForm() {
             value={form.password_confirm}
             onChange={(e) => set('password_confirm', e.target.value)}
             required
+            minLength={8}
+            hint="Debe coincidir con la contraseña"
             autoComplete="new-password"
             icon={<Lock size={15} />}
             id="reg-password2"

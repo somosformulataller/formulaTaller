@@ -67,33 +67,56 @@ export default function OrderDetailClient({
 
   async function handleDelete() {
     if (!confirm(`¿Eliminar la orden de ${clientName}?`)) return;
-    const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
-    if (res.ok) router.push('/admin/ordenes');
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/admin/ordenes');
+      } else {
+        alert('No se pudo eliminar la orden.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    }
   }
 
   async function handleStatusChange(newStatus: OrderStatus) {
     setChangingStatus(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    setChangingStatus(false);
-    if (res.ok) {
-      const updated = await res.json();
-      setOrder(updated);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setOrder(await res.json());
+      } else {
+        alert('No se pudo cambiar el estado.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setChangingStatus(false);
     }
   }
 
   async function handleAssignMechanic(mechanicId: string | null) {
     setAssigning(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
-    });
-    setAssigning(false);
-    if (res.ok) setOrder(await res.json());
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
+      });
+      if (res.ok) {
+        setOrder(await res.json());
+      } else {
+        alert('No se pudo asignar el mecánico.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setAssigning(false);
+    }
   }
 
   // Mecánico creado desde el selector: agregarlo a la lista y asignarlo a la orden.

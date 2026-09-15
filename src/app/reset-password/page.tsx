@@ -55,8 +55,8 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres.');
       return;
     }
     if (password !== confirm) {
@@ -149,6 +149,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={8}
                   style={{ paddingLeft: 40, paddingRight: 44 }}
                 />
                 <button
@@ -159,6 +160,9 @@ export default function ResetPasswordPage() {
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                Mínimo 8 caracteres
+              </span>
             </div>
             <div className="form-field">
               <label className="form-label" htmlFor="confirm-pass">Repetir contraseña</label>

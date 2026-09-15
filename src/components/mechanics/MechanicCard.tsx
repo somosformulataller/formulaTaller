@@ -22,18 +22,36 @@ export default function MechanicCard({
   onDelete,
 }: MechanicCardProps) {
   async function handleToggle() {
-    const res = await fetch(`/api/mechanics/${mechanic.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !mechanic.active }),
-    });
-    if (res.ok) onToggleActive?.(mechanic.id, !mechanic.active);
+    try {
+      const res = await fetch(`/api/mechanics/${mechanic.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !mechanic.active }),
+      });
+      if (res.ok) {
+        onToggleActive?.(mechanic.id, !mechanic.active);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'No se pudo cambiar el estado del mecánico.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    }
   }
 
   async function handleDelete() {
     if (!confirm(`¿Desactivar a ${mechanic.full_name}?`)) return;
-    const res = await fetch(`/api/mechanics/${mechanic.id}`, { method: 'DELETE' });
-    if (res.ok) onDelete?.(mechanic.id);
+    try {
+      const res = await fetch(`/api/mechanics/${mechanic.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onDelete?.(mechanic.id);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'No se pudo desactivar al mecánico.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    }
   }
 
   return (

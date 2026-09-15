@@ -98,19 +98,24 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
       return;
     }
     setLoading(true);
-    const res = await fetch(`/api/workshops/${workshop.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim() }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || 'No se pudo guardar.');
-      return;
+    try {
+      const res = await fetch(`/api/workshops/${workshop.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), whatsapp: whatsapp.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'No se pudo guardar.');
+        return;
+      }
+      setSaved(true);
+      router.refresh();
+    } catch {
+      setError('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
-    setSaved(true);
-    router.refresh();
   }
 
   async function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {

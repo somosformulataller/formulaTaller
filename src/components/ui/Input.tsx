@@ -7,10 +7,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  // Texto de ayuda bajo el campo (p. ej. "Mínimo 8 caracteres"). Si hay error,
+  // el error tiene prioridad.
+  hint?: string;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, icon, className, id, ...props }, ref) => {
+  ({ label, error, icon, hint, className, id, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -44,7 +47,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
         </div>
-        {error && (
+        {error ? (
           <span
             style={{
               fontSize: 12,
@@ -54,7 +57,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           >
             {error}
           </span>
-        )}
+        ) : hint ? (
+          <span
+            style={{
+              fontSize: 12,
+              color: 'var(--color-text-muted)',
+              marginTop: 2,
+            }}
+          >
+            {hint}
+          </span>
+        ) : null}
       </div>
     );
   }

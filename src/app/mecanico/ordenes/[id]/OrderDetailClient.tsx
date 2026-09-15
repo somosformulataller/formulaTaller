@@ -64,26 +64,40 @@ export default function MecanicoOrderDetailClient({
 
   async function patchOrder(body: Record<string, unknown>) {
     setBusy(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    setBusy(false);
-    if (res.ok) setOrder(await res.json());
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setOrder(await res.json());
+      } else {
+        alert('No se pudo actualizar la orden.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleDelete() {
     if (!confirm(`¿Eliminar la orden de ${clientName}?`)) return;
     setBusy(true);
-    const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
-    if (res.ok) {
-      router.push('/mecanico');
-      return;
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        router.push('/mecanico');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'No se pudo eliminar la orden.');
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    const data = await res.json().catch(() => ({}));
-    alert(data.error || 'No se pudo eliminar la orden.');
   }
 
   const stages = order.stages ?? [];

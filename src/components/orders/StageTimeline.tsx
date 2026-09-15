@@ -116,17 +116,24 @@ export default function StageTimeline({
   async function saveEdit(stageId: string) {
     if (!editName.trim()) return;
     setLoadingId(stageId);
-    const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() || null }),
-    });
-    setLoadingId(null);
-    if (res.ok) {
-      const updated: OrderStage = await res.json();
-      // Merge (keep attachments, which the PATCH response doesn't include).
-      setStages((prev) => prev.map((s) => (s.id === stageId ? { ...s, ...updated } : s)));
-      cancelEdit();
+    try {
+      const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() || null }),
+      });
+      if (res.ok) {
+        const updated: OrderStage = await res.json();
+        // Merge (keep attachments, which the PATCH response doesn't include).
+        setStages((prev) => prev.map((s) => (s.id === stageId ? { ...s, ...updated } : s)));
+        cancelEdit();
+      } else {
+        alert('No se pudo guardar la etapa.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoadingId(null);
     }
   }
 
@@ -164,29 +171,43 @@ export default function StageTimeline({
   async function addCustomStage() {
     if (!newStageName.trim()) return;
     setLoadingId('new');
-    const res = await fetch(`/api/orders/${orderId}/stages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newStageName.trim() }),
-    });
-    setLoadingId(null);
-    if (res.ok) {
-      const created: OrderStage = await res.json();
-      setStages((prev) => [...prev, created]);
-      setNewStageName('');
-      setAddingStage(false);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/stages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newStageName.trim() }),
+      });
+      if (res.ok) {
+        const created: OrderStage = await res.json();
+        setStages((prev) => [...prev, created]);
+        setNewStageName('');
+        setAddingStage(false);
+      } else {
+        alert('No se pudo agregar la etapa.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoadingId(null);
     }
   }
 
   async function deleteStage(stageId: string) {
     if (!confirm('¿Eliminar esta etapa?')) return;
     setLoadingId(stageId);
-    const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
-      method: 'DELETE',
-    });
-    setLoadingId(null);
-    if (res.ok) {
-      setStages((prev) => prev.filter((s) => s.id !== stageId));
+    try {
+      const res = await fetch(`/api/orders/${orderId}/stages/${stageId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setStages((prev) => prev.filter((s) => s.id !== stageId));
+      } else {
+        alert('No se pudo eliminar la etapa.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoadingId(null);
     }
   }
 

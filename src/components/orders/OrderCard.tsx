@@ -48,15 +48,21 @@ export default function OrderCard({
   async function handleAssignSelf() {
     if (!currentUserId) return;
     setLoading(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assigned_mechanic_id: currentUserId }),
-    });
-    setLoading(false);
-    if (res.ok) {
-      const updated = await res.json();
-      onUpdate?.(updated);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_mechanic_id: currentUserId }),
+      });
+      if (res.ok) {
+        onUpdate?.(await res.json());
+      } else {
+        alert('No se pudo asignar la orden.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -75,32 +81,59 @@ export default function OrderCard({
   async function handleDelete() {
     if (!confirm(`¿Eliminar la orden de ${clientName}?`)) return;
     setLoading(true);
-    const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
-    setLoading(false);
-    if (res.ok) onDelete?.(order.id);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        onDelete?.(order.id);
+      } else {
+        alert('No se pudo eliminar la orden.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleStatusChange(newStatus: OrderStatus) {
     setLoading(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    setLoading(false);
-    if (res.ok) onStatusChange?.(order.id, newStatus);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        onStatusChange?.(order.id, newStatus);
+      } else {
+        alert('No se pudo cambiar el estado.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleAssignMechanic(mechanicId: string) {
     if (!mechanicId) return;
     setLoading(true);
-    const res = await fetch(`/api/orders/${order.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
-    });
-    setLoading(false);
-    if (res.ok) onUpdate?.(await res.json());
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
+      });
+      if (res.ok) {
+        onUpdate?.(await res.json());
+      } else {
+        alert('No se pudo asignar el mecánico.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   // Mecánico creado desde la tarjeta: avisar al padre (lista compartida) y

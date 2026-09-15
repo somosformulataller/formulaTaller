@@ -23,6 +23,15 @@ export async function POST(req: Request) {
   }
 
   const body: CreateMechanicPayload = await req.json();
+
+  // Coincide con el aviso "Mínimo 8 caracteres" del formulario.
+  if (!body.password || body.password.length < 8) {
+    return NextResponse.json(
+      { error: 'La contraseña debe tener al menos 8 caracteres.' },
+      { status: 400 }
+    );
+  }
+
   const service = createServiceClient();
 
   // Create auth user, tagged with this workshop.
@@ -58,6 +67,12 @@ export async function POST(req: Request) {
     .single();
 
   if (profileError) {
+    // Revertir el usuario de auth para no dejar una cuenta huérfana sin perfil.
+    try {
+      await service.auth.admin.deleteUser(authData.user.id);
+    } catch {
+      /* si falla el rollback, igual reportamos el error original */
+    }
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 

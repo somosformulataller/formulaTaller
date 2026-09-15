@@ -60,54 +60,58 @@ export default function MechanicForm({
     setError(null);
     setLoading(true);
 
-    let res: Response;
-    if (isEdit) {
-      res = await fetch(`/api/mechanics/${mechanic!.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    try {
+      let res: Response;
+      if (isEdit) {
+        res = await fetch(`/api/mechanics/${mechanic!.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: form.full_name,
+            email: form.email,
+            phone: form.phone || null,
+            ...(form.password ? { password: form.password } : {}),
+          }),
+        });
+      } else {
+        const payload: CreateMechanicPayload = {
           full_name: form.full_name,
           email: form.email,
-          phone: form.phone || null,
-          ...(form.password ? { password: form.password } : {}),
-        }),
-      });
-    } else {
-      const payload: CreateMechanicPayload = {
-        full_name: form.full_name,
-        email: form.email,
-        password: form.password,
-        phone: form.phone || undefined,
-      };
-      res = await fetch('/api/mechanics', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    }
+          password: form.password,
+          phone: form.phone || undefined,
+        };
+        res = await fetch('/api/mechanics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
 
-    setLoading(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Error al guardar el mecánico');
+        return;
+      }
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || 'Error al guardar el mecánico');
-      return;
-    }
+      const saved: Mechanic = await res.json();
+      onSaved(saved);
 
-    const saved: Mechanic = await res.json();
-    onSaved(saved);
-
-    // If we know a password (always on create, only if changed on edit),
-    // show the credentials panel so the admin can copy/share it.
-    if (form.password) {
-      setCreds({
-        email: form.email,
-        password: form.password,
-        name: form.full_name,
-        phone: form.phone,
-      });
-    } else {
-      onClose();
+      // If we know a password (always on create, only if changed on edit),
+      // show the credentials panel so the admin can copy/share it.
+      if (form.password) {
+        setCreds({
+          email: form.email,
+          password: form.password,
+          name: form.full_name,
+          phone: form.phone,
+        });
+      } else {
+        onClose();
+      }
+    } catch {
+      setError('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -246,6 +250,7 @@ export default function MechanicForm({
         onChange={(e) => set('password', e.target.value)}
         required={!isEdit}
         minLength={isEdit && !form.password ? undefined : 8}
+        hint="Mínimo 8 caracteres"
         autoFocus={isEdit && focusPassword}
         icon={<Lock size={15} />}
       />
