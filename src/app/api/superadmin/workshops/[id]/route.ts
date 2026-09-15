@@ -4,6 +4,10 @@ import { getPlatformAdmin } from '@/lib/api-auth';
 
 type Params = { params: { id: string } };
 
+// Cota superior del override por taller: la columna es int4; sin tope, un número
+// enorme desborda en Postgres (500). Ver misma cota en /api/superadmin/settings.
+const MAX_ORDER_LIMIT = 1_000_000;
+
 // PATCH /api/superadmin/workshops/:id — actualiza la suscripción, la etiqueta
 // de prueba y/o el override del límite de órdenes del taller. Solo
 // superadmins de plataforma.
@@ -32,9 +36,12 @@ export async function PATCH(req: Request, { params }: Params) {
 
   if ('order_limit' in (body ?? {})) {
     const ol = body.order_limit;
-    if (ol !== null && (typeof ol !== 'number' || !Number.isInteger(ol) || ol < 0)) {
+    if (
+      ol !== null &&
+      (typeof ol !== 'number' || !Number.isInteger(ol) || ol < 0 || ol > MAX_ORDER_LIMIT)
+    ) {
       return NextResponse.json(
-        { error: 'order_limit debe ser un entero >= 0 o null' },
+        { error: `order_limit debe ser un entero entre 0 y ${MAX_ORDER_LIMIT}, o null` },
         { status: 400 }
       );
     }

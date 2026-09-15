@@ -28,7 +28,7 @@ manipular datos de otros talleres. Son reparables con SQL, sin tocar la app.
 | 8 | Fetches del panel sin try/catch → interruptores que mienten | Frontend | 🟡 MEDIO | ✅ RESUELTO (try/catch/finally + rollback en los 6 fetch) |
 | 9 | Server Components no revisan `.error` → un fallo se ve como "0 datos" | Frontend | 🟡 MEDIO | ✅ RESUELTO (LoadError en el panel y el detalle de taller) |
 | 10 | Bucket `stage-files` público: fotos de clientes sin caducidad | Storage | 🟡 MEDIO | ✅ RESUELTO (fotos en bucket privado + URLs firmadas; logos en bucket público aparte) |
-| 11 | INSERT sin filtro de taller; sin límites de rango; sin auditoría | Varios | ⚪ MENOR | Pendiente |
+| 11 | INSERT sin filtro de taller; sin límites de rango; sin auditoría | Varios | 🔧 Casi todo resuelto (0016 + cotas + server-only); falta tabla de auditoría/rate-limit (recomendación) |
 
 > **Actualización 15/09/2026:** hallazgos 1–4 cerrados con las migraciones `0013` y `0014`
 > (corridas en Supabase y verificadas en vivo con cuentas de prueba desechables: una cuenta nueva

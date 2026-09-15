@@ -1,3 +1,6 @@
+// Si algún componente 'use client' importa este módulo por error, el build
+// FALLA aquí en vez de filtrar la service_role key al bundle del navegador.
+import 'server-only';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
