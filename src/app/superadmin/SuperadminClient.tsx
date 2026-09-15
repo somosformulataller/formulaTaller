@@ -99,38 +99,48 @@ export default function SuperadminClient({
       return;
     }
     setSavingGlobal(true);
-    const res = await fetch('/api/superadmin/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ free_order_limit: n }),
-    });
-    setSavingGlobal(false);
-    if (res.ok) {
-      const data = await res.json();
-      setGlobalLimit(data.free_order_limit);
-      setGlobalInput(String(data.free_order_limit));
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudo guardar el límite global.');
+    try {
+      const res = await fetch('/api/superadmin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ free_order_limit: n }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalLimit(data.free_order_limit);
+        setGlobalInput(String(data.free_order_limit));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo guardar el límite global.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSavingGlobal(false);
     }
   }
 
   async function savePhones() {
     const cleaned = phoneDraft.map((p) => p.value.trim()).filter((p) => p.length > 0);
     setSavingPhones(true);
-    const res = await fetch('/api/superadmin/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ support_phones: cleaned }),
-    });
-    setSavingPhones(false);
-    if (res.ok) {
-      const data = await res.json();
-      const saved: string[] = data.support_phones ?? cleaned;
-      setPhoneDraft((saved.length ? saved : ['']).map((value) => ({ id: phoneKey.current++, value })));
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudieron guardar los números.');
+    try {
+      const res = await fetch('/api/superadmin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ support_phones: cleaned }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const saved: string[] = data.support_phones ?? cleaned;
+        setPhoneDraft((saved.length ? saved : ['']).map((value) => ({ id: phoneKey.current++, value })));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudieron guardar los números.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSavingPhones(false);
     }
   }
 
@@ -139,17 +149,25 @@ export default function SuperadminClient({
     setSavingId(row.id);
     setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: next } : r)));
 
-    const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_subscribed: next }),
-    });
-    setSavingId(null);
-
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_subscribed: next }),
+      });
+      if (!res.ok) {
+        // Revierte el interruptor al valor real: no se guardó nada.
+        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: !next } : r)));
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo actualizar la suscripción.');
+      }
+    } catch {
+      // Fallo de red: el fetch lanza y nunca llegó al servidor. Sin este
+      // rollback el interruptor quedaría mostrando un cambio que no ocurrió.
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: !next } : r)));
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudo actualizar la suscripción.');
+      alert('No se pudo conectar. El cambio no se guardó.');
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -158,17 +176,22 @@ export default function SuperadminClient({
     setSavingId(row.id);
     setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_test: next } : r)));
 
-    const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_test: next }),
-    });
-    setSavingId(null);
-
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_test: next }),
+      });
+      if (!res.ok) {
+        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_test: !next } : r)));
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo actualizar la etiqueta de prueba.');
+      }
+    } catch {
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_test: !next } : r)));
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudo actualizar la etiqueta de prueba.');
+      alert('No se pudo conectar. El cambio no se guardó.');
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -187,19 +210,23 @@ export default function SuperadminClient({
     }
 
     setSavingId(row.id);
-    const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_limit: value }),
-    });
-    setSavingId(null);
-
-    if (res.ok) {
-      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, order_limit: value } : r)));
-      setOverrides((prev) => ({ ...prev, [row.id]: value == null ? '' : String(value) }));
-    } else {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se pudo actualizar el límite del taller.');
+    try {
+      const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_limit: value }),
+      });
+      if (res.ok) {
+        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, order_limit: value } : r)));
+        setOverrides((prev) => ({ ...prev, [row.id]: value == null ? '' : String(value) }));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'No se pudo actualizar el límite del taller.');
+      }
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setSavingId(null);
     }
   }
 
@@ -213,29 +240,37 @@ export default function SuperadminClient({
       return;
     }
     setResetting({ id: row.id, mode });
-    const res = await fetch(`/api/superadmin/workshops/${row.id}/reset-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode }),
-    });
-    setResetting(null);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      alert(data.error || 'No se pudo restablecer la contraseña.');
-      return;
+    try {
+      const res = await fetch(`/api/superadmin/workshops/${row.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'No se pudo restablecer la contraseña.');
+        return;
+      }
+      setResetResult((prev) => ({
+        ...prev,
+        [row.id]:
+          mode === 'email'
+            ? { kind: 'email', email: data.email }
+            : { kind: 'temp', email: data.email, password: data.password },
+      }));
+    } catch {
+      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
+    } finally {
+      setResetting(null);
     }
-    setResetResult((prev) => ({
-      ...prev,
-      [row.id]:
-        mode === 'email'
-          ? { kind: 'email', email: data.email }
-          : { kind: 'temp', email: data.email, password: data.password },
-    }));
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace('/superadmin/login');
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      router.replace('/superadmin/login');
+    }
   }
 
   return (

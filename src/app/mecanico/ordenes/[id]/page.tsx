@@ -1,6 +1,7 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
-import type { Order, Profile } from '@/lib/types';
+import type { Order, Profile, OrderStage } from '@/lib/types';
 import MecanicoOrderDetailClient from './OrderDetailClient';
 
 interface Props {
@@ -35,6 +36,12 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
   if (!orderData) notFound();
 
   const order = orderData as unknown as Order;
+
+  // Fotos del bucket privado: firmar sus URLs (service client) antes de pasarlas.
+  await signStageAttachments(
+    createServiceClient(),
+    (order as unknown as { stages?: OrderStage[] }).stages
+  );
 
   return (
     <MecanicoOrderDetailClient

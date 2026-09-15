@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server';
+import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
 import type { Order, OrderStage } from '@/lib/types';
 import TrackingClient from './TrackingClient';
@@ -54,7 +55,7 @@ export default async function TrackingPage({ params }: Props) {
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
       workshop:workshops(name, logo_url),
-      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, url, name, mime, created_at))
+      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at))
     `)
     .eq('public_token', params.token)
     .maybeSingle();
@@ -68,6 +69,9 @@ export default async function TrackingPage({ params }: Props) {
   const sortedStages = (rawOrder.stages ?? []).sort(
     (a: OrderStage, b: OrderStage) => a.position - b.position
   );
+
+  // Fotos del bucket privado: firmar sus URLs antes de mandarlas al cliente.
+  await signStageAttachments(service, sortedStages);
 
   return <TrackingClient order={{ ...rawOrder, stages: sortedStages }} />;
 }

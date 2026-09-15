@@ -1,10 +1,14 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
+import { WORKSHOP_LOGOS_BUCKET } from '@/lib/storage';
 
 type Params = { params: { id: string } };
 
-const BUCKET = 'stage-files';
+// Los logos van a un bucket PÚBLICO propio (no a stage-files, que pasó a ser
+// privado — auditoría 15/09/2026, hallazgo 10). El logo es marca: se muestra en
+// el login y el tracking sin sesión, así que debe seguir siendo público.
+const BUCKET = WORKSHOP_LOGOS_BUCKET;
 
 // POST /api/workshops/:id/logo — upload/replace the workshop logo.
 // Small image (compressed client-side), so a multipart upload through the

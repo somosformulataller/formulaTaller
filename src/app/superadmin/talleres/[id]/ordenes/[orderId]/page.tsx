@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createServiceClient } from '@/lib/supabase/server';
+import { signStageAttachments } from '@/lib/storage';
 import { getPlatformAdmin } from '@/lib/api-auth';
 import Badge from '@/components/ui/Badge';
 import InitialAttachments from '@/components/orders/InitialAttachments';
@@ -41,6 +42,9 @@ export default async function SuperadminOrderPage({ params }: Props) {
 
   const order = data as unknown as Order | null;
   if (!order || order.workshop_id !== params.id) notFound();
+
+  // Fotos del bucket privado: firmar sus URLs antes de renderizarlas.
+  await signStageAttachments(service, (order as unknown as { stages?: OrderStage[] }).stages);
 
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;

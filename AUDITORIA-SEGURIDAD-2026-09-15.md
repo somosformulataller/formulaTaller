@@ -23,11 +23,11 @@ manipular datos de otros talleres. Son reparables con SQL, sin tocar la app.
 | 3 | Etapas y adjuntos sin aislamiento por taller (usuario autenticado) | RLS | 🔴 CRÍTICO | ✅ RESUELTO (0014, verificado en vivo 15/09) |
 | 4 | UPDATE de orders/workshops sin `WITH CHECK` → bypass del paywall | RLS | 🟠 ALTO | ✅ RESUELTO (0014, verificado en vivo 15/09) |
 | 5 | Métricas del panel sobre consultas truncadas a 1000 filas | Frontend | 🟠 ALTO | 🔧 Corregido en código (0015 + panel); pendiente correr 0015 y desplegar |
-| 6 | Signup público de Supabase: verificar que esté desactivado | Auth | 🟠 ALTO | ⏳ **Pendiente de verificar en vivo** |
+| 6 | **Signup público activo → toma de control de cualquier taller** | Auth | 🔴 CRÍTICO | ✅ RESUELTO 15/09 — signup desactivado; ataque da 422 y el registro legítimo sigue OK |
 | 7 | Contraseña temporal: PRNG débil, sin caducidad, se queda en el DOM | Backend/Front | 🟡 MEDIO | Pendiente |
-| 8 | Fetches del panel sin try/catch → interruptores que mienten | Frontend | 🟡 MEDIO | Pendiente |
+| 8 | Fetches del panel sin try/catch → interruptores que mienten | Frontend | 🟡 MEDIO | ✅ RESUELTO (try/catch/finally + rollback en los 6 fetch) |
 | 9 | Server Components no revisan `.error` → un fallo se ve como "0 datos" | Frontend | 🟡 MEDIO | Pendiente |
-| 10 | Bucket `stage-files` público: fotos de clientes sin caducidad | Storage | 🟡 MEDIO | Pendiente |
+| 10 | Bucket `stage-files` público: fotos de clientes sin caducidad | Storage | 🟡 MEDIO | ✅ RESUELTO (fotos en bucket privado + URLs firmadas; logos en bucket público aparte) |
 | 11 | INSERT sin filtro de taller; sin límites de rango; sin auditoría | Varios | ⚪ MENOR | Pendiente |
 
 > **Actualización 15/09/2026:** hallazgos 1–4 cerrados con las migraciones `0013` y `0014`
@@ -110,15 +110,28 @@ filas sin avisar.
 Contraste: el backend (`api/orders/route.ts:59`) SÍ cuenta con `count: 'exact'`. Panel y backend
 pueden dar cifras distintas del mismo taller.
 
-### 6. Verificar signup público en Supabase — PENDIENTE
+### 6. Signup público activo → toma de control de cualquier taller — CONFIRMADO 🔴
 
-`disable_signup: false` en la config de Auth (visto el 15/09). Si "Allow new users to sign up" está
-activo, cualquiera puede llamar a `/auth/v1/signup` con
-`data: { role: 'admin', workshop_id: '<taller existente>' }` y el trigger `handle_new_user`
-(`0009:39`) le crea un perfil de **admin dentro de ese taller** — porque el trigger confía en la
-metadata del usuario. **Acción:** Supabase → Authentication → Providers → desactivar el registro
-público (la app crea usuarios con `admin.createUser`, no lo necesita). Si se deja activo, esto es
-CRÍTICO.
+**Ya no es "pendiente de verificar": está confirmado en vivo (15/09).** Con solo la anon key pública
+(la que va en el JS del sitio), un atacante externo llamó a `/auth/v1/signup` con
+`data: { role: 'admin', workshop_id: '<id de un taller>' }` y el trigger `handle_new_user` (`0009:39`)
+le creó un perfil de **admin dentro de ese taller**. Prueba hecha contra un taller señuelo propio: el
+señuelo pasó de 1 perfil a 2, el segundo un "Intruso Externo" con rol admin que nadie del taller creó.
+Todo borrado tras la prueba.
+
+Impacto: cualquiera que conozca (o cosechara antes de 0013) el `workshop_id` de un taller se vuelve su
+administrador — ve clientes, órdenes, fotos, y puede borrar. Los `workshop_id` no son secretos.
+
+**Fix (definitivo, sin código, no rompe la app):** Supabase → Authentication → Sign In / Providers →
+Email → **desactivar "Allow new users to sign up"**. La app NO usa el signup público: crea usuarios con
+`service.auth.admin.createUser` (register y mechanics), que es la admin API y NO se ve afectada por ese
+interruptor. Comprobado en el código (`api/register/route.ts:71`, `api/mechanics/route.ts`).
+
+**Por qué el fix no puede ser solo de código:** el trigger no puede distinguir de forma fiable un
+`admin.createUser` de confianza (service) de un `signup` público, porque ambos entran por el mismo rol
+de base de datos (`supabase_auth_admin`). Por eso el control correcto es cerrar el signup. Una defensa
+en profundidad a nivel de trigger es posible pero frágil (depende del momento en que se marca el correo
+como confirmado) y necesita probarse sin romper el registro; se puede añadir después como refuerzo.
 
 ---
 
