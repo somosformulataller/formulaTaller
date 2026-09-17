@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { CrmTag, CrmTagColor, SalesClientRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
-import { waLink, buildTutorialText } from '@/lib/whatsapp';
+import { waLink } from '@/lib/whatsapp';
 import {
   Search,
   Send,
@@ -18,6 +18,7 @@ import {
   Users,
   CheckCircle2,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 
 const TAG_STYLES: Record<CrmTagColor, { bg: string; border: string; fg: string; dot: string }> = {
@@ -101,14 +102,21 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
     };
   }, [rows]);
 
-  // ---- Envío del video ------------------------------------------------------
+  // Enlace para descargar el video (Supabase fuerza la descarga con ?download).
+  const downloadUrl = vUrl.trim()
+    ? `${vUrl.trim()}${vUrl.includes('?') ? '&' : '?'}download=video-formula-taller.mp4`
+    : '';
+
+  // ---- Envío del mensaje ----------------------------------------------------
+  // Semi-manual: abrimos WhatsApp con el mensaje ya escrito (SIN enlace). El
+  // video se adjunta a mano (por eso el botón "Descargar video").
   function openWhatsApp(row: SalesClientRow): boolean {
-    if (!vUrl.trim()) {
-      alert('Primero configura el enlace del video (sección "Video y mensaje" arriba).');
+    if (!msg.trim()) {
+      alert('Primero escribe el mensaje (sección "Video y mensaje" arriba).');
       setCfgOpen(true);
       return false;
     }
-    const link = waLink(row.whatsapp, buildTutorialText(msg, vUrl.trim()));
+    const link = waLink(row.whatsapp, msg.trim());
     if (!link) {
       alert(`${row.name} no tiene un número de WhatsApp válido.`);
       return false;
@@ -150,8 +158,8 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
   function startBulk() {
     const ids = filtered.filter((r) => selected.has(r.id)).map((r) => r.id);
     if (ids.length === 0) return;
-    if (!vUrl.trim()) {
-      alert('Primero configura el enlace del video (sección "Video y mensaje" arriba).');
+    if (!msg.trim()) {
+      alert('Primero escribe el mensaje (sección "Video y mensaje" arriba).');
       setCfgOpen(true);
       return;
     }
@@ -305,24 +313,44 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
           <Video size={16} color="var(--color-brand-400)" />
           <span style={{ fontSize: 15, fontWeight: 700 }}>Video y mensaje</span>
           <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: vUrl.trim() ? '#34d399' : '#f87171' }}>
-              {vUrl.trim() ? 'Video configurado' : 'Falta el enlace'}
+            <span style={{ fontSize: 11, fontWeight: 700, color: downloadUrl ? '#34d399' : '#f87171' }}>
+              {downloadUrl ? 'Video listo' : 'Sin video'}
             </span>
             <ChevronDown size={16} style={{ transform: cfgOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
           </span>
         </button>
 
         {cfgOpen && (
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Enlace del video</label>
-              <input
-                className="form-input"
-                placeholder="https://..."
-                value={vUrl}
-                onChange={(e) => setVUrl(e.target.value)}
-              />
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Cómo funciona */}
+            <div
+              style={{
+                fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5,
+                background: 'var(--color-surface-2)', border: '1px solid var(--color-border)',
+                borderRadius: 8, padding: '10px 12px',
+              }}
+            >
+              <b>Cómo enviar:</b> 1) descarga el video una vez y guárdalo en tu teléfono o PC.
+              2) toca “Enviar” en un cliente: se abre su WhatsApp con el mensaje ya escrito.
+              3) adjunta el video guardado (📎) y envía.
             </div>
+
+            {/* Descargar video */}
+            <div>
+              <label style={labelStyle}>Video</label>
+              {downloadUrl ? (
+                <a href={downloadUrl} style={{ ...sendBtn, textDecoration: 'none' }}>
+                  <Download size={14} />
+                  Descargar video
+                </a>
+              ) : (
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                  No hay video configurado. Pega su enlace abajo.
+                </p>
+              )}
+            </div>
+
+            {/* Mensaje */}
             <div>
               <label style={labelStyle}>Mensaje</label>
               <textarea
@@ -333,9 +361,24 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
                 style={{ resize: 'vertical', lineHeight: 1.5 }}
               />
               <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                Al enviar, el enlace del video se agrega automáticamente al final del mensaje.
+                Este es el texto que se abre en WhatsApp. El video NO va como enlace: se adjunta a mano.
               </p>
             </div>
+
+            {/* Enlace del video (avanzado) */}
+            <div>
+              <label style={labelStyle}>Enlace del video (avanzado)</label>
+              <input
+                className="form-input"
+                placeholder="https://..."
+                value={vUrl}
+                onChange={(e) => setVUrl(e.target.value)}
+              />
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
+                Solo cámbialo si quieres usar otro video. El de bienvenida ya está cargado.
+              </p>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button onClick={saveConfig} disabled={savingCfg} style={primaryBtn(savingCfg)}>
                 <Save size={14} />
@@ -703,8 +746,8 @@ function BulkModal({
         <button onClick={onClose} aria-label="Cerrar" style={iconBtn}><X size={18} /></button>
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16 }}>
-        WhatsApp se abre de a un chat a la vez con el mensaje y el video ya escritos. Toca “Enviar” en
-        cada chat. Aquí avanzas al siguiente cliente.
+        Se abre un chat a la vez con el mensaje ya escrito. En cada uno adjunta el video (📎) y toca
+        “Enviar”. Aquí avanzas al siguiente cliente.
       </p>
 
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
