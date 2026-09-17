@@ -316,8 +316,8 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
               <b>En el teléfono:</b> al tocar “Enviar video” se abre el selector de WhatsApp con el
               video ya adjunto y el mensaje de leyenda; solo eliges el contacto y envías.
               <br />
-              <b>En la PC:</b> se descarga el video y se abre el chat del cliente para que lo adjuntes
-              a mano.
+              <b>En la PC (WhatsApp Web):</b> se descarga el video y se abre el chat del cliente en
+              WhatsApp Web con el mensaje escrito; arrastra el video descargado al chat y envía.
             </div>
 
             {/* Mensaje */}

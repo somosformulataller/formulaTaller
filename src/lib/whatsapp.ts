@@ -30,6 +30,13 @@ export function waLink(raw: string | null | undefined, text: string): string | n
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
 }
 
+/** Enlace directo al chat en WhatsApp Web (escritorio) con el mensaje escrito. */
+export function waWebLink(raw: string | null | undefined, text: string): string | null {
+  const num = waNumber(raw);
+  if (!num) return null;
+  return `https://web.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`;
+}
+
 /** Descarga el video a disco (fallback para escritorio). */
 function descargarVideo() {
   const a = document.createElement('a');
@@ -81,9 +88,10 @@ export async function shareTutorialVideo(
     }
   }
 
-  // 2) Fallback (escritorio): descargar el video y abrir el chat del número.
+  // 2) Fallback (escritorio / WhatsApp Web): descargar el video y abrir el chat
+  //    directo en WhatsApp Web para que arrastres el video descargado y envíes.
   descargarVideo();
-  const link = waLink(rawNumber, text);
+  const link = waWebLink(rawNumber, text);
   if (link) window.open(link, '_blank', 'noopener');
   return 'descargado';
 }
