@@ -101,9 +101,10 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
   }, [rows]);
 
   // ---- Envío del video + mensaje --------------------------------------------
-  // En el teléfono comparte el ARCHIVO del video con el mensaje de leyenda (Web
-  // Share): WhatsApp lo recibe como video y eliges el contacto ahí. En PC
-  // descarga el video y abre el chat del número para adjuntarlo.
+  // Comparte el ARCHIVO del video con el mensaje de leyenda (Web Share):
+  // WhatsApp lo recibe como video y eliges el contacto ahí. En móvil abre la
+  // app de WhatsApp; en PC abre la app de escritorio de WhatsApp, también con
+  // el video adjunto. Sin soporte, descarga el video y abre WhatsApp Web.
   async function shareToClient(row: SalesClientRow): Promise<boolean> {
     if (!msg.trim()) {
       alert('Primero escribe el mensaje (sección "Video y mensaje" arriba).');
@@ -316,9 +317,9 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
               <b>En el teléfono:</b> al tocar “Enviar video” se abre WhatsApp con el
               <b> video ya adjunto</b> y el mensaje; solo eliges el contacto y envías.
               <br />
-              <b>En la PC (WhatsApp Web):</b> se descarga el video y se abre el chat del cliente con
-              el mensaje; <b>arrastra el video</b> descargado al chat y envía (WhatsApp Web no permite
-              adjuntarlo automáticamente).
+              <b>En la PC:</b> se abre la <b>app de escritorio de WhatsApp</b> con el
+              <b> video ya adjunto</b> y el mensaje; eliges el contacto y envías. (Requiere
+              tener instalada la app de WhatsApp para escritorio.)
             </div>
 
             {/* Mensaje */}
