@@ -9,16 +9,24 @@ const MAX_ORDER_LIMIT = 1_000_000;
 // Cotas de la lista de teléfonos de atención (se muestran en el paywall).
 const MAX_SUPPORT_PHONES = 20;
 const MAX_PHONE_LEN = 32;
+// Cotas del onboarding (video tutorial).
+const MAX_VIDEO_URL_LEN = 2000;
+const MAX_TUTORIAL_MSG_LEN = 1500;
 
 // PATCH /api/superadmin/settings — configuración global de la plataforma.
 // Solo superadmins de plataforma.
-// Body admite: { free_order_limit?: number, support_phones?: string[] }
+// Body admite: { free_order_limit?, support_phones?, tutorial_video_url?, tutorial_message? }
 export async function PATCH(req: Request) {
   const admin = await getPlatformAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  const updates: { free_order_limit?: number; support_phones?: string[] } = {};
+  const updates: {
+    free_order_limit?: number;
+    support_phones?: string[];
+    tutorial_video_url?: string | null;
+    tutorial_message?: string;
+  } = {};
 
   if ('free_order_limit' in (body ?? {})) {
     const value = body.free_order_limit;
@@ -64,6 +72,39 @@ export async function PATCH(req: Request) {
     updates.support_phones = cleaned;
   }
 
+  if ('tutorial_video_url' in (body ?? {})) {
+    const raw = body.tutorial_video_url;
+    if (raw === null || raw === '') {
+      updates.tutorial_video_url = null;
+    } else if (typeof raw !== 'string' || raw.length > MAX_VIDEO_URL_LEN) {
+      return NextResponse.json(
+        { error: `tutorial_video_url debe ser texto de ${MAX_VIDEO_URL_LEN} caracteres o menos` },
+        { status: 400 }
+      );
+    } else if (!/^https?:\/\//i.test(raw.trim())) {
+      return NextResponse.json(
+        { error: 'El enlace del video debe empezar por http:// o https://' },
+        { status: 400 }
+      );
+    } else {
+      updates.tutorial_video_url = raw.trim();
+    }
+  }
+
+  if ('tutorial_message' in (body ?? {})) {
+    const msg = body.tutorial_message;
+    if (typeof msg !== 'string' || msg.trim().length === 0) {
+      return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 });
+    }
+    if (msg.length > MAX_TUTORIAL_MSG_LEN) {
+      return NextResponse.json(
+        { error: `El mensaje debe tener ${MAX_TUTORIAL_MSG_LEN} caracteres o menos` },
+        { status: 400 }
+      );
+    }
+    updates.tutorial_message = msg.trim();
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }
@@ -73,7 +114,7 @@ export async function PATCH(req: Request) {
     .from('platform_settings')
     .update(updates)
     .eq('id', 1)
-    .select('free_order_limit, support_phones')
+    .select('free_order_limit, support_phones, tutorial_video_url, tutorial_message')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

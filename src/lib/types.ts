@@ -39,6 +39,33 @@ export interface WorkshopAdminRow {
   order_count: number;
 }
 
+// ---- CRM de ventas (panel superadmin) --------------------------------------
+
+export type CrmTagColor = 'neutral' | 'gold' | 'green' | 'red' | 'blue';
+
+// Etiqueta reutilizable del catálogo (crm_tags).
+export interface CrmTag {
+  id: string;
+  label: string;
+  color: CrmTagColor;
+  sort: number;
+  created_at: string;
+}
+
+// Fila de la pestaña "Ventas": taller como cliente de Formula Taller.
+export interface SalesClientRow {
+  id: string;
+  name: string;
+  owner_name: string | null;
+  whatsapp: string | null;
+  created_at: string;
+  order_count: number;
+  is_subscribed: boolean;
+  is_test: boolean;
+  tutorial_sent_at: string | null;
+  tag_ids: string[];
+}
+
 export type WorkshopUpdate = Partial<Pick<Workshop, 'name' | 'whatsapp'>>;
 
 export interface Profile {

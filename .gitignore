@@ -36,3 +36,6 @@ next-env.d.ts
 # supabase
 supabase/.branches
 supabase/.temp
+
+# Videos fuente (no versionar; se suben a Supabase Storage)
+img/*.mp4
