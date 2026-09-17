@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { CrmTag, CrmTagColor, SalesClientRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
-import { waLink } from '@/lib/whatsapp';
+import { shareTutorialVideo, TUTORIAL_VIDEO_PATH } from '@/lib/whatsapp';
 import {
   Search,
   Send,
@@ -41,11 +41,10 @@ type SortKey = 'recent' | 'old' | 'orders_desc' | 'orders_asc';
 interface Props {
   initialRows: SalesClientRow[];
   initialTags: CrmTag[];
-  videoUrl: string | null;
   message: string;
 }
 
-export default function VentasClient({ initialRows, initialTags, videoUrl, message }: Props) {
+export default function VentasClient({ initialRows, initialTags, message }: Props) {
   const [rows, setRows] = useState<SalesClientRow[]>(initialRows);
   const [tags, setTags] = useState<CrmTag[]>(initialTags);
 
@@ -58,8 +57,7 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
   const [manageOpen, setManageOpen] = useState(false);
   const [bulk, setBulk] = useState<{ ids: string[]; index: number } | null>(null);
 
-  // Configuración del onboarding (enlace del video + mensaje).
-  const [vUrl, setVUrl] = useState(videoUrl ?? '');
+  // Configuración del onboarding (mensaje). El video va incluido en la app.
   const [msg, setMsg] = useState(message);
   const [cfgOpen, setCfgOpen] = useState(false);
   const [savingCfg, setSavingCfg] = useState(false);
@@ -102,26 +100,17 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
     };
   }, [rows]);
 
-  // Enlace para descargar el video (Supabase fuerza la descarga con ?download).
-  const downloadUrl = vUrl.trim()
-    ? `${vUrl.trim()}${vUrl.includes('?') ? '&' : '?'}download=video-formula-taller.mp4`
-    : '';
-
-  // ---- Envío del mensaje ----------------------------------------------------
-  // Semi-manual: abrimos WhatsApp con el mensaje ya escrito (SIN enlace). El
-  // video se adjunta a mano (por eso el botón "Descargar video").
-  function openWhatsApp(row: SalesClientRow): boolean {
+  // ---- Envío del video + mensaje --------------------------------------------
+  // En el teléfono comparte el ARCHIVO del video con el mensaje de leyenda (Web
+  // Share): WhatsApp lo recibe como video y eliges el contacto ahí. En PC
+  // descarga el video y abre el chat del número para adjuntarlo.
+  async function shareToClient(row: SalesClientRow): Promise<boolean> {
     if (!msg.trim()) {
       alert('Primero escribe el mensaje (sección "Video y mensaje" arriba).');
       setCfgOpen(true);
       return false;
     }
-    const link = waLink(row.whatsapp, msg.trim());
-    if (!link) {
-      alert(`${row.name} no tiene un número de WhatsApp válido.`);
-      return false;
-    }
-    window.open(link, '_blank', 'noopener');
+    await shareTutorialVideo(row.whatsapp, msg.trim());
     return true;
   }
 
@@ -150,8 +139,8 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
     }
   }
 
-  function sendSingle(row: SalesClientRow) {
-    if (openWhatsApp(row)) markSent(row.id);
+  async function sendSingle(row: SalesClientRow) {
+    if (await shareToClient(row)) markSent(row.id);
   }
 
   // ---- Envío masivo (stepper) ----------------------------------------------
@@ -179,10 +168,10 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
       return { ...b, index: b.index + 1 };
     });
   }
-  function bulkSendCurrent() {
+  async function bulkSendCurrent() {
     const cur = bulkCurrent();
     if (!cur) return;
-    if (openWhatsApp(cur)) markSent(cur.id);
+    if (await shareToClient(cur)) markSent(cur.id);
     bulkAdvance();
   }
 
@@ -241,14 +230,13 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
       const res = await fetch('/api/superadmin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tutorial_video_url: vUrl.trim() || null, tutorial_message: msg.trim() }),
+        body: JSON.stringify({ tutorial_message: msg.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         alert(data.error || 'No se pudo guardar la configuración.');
         return;
       }
-      setVUrl(data.tutorial_video_url ?? '');
       setMsg(data.tutorial_message ?? msg);
       setCfgSaved(true);
       setTimeout(() => setCfgSaved(false), 2500);
@@ -312,12 +300,7 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
         >
           <Video size={16} color="var(--color-brand-400)" />
           <span style={{ fontSize: 15, fontWeight: 700 }}>Video y mensaje</span>
-          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: downloadUrl ? '#34d399' : '#f87171' }}>
-              {downloadUrl ? 'Video listo' : 'Sin video'}
-            </span>
-            <ChevronDown size={16} style={{ transform: cfgOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-          </span>
+          <ChevronDown size={16} style={{ marginLeft: 'auto', transform: cfgOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
         </button>
 
         {cfgOpen && (
@@ -330,24 +313,11 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
                 borderRadius: 8, padding: '10px 12px',
               }}
             >
-              <b>Cómo enviar:</b> 1) descarga el video una vez y guárdalo en tu teléfono o PC.
-              2) toca “Enviar” en un cliente: se abre su WhatsApp con el mensaje ya escrito.
-              3) adjunta el video guardado (📎) y envía.
-            </div>
-
-            {/* Descargar video */}
-            <div>
-              <label style={labelStyle}>Video</label>
-              {downloadUrl ? (
-                <a href={downloadUrl} style={{ ...sendBtn, textDecoration: 'none' }}>
-                  <Download size={14} />
-                  Descargar video
-                </a>
-              ) : (
-                <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                  No hay video configurado. Pega su enlace abajo.
-                </p>
-              )}
+              <b>En el teléfono:</b> al tocar “Enviar video” se abre el selector de WhatsApp con el
+              video ya adjunto y el mensaje de leyenda; solo eliges el contacto y envías.
+              <br />
+              <b>En la PC:</b> se descarga el video y se abre el chat del cliente para que lo adjuntes
+              a mano.
             </div>
 
             {/* Mensaje */}
@@ -361,29 +331,19 @@ export default function VentasClient({ initialRows, initialTags, videoUrl, messa
                 style={{ resize: 'vertical', lineHeight: 1.5 }}
               />
               <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                Este es el texto que se abre en WhatsApp. El video NO va como enlace: se adjunta a mano.
+                Este es el texto que acompaña al video en WhatsApp.
               </p>
             </div>
 
-            {/* Enlace del video (avanzado) */}
-            <div>
-              <label style={labelStyle}>Enlace del video (avanzado)</label>
-              <input
-                className="form-input"
-                placeholder="https://..."
-                value={vUrl}
-                onChange={(e) => setVUrl(e.target.value)}
-              />
-              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                Solo cámbialo si quieres usar otro video. El de bienvenida ya está cargado.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <button onClick={saveConfig} disabled={savingCfg} style={primaryBtn(savingCfg)}>
                 <Save size={14} />
-                {savingCfg ? 'Guardando...' : 'Guardar'}
+                {savingCfg ? 'Guardando...' : 'Guardar mensaje'}
               </button>
+              <a href={TUTORIAL_VIDEO_PATH} download="formula-taller.mp4" style={{ ...secondaryBtn, textDecoration: 'none' }}>
+                <Download size={14} />
+                Descargar video
+              </a>
               {cfgSaved && <span style={{ fontSize: 12, color: '#34d399' }}>Guardado ✓</span>}
             </div>
           </div>
@@ -746,8 +706,8 @@ function BulkModal({
         <button onClick={onClose} aria-label="Cerrar" style={iconBtn}><X size={18} /></button>
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16 }}>
-        Se abre un chat a la vez con el mensaje ya escrito. En cada uno adjunta el video (📎) y toca
-        “Enviar”. Aquí avanzas al siguiente cliente.
+        En el teléfono, cada envío abre WhatsApp con el video ya adjunto: eliges el contacto y envías.
+        Al volver, avanza al siguiente cliente.
       </p>
 
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>

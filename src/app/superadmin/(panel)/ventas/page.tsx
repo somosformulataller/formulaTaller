@@ -116,7 +116,6 @@ export default async function VentasPage() {
     <VentasClient
       initialRows={rows}
       initialTags={tags}
-      videoUrl={settings?.tutorial_video_url ?? null}
       message={settings?.tutorial_message ?? ''}
     />
   );
