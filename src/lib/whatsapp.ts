@@ -37,7 +37,20 @@ export function waWebLink(raw: string | null | undefined, text: string): string 
   return `https://web.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`;
 }
 
-/** Descarga el video a disco (fallback cuando no hay compartir con archivos). */
+/**
+ * ¿Es un teléfono/tablet? En Windows/Mac, Chrome y Edge también soportan
+ * navigator.share con archivos, pero ahí el selector nativo abre la APP de
+ * escritorio de WhatsApp, no WhatsApp Web. Como en PC preferimos WhatsApp Web
+ * (descarga + arrastrar), el compartir con archivo se limita a móvil.
+ */
+function esMovil(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
+  if (uaData && typeof uaData.mobile === 'boolean') return uaData.mobile;
+  return /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(navigator.userAgent || '');
+}
+
+/** Descarga el video a disco (fallback para PC / sin compartir de archivos). */
 function descargarVideo() {
   const a = document.createElement('a');
   a.href = TUTORIAL_VIDEO_PATH;
@@ -68,10 +81,9 @@ export async function shareTutorialVideo(
         })
       : null;
 
-  // 1) Con soporte de compartir archivos (móvil y PC) → mandar el video adjunto.
-  //    En PC abre el menú de Windows/Mac: eliges WhatsApp y el video va adjunto,
-  //    igual que en La Mejor Llave.
-  if (nav && typeof nav.canShare === 'function' && typeof nav.share === 'function') {
+  // 1) Solo móvil: compartir el archivo → WhatsApp lo recibe como video adjunto.
+  //    (En PC se prefiere WhatsApp Web: se cae al fallback de abajo.)
+  if (esMovil() && nav && typeof nav.canShare === 'function' && typeof nav.share === 'function') {
     let file: File | null = null;
     try {
       const res = await fetch(TUTORIAL_VIDEO_PATH);
