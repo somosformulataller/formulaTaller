@@ -313,11 +313,12 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
                 borderRadius: 8, padding: '10px 12px',
               }}
             >
-              <b>En el teléfono:</b> al tocar “Enviar video” se abre el selector de WhatsApp con el
-              video ya adjunto y el mensaje de leyenda; solo eliges el contacto y envías.
+              Al tocar “Enviar video” se abre el menú de compartir de tu dispositivo con el
+              <b> video ya adjunto</b> y el mensaje de leyenda: eliges <b>WhatsApp</b> (y el
+              contacto) y envías.
               <br />
-              <b>En la PC (WhatsApp Web):</b> se descarga el video y se abre el chat del cliente en
-              WhatsApp Web con el mensaje escrito; arrastra el video descargado al chat y envía.
+              Si tu navegador no soporta compartir archivos, se descarga el video y se abre WhatsApp
+              Web con el mensaje para que lo arrastres al chat.
             </div>
 
             {/* Mensaje */}
