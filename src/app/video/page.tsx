@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
+import { waNumber } from '@/lib/whatsapp';
 
 // Enlace público, corto y presentable para el video de bienvenida:
 // formulataller.com/video. Se comparte por WhatsApp desde Ventas con una
@@ -38,23 +39,36 @@ export const metadata: Metadata = {
   },
 };
 
-async function getVideoUrl(): Promise<string> {
+const SOPORTE_MENSAJE =
+  'Hola, acabo de ver el video de bienvenida y tengo una duda sobre Formula Taller.';
+
+async function getSettings(): Promise<{ videoUrl: string; soporteLink: string | null }> {
   try {
     const service = createServiceClient();
     const { data } = await service
       .from('platform_settings')
-      .select('tutorial_video_url')
+      .select('tutorial_video_url, support_phones')
       .eq('id', 1)
       .single();
-    const url = (data as { tutorial_video_url: string | null } | null)?.tutorial_video_url;
-    return url && url.trim() ? url.trim() : FALLBACK_VIDEO;
+    const row = data as { tutorial_video_url: string | null; support_phones: string[] | null } | null;
+
+    const url = row?.tutorial_video_url;
+    const videoUrl = url && url.trim() ? url.trim() : FALLBACK_VIDEO;
+
+    const phone = (row?.support_phones ?? []).find((p) => p && p.trim().length > 0);
+    const num = waNumber(phone);
+    const soporteLink = num
+      ? `https://wa.me/${num}?text=${encodeURIComponent(SOPORTE_MENSAJE)}`
+      : null;
+
+    return { videoUrl, soporteLink };
   } catch {
-    return FALLBACK_VIDEO;
+    return { videoUrl: FALLBACK_VIDEO, soporteLink: null };
   }
 }
 
 export default async function VideoPage() {
-  const videoUrl = await getVideoUrl();
+  const { videoUrl, soporteLink } = await getSettings();
 
   return (
     <main
@@ -104,8 +118,36 @@ export default async function VideoPage() {
         .
       </video>
 
+      {soporteLink && (
+        <a
+          href={soporteLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '13px 22px',
+            background: '#25D366',
+            color: '#fff',
+            textDecoration: 'none',
+            borderRadius: 999,
+            fontSize: 15,
+            fontWeight: 700,
+            boxShadow: '0 6px 20px rgba(37,211,102,0.45)',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+            <path d="M12.04 2c-5.46 0-9.9 4.44-9.9 9.9 0 1.75.46 3.45 1.33 4.95L2 22l5.3-1.39a9.86 9.86 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.44 9.9-9.9 0-2.64-1.03-5.13-2.9-7A9.82 9.82 0 0 0 12.04 2Zm5.8 14.13c-.24.68-1.42 1.32-1.95 1.36-.52.05-.53.42-3.32-.7-2.8-1.12-4.5-4-4.64-4.19-.13-.19-1.09-1.45-1.09-2.77 0-1.32.69-1.97.94-2.24.24-.27.53-.34.71-.34.18 0 .35 0 .51.01.16.01.39-.06.6.46.24.58.82 2 .89 2.14.07.14.12.31.02.5-.09.19-.14.31-.28.48-.14.17-.29.37-.42.5-.14.14-.28.29-.12.56.16.27.72 1.19 1.55 1.93 1.07.95 1.96 1.25 2.24 1.39.28.14.44.12.6-.07.16-.19.69-.81.87-1.08.18-.27.36-.23.6-.14.24.09 1.55.73 1.82.86.27.14.45.2.51.31.06.11.06.64-.18 1.32Z" />
+          </svg>
+          Escríbenos por WhatsApp
+        </a>
+      )}
+
       <p style={{ fontSize: 13, color: 'var(--color-text-muted, #9aa0b4)', textAlign: 'center', maxWidth: 420, margin: 0 }}>
-        Si el video no carga, toca el botón de reproducir. ¿Dudas? Escríbenos por WhatsApp.
+        Si el video no carga, toca el botón de reproducir.
+        {soporteLink ? ' ¿Dudas? Escríbenos por WhatsApp.' : ''}
       </p>
     </main>
   );
