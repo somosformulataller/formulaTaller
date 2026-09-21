@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/terminos',
   '/privacidad',
   '/reset-password',
+  '/video',
 ];
 
 export async function middleware(request: NextRequest) {

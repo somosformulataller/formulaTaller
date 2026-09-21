@@ -42,10 +42,9 @@ interface Props {
   initialRows: SalesClientRow[];
   initialTags: CrmTag[];
   message: string;
-  videoUrl: string;
 }
 
-export default function VentasClient({ initialRows, initialTags, message, videoUrl }: Props) {
+export default function VentasClient({ initialRows, initialTags, message }: Props) {
   const [rows, setRows] = useState<SalesClientRow[]>(initialRows);
   const [tags, setTags] = useState<CrmTag[]>(initialTags);
 
@@ -108,12 +107,13 @@ export default function VentasClient({ initialRows, initialTags, message, videoU
   // pulsa Enviar. (WhatsApp no permite, desde la web, abrir el chat de un
   // número y adjuntar el archivo a la vez: por eso el video va como enlace.)
 
-  /** El enlace al video: el configurado, o el de /public como respaldo. */
+  /** Enlace corto y presentable al video (página propia con vista previa). */
   function videoLink(): string {
-    const configured = (videoUrl ?? '').trim();
-    if (configured) return configured;
-    if (typeof window !== 'undefined') return window.location.origin + TUTORIAL_VIDEO_PATH;
-    return '';
+    const base = (
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== 'undefined' ? window.location.origin : '')
+    ).replace(/\/$/, '');
+    return base ? `${base}/video` : '';
   }
 
   /** Mensaje + enlace al video (sin duplicar el enlace si ya está en el texto). */

@@ -117,7 +117,6 @@ export default async function VentasPage() {
       initialRows={rows}
       initialTags={tags}
       message={settings?.tutorial_message ?? ''}
-      videoUrl={settings?.tutorial_video_url ?? ''}
     />
   );
 }
