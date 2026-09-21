@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import type { CrmTag, CrmTagColor, SalesClientRow } from '@/lib/types';
-import { formatDate } from '@/lib/utils';
-import { shareTutorialVideo, TUTORIAL_VIDEO_PATH } from '@/lib/whatsapp';
+import { formatDate, openWhatsApp } from '@/lib/utils';
+import { waNumber, TUTORIAL_VIDEO_PATH } from '@/lib/whatsapp';
 import {
   Search,
   Send,
@@ -42,9 +42,10 @@ interface Props {
   initialRows: SalesClientRow[];
   initialTags: CrmTag[];
   message: string;
+  videoUrl: string;
 }
 
-export default function VentasClient({ initialRows, initialTags, message }: Props) {
+export default function VentasClient({ initialRows, initialTags, message, videoUrl }: Props) {
   const [rows, setRows] = useState<SalesClientRow[]>(initialRows);
   const [tags, setTags] = useState<CrmTag[]>(initialTags);
 
@@ -101,17 +102,40 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
   }, [rows]);
 
   // ---- Envío del video + mensaje --------------------------------------------
-  // Comparte el ARCHIVO del video con el mensaje de leyenda (Web Share):
-  // WhatsApp lo recibe como video y eliges el contacto ahí. En móvil abre la
-  // app de WhatsApp; en PC abre la app de escritorio de WhatsApp, también con
-  // el video adjunto. Sin soporte, descarga el video y abre WhatsApp Web.
-  async function shareToClient(row: SalesClientRow): Promise<boolean> {
+  // Abre el chat DIRECTO al número del cliente (igual que el compartir del
+  // tracking: openWhatsApp → wa.me en móvil, WhatsApp Web en PC) con el
+  // mensaje escrito y el enlace al video al final. El vendedor solo revisa y
+  // pulsa Enviar. (WhatsApp no permite, desde la web, abrir el chat de un
+  // número y adjuntar el archivo a la vez: por eso el video va como enlace.)
+
+  /** El enlace al video: el configurado, o el de /public como respaldo. */
+  function videoLink(): string {
+    const configured = (videoUrl ?? '').trim();
+    if (configured) return configured;
+    if (typeof window !== 'undefined') return window.location.origin + TUTORIAL_VIDEO_PATH;
+    return '';
+  }
+
+  /** Mensaje + enlace al video (sin duplicar el enlace si ya está en el texto). */
+  function mensajeConVideo(): string {
+    const base = msg.trim();
+    const link = videoLink();
+    if (!link || base.includes(link)) return base;
+    return `${base}\n\n🎥 Mira el video aquí:\n${link}`;
+  }
+
+  function shareToClient(row: SalesClientRow): boolean {
     if (!msg.trim()) {
       alert('Primero escribe el mensaje (sección "Video y mensaje" arriba).');
       setCfgOpen(true);
       return false;
     }
-    await shareTutorialVideo(row.whatsapp, msg.trim());
+    const num = waNumber(row.whatsapp);
+    if (!num) {
+      alert('Este cliente no tiene un número de WhatsApp válido.');
+      return false;
+    }
+    openWhatsApp(num, mensajeConVideo());
     return true;
   }
 
@@ -140,8 +164,8 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
     }
   }
 
-  async function sendSingle(row: SalesClientRow) {
-    if (await shareToClient(row)) markSent(row.id);
+  function sendSingle(row: SalesClientRow) {
+    if (shareToClient(row)) markSent(row.id);
   }
 
   // ---- Envío masivo (stepper) ----------------------------------------------
@@ -169,10 +193,10 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
       return { ...b, index: b.index + 1 };
     });
   }
-  async function bulkSendCurrent() {
+  function bulkSendCurrent() {
     const cur = bulkCurrent();
     if (!cur) return;
-    if (await shareToClient(cur)) markSent(cur.id);
+    if (shareToClient(cur)) markSent(cur.id);
     bulkAdvance();
   }
 
@@ -314,12 +338,17 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
                 borderRadius: 8, padding: '10px 12px',
               }}
             >
-              <b>En el teléfono:</b> al tocar “Enviar video” se abre WhatsApp con el
-              <b> video ya adjunto</b> y el mensaje; solo eliges el contacto y envías.
+              Al tocar “Enviar video” se abre el <b>chat directo del cliente</b> (su
+              número de WhatsApp) con el mensaje y el <b>enlace al video</b> ya escritos.
+              Solo revisas y pulsas Enviar; el cliente toca el enlace y ve el video.
               <br />
-              <b>En la PC:</b> se abre la <b>app de escritorio de WhatsApp</b> con el
-              <b> video ya adjunto</b> y el mensaje; eliges el contacto y envías. (Requiere
-              tener instalada la app de WhatsApp para escritorio.)
+              En el teléfono abre la app de WhatsApp; en la PC abre WhatsApp Web.
+              <br />
+              <span style={{ color: 'var(--color-text-muted)' }}>
+                (WhatsApp no permite, desde la web, abrir el chat de un número y adjuntar
+                el archivo a la vez; por eso el video va como enlace, igual que el
+                seguimiento del tracking.)
+              </span>
             </div>
 
             {/* Mensaje */}
@@ -333,7 +362,8 @@ export default function VentasClient({ initialRows, initialTags, message }: Prop
                 style={{ resize: 'vertical', lineHeight: 1.5 }}
               />
               <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>
-                Este es el texto que acompaña al video en WhatsApp.
+                Este es el texto que se envía al cliente. El enlace al video se agrega
+                automáticamente al final del mensaje.
               </p>
             </div>
 
@@ -708,8 +738,8 @@ function BulkModal({
         <button onClick={onClose} aria-label="Cerrar" style={iconBtn}><X size={18} /></button>
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 16 }}>
-        En el teléfono, cada envío abre WhatsApp con el video ya adjunto: eliges el contacto y envías.
-        Al volver, avanza al siguiente cliente.
+        Cada envío abre el chat directo del cliente en WhatsApp con el mensaje y el enlace
+        al video. Revisas, envías y al volver avanza al siguiente cliente.
       </p>
 
       <div className="card" style={{ marginBottom: 16, textAlign: 'center' }}>
