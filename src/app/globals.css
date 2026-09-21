@@ -464,3 +464,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 
 @media (min-width: 900px) { .sa-close { display: none !important; } }
+
+/* En teléfonos angostos, la barra superior muestra solo los íconos de
+   "Tutorial" y "Salir" para no desbordar; el texto vuelve en pantallas más
+   anchas. */
+.tb-label { display: none; }
+@media (min-width: 400px) { .tb-label { display: inline; } }

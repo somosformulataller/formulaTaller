@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Wrench } from 'lucide-react';
+import { GraduationCap, LogOut, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/types';
@@ -65,8 +65,38 @@ export default function TopBar({ profile, title }: TopBarProps) {
         </div>
       </div>
 
-      {/* Avatar + Logout */}
+      {/* Tutorial + Avatar + Logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <a
+          href="/video"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Ver video tutorial"
+          title="Ver video tutorial"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            padding: '6px 10px',
+            color: 'var(--color-text-secondary)',
+            textDecoration: 'none',
+            fontSize: 12,
+            fontWeight: 500,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--color-brand-400)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--color-text-secondary)';
+          }}
+        >
+          <GraduationCap size={15} />
+          <span className="tb-label">Tutorial</span>
+        </a>
         <div
           style={{
             width: 34,
@@ -108,7 +138,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
           }}
         >
           <LogOut size={14} />
-          Salir
+          <span className="tb-label">Salir</span>
         </button>
       </div>
     </header>
