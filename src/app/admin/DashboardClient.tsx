@@ -7,7 +7,7 @@ import OrderForm from '@/components/orders/OrderForm';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import { Plus, ClipboardList, CheckCircle2, Wrench, Clock } from 'lucide-react';
+import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle } from 'lucide-react';
 
 interface AdminDashboardClientProps {
   initialOrders: Order[];
@@ -32,6 +32,7 @@ export default function AdminDashboardClient({
   }
   const [showCreate, setShowCreate] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const [filter, setFilter] = useState<FilterStatus>('all');
 
   function handleNew() {
@@ -179,10 +180,18 @@ export default function AdminDashboardClient({
           <ClipboardList size={48} />
           <p>No hay órdenes {filter !== 'all' ? 'con este filtro' : 'aún'}</p>
           {filter === 'all' && (
-            <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-              <Plus size={14} />
-              Crear primera orden
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
+                <Plus size={14} />
+                Crear primera orden
+              </Button>
+              {/* El video se abre EN ESTA página (ventana emergente) y no en
+                  /video, para que al cerrarlo se siga justo donde estaba. */}
+              <Button variant="ghost" size="sm" onClick={() => setShowVideo(true)}>
+                <PlayCircle size={14} />
+                Ver video explicativo
+              </Button>
+            </div>
           )}
         </div>
       ) : (
@@ -215,6 +224,29 @@ export default function AdminDashboardClient({
           onCancel={() => setShowCreate(false)}
           canCreateMechanic
           onMechanicCreated={handleMechanicCreated}
+        />
+      </Modal>
+
+      {/* Video explicativo: se carga /video dentro de la ventana, así el video
+          y el botón de soporte salen de una sola fuente (platform_settings) y
+          no hay que duplicarlos aquí. Solo se monta al abrir, para no
+          descargar el video a quien no lo pide. */}
+      <Modal
+        isOpen={showVideo}
+        onClose={() => setShowVideo(false)}
+        title="Video explicativo"
+      >
+        <iframe
+          src="/video"
+          title="Video explicativo de Formula Taller"
+          allow="autoplay; fullscreen; picture-in-picture"
+          style={{
+            width: '100%',
+            height: '60dvh',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--border-radius-sm)',
+            background: '#000',
+          }}
         />
       </Modal>
 
