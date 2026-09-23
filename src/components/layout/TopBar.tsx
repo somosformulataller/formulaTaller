@@ -1,10 +1,10 @@
 'use client';
 
-import { GraduationCap, LogOut, Wrench } from 'lucide-react';
+import Link from 'next/link';
+import { LogOut, Receipt, Wrench } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/types';
-import { getInitials } from '@/lib/utils';
 
 interface TopBarProps {
   profile: Profile;
@@ -13,7 +13,13 @@ interface TopBarProps {
 
 export default function TopBar({ profile, title }: TopBarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
+
+  // Cada rol tiene su propia sección, protegida por su layout.
+  const presupuestosHref =
+    profile.role === 'admin' ? '/admin/presupuestos' : '/mecanico/presupuestos';
+  const activo = pathname.startsWith(presupuestosHref);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -65,55 +71,44 @@ export default function TopBar({ profile, title }: TopBarProps) {
         </div>
       </div>
 
-      {/* Tutorial + Avatar + Logout */}
+      {/* Presupuestos + Logout.
+          Antes había aquí el tutorial y un círculo con las iniciales del
+          taller. Se quitaron los dos a propósito: en un teléfono no cabían
+          junto a "Presupuestos", que es un acceso de uso diario, y las
+          iniciales no hacían nada (el nombre del taller ya está a la
+          izquierda). El tutorial sigue en /video. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <a
-          href="/video"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Ver video tutorial"
-          title="Ver video tutorial"
+        <Link
+          href={presupuestosHref}
+          aria-label="Ver presupuestos"
+          title="Presupuestos"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 5,
+            gap: 6,
             background: 'var(--color-surface-2)',
             border: '1px solid var(--color-border)',
             borderRadius: 8,
-            padding: '6px 10px',
-            color: 'var(--color-text-secondary)',
+            padding: '7px 12px',
+            color: activo ? 'var(--color-brand-400)' : 'var(--color-text-secondary)',
             textDecoration: 'none',
-            fontSize: 12,
-            fontWeight: 500,
+            fontSize: 12.5,
+            fontWeight: 600,
             transition: 'all 0.15s',
+            whiteSpace: 'nowrap',
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLAnchorElement).style.color = 'var(--color-brand-400)';
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--color-text-secondary)';
+            (e.currentTarget as HTMLAnchorElement).style.color = activo
+              ? 'var(--color-brand-400)'
+              : 'var(--color-text-secondary)';
           }}
         >
-          <GraduationCap size={15} />
-          <span className="tb-label">Tutorial</span>
-        </a>
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            background: 'var(--color-surface-3)',
-            border: '2px solid var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--color-brand-400)',
-          }}
-        >
-          {getInitials(profile.full_name)}
-        </div>
+          <Receipt size={15} />
+          Presupuestos
+        </Link>
         <button
           onClick={handleLogout}
           style={{

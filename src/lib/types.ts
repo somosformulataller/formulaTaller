@@ -136,6 +136,33 @@ export interface OrderStage {
   attachments?: StageAttachment[];
 }
 
+// ---- Presupuesto de la orden ----------------------------------------------
+
+// Un renglón del presupuesto: qué se cobra y cuánto, en dólares.
+// `amount` llega de Postgres como number (numeric); el total nunca se guarda,
+// se suma siempre desde estos ítems (ver migración 0018).
+export interface BudgetItem {
+  id: string;
+  order_id: string;
+  description: string;
+  amount: number;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Fila de la pantalla "Presupuestos": una orden con su total ya sumado.
+export interface BudgetSummary {
+  order_id: string;
+  client_name: string;
+  car_model: string;
+  status: OrderStatus;
+  created_at: string;
+  item_count: number;
+  total: number;
+}
+
 export type OrderStageInsert = Omit<OrderStage, 'id' | 'created_at'>;
 export type OrderStageUpdate = Partial<Omit<OrderStage, 'id' | 'order_id' | 'created_at'>>;
 
@@ -173,6 +200,12 @@ export type Database = {
         Row: StageAttachment;
         Insert: Omit<StageAttachment, 'id' | 'created_at'>;
         Update: Partial<Omit<StageAttachment, 'id' | 'created_at'>>;
+        Relationships: [];
+      };
+      order_budget_items: {
+        Row: BudgetItem;
+        Insert: Omit<BudgetItem, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<BudgetItem, 'id' | 'order_id' | 'created_at' | 'updated_at'>>;
         Relationships: [];
       };
     };
@@ -247,4 +280,14 @@ export interface UpdateStagePayload {
 export interface CreateStagePayload {
   name: string;
   position?: number;
+}
+
+export interface CreateBudgetItemPayload {
+  description: string;
+  amount: number;
+}
+
+export interface UpdateBudgetItemPayload {
+  description?: string;
+  amount?: number;
 }

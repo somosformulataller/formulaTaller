@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
-import type { Order, OrderStage } from '@/lib/types';
+import type { Order, OrderStage, BudgetItem } from '@/lib/types';
 import TrackingClient from './TrackingClient';
 import type { Metadata } from 'next';
 
@@ -55,7 +55,8 @@ export default async function TrackingPage({ params }: Props) {
       updated_at,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
       workshop:workshops(name, logo_url),
-      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at))
+      stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at)),
+      budget:order_budget_items(id, order_id, description, amount, position, created_by, created_at, updated_at)
     `)
     .eq('public_token', params.token)
     .maybeSingle();
@@ -63,7 +64,16 @@ export default async function TrackingPage({ params }: Props) {
   const rawData = result.data;
   if (!rawData) notFound();
 
-  const rawOrder = rawData as unknown as Order & { stages: OrderStage[] };
+  const rawOrder = rawData as unknown as Order & {
+    stages: OrderStage[];
+    budget: BudgetItem[];
+  };
+
+  // El presupuesto llega sin orden garantizado desde PostgREST: se ordena por
+  // position para que el cliente lo vea como lo armó el taller.
+  const budget = (rawOrder.budget ?? [])
+    .slice()
+    .sort((a, b) => a.position - b.position);
 
   // Sort stages by position
   const sortedStages = (rawOrder.stages ?? []).sort(
@@ -73,5 +83,5 @@ export default async function TrackingPage({ params }: Props) {
   // Fotos del bucket privado: firmar sus URLs antes de mandarlas al cliente.
   await signStageAttachments(service, sortedStages);
 
-  return <TrackingClient order={{ ...rawOrder, stages: sortedStages }} />;
+  return <TrackingClient order={{ ...rawOrder, stages: sortedStages }} budget={budget} />;
 }

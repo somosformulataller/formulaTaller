@@ -75,7 +75,9 @@ Navegador
 | Archivo | Rol |
 |---|---|
 | `ui/Button.tsx`, `ui/Input.tsx`, `ui/Modal.tsx`, `ui/Badge.tsx` | Piezas de interfaz genéricas. |
-| `layout/TopBar.tsx`, `layout/BottomNav.tsx` | Barras de navegación. |
+| `layout/TopBar.tsx`, `layout/BottomNav.tsx` | Barras de navegación. El TopBar lleva el acceso a **Presupuestos**. |
+| `orders/BudgetList.tsx` | La lista de presupuesto. Con `orderId` se guarda sola; sin él es un borrador en memoria (alta de la orden, cuando todavía no hay `order_id`). |
+| `orders/BudgetCard.tsx`, `orders/PresupuestosClient.tsx` | El presupuesto dentro de la orden, y la pantalla que los lista todos. |
 | `orders/OrderCard.tsx` | Tarjeta de orden en las listas (WhatsApp, copiar, asignarme, estado). |
 | `orders/OrderForm.tsx` | Formulario crear/editar orden (usado por admin y mecánico). |
 | `orders/CopyLinkButton.tsx` | Botón "Copiar" (enlace de tracking o texto). |
@@ -113,11 +115,15 @@ workshops (taller / tenant)
   ├── profiles (admin | mechanic)   [workshop_id]
   │        │ assigned_mechanic_id
   └── orders ┘  [workshop_id]  (public_token → enlace de tracking del cliente)
-         └── order_stages (1 orden : N etapas)
-                └── stage_attachments (1 etapa : N archivos → bucket stage-files)
+         ├── order_stages (1 orden : N etapas)
+         │      └── stage_attachments (1 etapa : N archivos → bucket stage-files)
+         └── order_budget_items (1 orden : N ítems de presupuesto)
 ```
 - Cada **taller** tiene sus **usuarios** y **órdenes** aislados (`workshop_id`).
 - Una **orden** se asigna a un **mecánico** y tiene varias **etapas**; cada etapa puede tener **adjuntos**.
+- Una **orden** también tiene su **presupuesto**: repuestos y servicios con precio en dólares
+  (`order_budget_items`). El **total no se guarda**, se suma siempre desde los ítems, así no puede
+  quedar desfasado del detalle. Lo editan admin y mecánico del taller; el cliente lo ve.
 - El **cliente** entra por el `public_token` (sin login) y ve etapas + adjuntos, con el nombre de su taller.
 
 ---

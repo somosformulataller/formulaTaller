@@ -5,7 +5,7 @@ tablas, usuarios, archivos) y a otra cuenta de **Vercel** (hosting + dominio).
 
 > Datos actuales de referencia:
 > - Supabase (origen) — project ref: `tsvaagakjkemavhdcroy`
-> - Tablas: `workshops`, `profiles`, `orders`, `order_stages`, `stage_attachments`
+> - Tablas: `workshops`, `profiles`, `orders`, `order_stages`, `stage_attachments`, `order_budget_items`
 > - Bucket de Storage: `stage-files` (público)
 > - Repo GitHub: `somosformulataller/formulaTaller`
 > - Proyecto Vercel: `formula-taller` · Dominio: `formulataller.com`
@@ -58,7 +58,7 @@ pg_dump "postgresql://postgres:[PASSWORD_VIEJO]@db.tsvaagakjkemavhdcroy.supabase
 ```
 
 Esto incluye:
-- `public` → tus tablas y datos (`profiles`, `orders`, `order_stages`, `stage_attachments`).
+- `public` → tus tablas y datos (`profiles`, `orders`, `order_stages`, `stage_attachments`, `order_budget_items`).
 - `auth` → los usuarios (admin y mecánicos) **con sus contraseñas encriptadas**.
 - `storage` → los metadatos de los archivos (los archivos físicos se migran en el paso 4).
 

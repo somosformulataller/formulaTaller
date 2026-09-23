@@ -21,7 +21,13 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 
 - **Barra inferior (BottomNav):** fija abajo, fondo translúcido con desenfoque. Íconos + texto; el
   activo se resalta en **ámbar** con un puntito. Admin: 4 pestañas · Mecánico: 1 pestaña.
-- **Barra superior (TopBar):** logo + nombre del taller.
+- **Barra superior (TopBar):** logo + nombre del taller a la izquierda; a la derecha **Presupuestos**
+  (ícono de recibo, lleva a la pantalla de presupuestos del rol) y **Salir**. Antes había aquí un
+  círculo con las iniciales del taller y un botón *Tutorial*: se quitaron los dos para que
+  «Presupuestos» quepa bien en un teléfono. El tutorial sigue disponible en `/video`.
+- **Lista de presupuesto:** renglones con el nombre del repuesto o servicio y su precio en dólares,
+  papelera por renglón, «Agregar ítem» al final y el **Total** en ámbar abajo, que se recalcula
+  solo. Se guarda sola al salir de cada campo.
 - **Tarjeta (card):** bloque redondeado con borde sutil; es el contenedor base de casi todo.
 - **Badge de estado:** píldora de color — gris "Sin mecánico", **ámbar** "En progreso", **verde** "Vehículo listo".
 - **Botón WhatsApp:** píldora **verde** con ícono de mensaje (abre WhatsApp del que hace clic).

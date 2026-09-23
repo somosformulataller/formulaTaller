@@ -10,13 +10,16 @@ import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
 import MechanicForm from '@/components/mechanics/MechanicForm';
+import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
 import { uploadStageAttachment } from '@/lib/attachments';
+import { formatUsd, parseAmount } from '@/lib/budget';
 import {
   User,
   Car,
   Plus,
   X,
   Mic,
+  Receipt,
   Video as VideoIcon,
   FileText,
 } from 'lucide-react';
@@ -78,7 +81,13 @@ export default function OrderForm({
   const [paywall, setPaywall] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingFile[]>([]);
   const [showPicker, setShowPicker] = useState(false);
-  const [phase, setPhase] = useState<'idle' | 'creating' | 'uploading'>('idle');
+  const [phase, setPhase] = useState<'idle' | 'creating' | 'uploading' | 'budget'>('idle');
+  const [showBudget, setShowBudget] = useState(false);
+  // Al CREAR, la orden todavía no existe, así que el presupuesto se arma aquí
+  // en memoria y se manda entero apenas hay order_id. Al EDITAR no hace falta:
+  // la lista se guarda sola contra la orden (ver BudgetList).
+  const [budget, setBudget] = useState<Renglon[]>([]);
+  const [budgetTotal, setBudgetTotal] = useState(0);
 
   // Release image preview URLs when the form unmounts.
   useEffect(() => {
@@ -87,6 +96,27 @@ export default function OrderForm({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Al editar, el presupuesto ya vive en la base: se pide el total para
+  // poder mostrarlo en el botón sin tener que abrir la lista.
+  useEffect(() => {
+    if (!order) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${order.id}/budget`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const items: Array<{ amount: number }> = await res.json();
+        if (!vivo) return;
+        setBudgetTotal(items.reduce((a, i) => a + Math.round(Number(i.amount) * 100), 0) / 100);
+      } catch {
+        /* sin total en el botón; la lista se abre igual */
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [order]);
 
   function set(field: keyof CreateOrderPayload, value: string | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -151,6 +181,32 @@ export default function OrderForm({
 
     const saved: Order = await res.json();
 
+    // El presupuesto armado antes de que la orden existiera: se manda entero
+    // de un viaje. Los renglones sin nombre se descartan (quedaron vacíos).
+    if (!isEdit) {
+      const items = budget
+        .map((r) => ({ description: r.description.trim(), amount: parseAmount(r.amount) ?? 0 }))
+        .filter((r) => r.description !== '');
+      if (items.length > 0) {
+        setPhase('budget');
+        try {
+          const r = await fetch(`/api/orders/${saved.id}/budget`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items),
+          });
+          if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            // La orden YA se creó: no se tira abajo por el presupuesto. Se
+            // avisa y se puede volver a cargar desde la orden.
+            alert(d.error || 'La orden se creó, pero no se pudo guardar el presupuesto.');
+          }
+        } catch {
+          alert('La orden se creó, pero no se pudo guardar el presupuesto.');
+        }
+      }
+    }
+
     // Upload the initial attachments to the first stage (intake). They then
     // show up in the stage timeline (admin/mechanic) and the client tracking.
     if (!isEdit && pending.length > 0) {
@@ -180,11 +236,19 @@ export default function OrderForm({
 
   const submitLabel = isEdit
     ? 'Guardar cambios'
+    : phase === 'budget'
+    ? 'Guardando presupuesto...'
     : phase === 'uploading'
     ? 'Subiendo archivos...'
     : phase === 'creating'
     ? 'Creando orden...'
     : 'Crear orden';
+
+  // Al crear, el total sale del borrador; al editar, de lo guardado.
+  const totalPresupuesto = isEdit ? budgetTotal : totalDe(budget);
+  const itemsPresupuesto = isEdit
+    ? null
+    : budget.filter((r) => r.description.trim() !== '').length;
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -256,6 +320,51 @@ export default function OrderForm({
         />
       </div>
 
+      {/* Presupuesto — repuestos y servicios con su precio.
+          Está aquí, en el alta, porque es cuando el taller acuerda el precio
+          con el cliente. Se puede seguir editando después desde la orden o
+          desde la pantalla Presupuestos. */}
+      <div className="form-field">
+        <label className="form-label">Presupuesto</label>
+        <button
+          type="button"
+          onClick={() => setShowBudget(true)}
+          disabled={loading}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            width: '100%',
+            padding: '12px 14px',
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--color-text-secondary)',
+            }}
+          >
+            <Receipt size={16} />
+            {totalPresupuesto > 0 || (itemsPresupuesto ?? 0) > 0
+              ? 'Ver o editar presupuesto'
+              : 'Agregar repuestos y servicios'}
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-brand-400)' }}>
+            {formatUsd(totalPresupuesto)}
+          </span>
+        </button>
+      </div>
+
       {/* Initial attachments (create only) */}
       {!isEdit && (
         <div className="form-field">
@@ -308,6 +417,26 @@ export default function OrderForm({
 
       {showPicker && (
         <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} />
+      )}
+
+      {showBudget && (
+        <Modal
+          isOpen={showBudget}
+          onClose={() => setShowBudget(false)}
+          title="Presupuesto"
+        >
+          <BudgetList
+            orderId={isEdit ? order.id : null}
+            borrador={isEdit ? undefined : budget}
+            onBorradorChange={isEdit ? undefined : setBudget}
+            onTotalChange={setBudgetTotal}
+          />
+          <div style={{ marginTop: 16 }}>
+            <Button type="button" variant="primary" fullWidth onClick={() => setShowBudget(false)}>
+              Listo
+            </Button>
+          </div>
+        </Modal>
       )}
 
       {showAddMechanic && (

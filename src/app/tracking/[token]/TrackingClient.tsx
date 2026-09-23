@@ -1,12 +1,16 @@
 'use client';
 
-import type { Order, OrderStage, StageStatus, OrderStatus } from '@/lib/types';
+import type { Order, OrderStage, StageStatus, OrderStatus, BudgetItem } from '@/lib/types';
 import { formatDate, ORDER_STATUS_LABELS } from '@/lib/utils';
+import { formatUsd, sumarTotal } from '@/lib/budget';
 import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock } from 'lucide-react';
 import AttachmentGallery from '@/components/orders/AttachmentGallery';
 
 interface TrackingClientProps {
   order: Order;
+  /** Presupuesto de la orden. Vacío = el taller todavía no cobró nada, y
+      entonces no se muestra la sección: un total en $0,00 asusta al cliente. */
+  budget?: BudgetItem[];
 }
 
 const STAGE_ICONS: Record<StageStatus, React.ReactNode> = {
@@ -38,7 +42,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   lista: '#34d399',
 };
 
-export default function TrackingClient({ order }: TrackingClientProps) {
+export default function TrackingClient({ order, budget = [] }: TrackingClientProps) {
   const allStages = (order.stages ?? []) as OrderStage[];
   // La posición 0 es la "recepción" (archivos adjuntados al crear la orden):
   // es información principal, no una etapa del servicio.
@@ -197,6 +201,62 @@ export default function TrackingClient({ order }: TrackingClientProps) {
           </>
         )}
       </div>
+
+      {/* Presupuesto — lo que el taller cobra por este servicio. Solo lectura:
+          el cliente lo consulta, lo edita el taller. */}
+      {budget.length > 0 && (
+        <div className="card animate-fade-in" style={{ marginBottom: 20 }}>
+          <p
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--color-text-muted)',
+              marginBottom: 10,
+            }}
+          >
+            Presupuesto
+          </p>
+
+          {budget.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '7px 0',
+              }}
+            >
+              <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                {item.description}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {formatUsd(Number(item.amount))}
+              </span>
+            </div>
+          ))}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginTop: 8,
+              paddingTop: 12,
+              borderTop: '1px solid var(--color-border)',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700 }}>Total</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-brand-400)' }}>
+              {formatUsd(sumarTotal(budget))}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Progress summary */}
       <div

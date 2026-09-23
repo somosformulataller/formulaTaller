@@ -12,6 +12,7 @@ import MechanicSelect from '@/components/orders/MechanicSelect';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
+import BudgetCard from '@/components/orders/BudgetCard';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   formatDate,
@@ -305,6 +306,9 @@ export default function OrderDetailClient({
 
       {/* Archivos adjuntados al crear la orden */}
       <InitialAttachments orderId={order.id} stages={stages} canEdit={true} />
+      {/* Presupuesto: repuestos y servicios cobrados */}
+      <BudgetCard orderId={order.id} />
+
 
       {/* Stages */}
       <div style={{ marginBottom: 8 }}>
