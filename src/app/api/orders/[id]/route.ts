@@ -2,12 +2,14 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { UpdateOrderPayload } from '@/lib/types';
 import { getCaller, canManageOrder, canDeleteOrder } from '@/lib/api-auth';
+import { MECHANICS_EMBED, guardarMecanicos } from '@/lib/mecanicos-orden';
 
 type Params = { params: { id: string } };
 
 const ORDER_SELECT = `
   *,
   assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+  ${MECHANICS_EMBED},
   stages:order_stages(*),
   workshop:workshops(name)
 `;
@@ -62,7 +64,6 @@ export async function PATCH(req: Request, { params }: Params) {
     'car_model',
     'notes',
     'status',
-    'assigned_mechanic_id',
     'show_workshop_as_mechanic',
   ] as const;
   const updates: UpdateOrderPayload = {};
@@ -70,36 +71,53 @@ export async function PATCH(req: Request, { params }: Params) {
     if (k in body) (updates as Record<string, unknown>)[k] = (body as Record<string, unknown>)[k];
   }
 
-  // Asignar es del administrador (0019). El mecánico ya no puede tocar
-  // `assigned_mechanic_id`: ni ponerse en una orden, ni quitarse de la suya,
-  // ni pasársela a un compañero. Se rechaza en vez de ignorarlo en silencio,
-  // para que nadie crea que su cambio se guardó.
-  if (
-    caller.role !== 'admin' &&
-    ('assigned_mechanic_id' in updates || 'show_workshop_as_mechanic' in updates)
-  ) {
+  // Asignar es del administrador (0019). El mecánico no puede tocar la lista
+  // de mecánicos: ni ponerse en una orden, ni quitarse de la suya, ni meter a
+  // un compañero. Se rechaza en vez de ignorarlo en silencio, para que nadie
+  // crea que su cambio se guardó.
+  const cambiaAsignacion = 'mechanic_ids' in body;
+  if (caller.role !== 'admin' && (cambiaAsignacion || 'show_workshop_as_mechanic' in updates)) {
     return NextResponse.json(
-      { error: 'Solo el administrador del taller puede asignar o cambiar el mecánico de una orden.' },
+      { error: 'Solo el administrador del taller puede asignar o cambiar los mecánicos de una orden.' },
       { status: 403 }
     );
   }
 
-  // Auto-set status from mechanic assignment unless status is explicit.
-  if ('assigned_mechanic_id' in body && !('status' in body)) {
-    updates.status = body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico';
-  }
-
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && !cambiaAsignacion) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }
 
   const service = createServiceClient();
+
+  // La lista de mecánicos vive en otra tabla (0021). Va primero porque su
+  // trigger también mueve el estado de la orden; si después el PATCH trae un
+  // `status` explícito, ese es el que manda y queda encima.
+  if (cambiaAsignacion) {
+    const fallo = await guardarMecanicos(
+      service,
+      params.id,
+      caller.workshopId as string,
+      body.mechanic_ids ?? []
+    );
+    if (fallo) return NextResponse.json({ error: fallo }, { status: 400 });
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const { error } = await service
+      .from('orders')
+      .update(updates)
+      .eq('id', params.id)
+      .eq('workshop_id', caller.workshopId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Se relee siempre: aunque solo hubiera cambiado la asignación, el estado y
+  // la columna espejo los acaba de reescribir el trigger.
   const { data, error } = await service
     .from('orders')
-    .update(updates)
+    .select(ORDER_SELECT)
     .eq('id', params.id)
     .eq('workshop_id', caller.workshopId)
-    .select(ORDER_SELECT)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -35,6 +35,7 @@ export default async function SuperadminOrderPage({ params }: Props) {
     .select(`
       *,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name, phone),
+      mechanics:profiles!order_mechanics(id, full_name, phone),
       stages:order_stages(*, attachments:stage_attachments(*))
     `)
     .eq('id', params.orderId)
@@ -50,7 +51,11 @@ export default async function SuperadminOrderPage({ params }: Props) {
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const stages = (order.stages ?? []).slice().sort((a, b) => a.position - b.position);
   const serviceStages = stages.filter((s) => s.position > 0);
-  const mechanic = order.assigned_mechanic as { full_name: string } | null | undefined;
+  // Puede haber varios (0021): se enseñan todos en una línea.
+  const asignados = (order.mechanics ?? []) as { full_name: string }[];
+  const mechanic = asignados.length
+    ? { full_name: asignados.map((m) => m.full_name).join(' · ') }
+    : (order.assigned_mechanic as { full_name: string } | null | undefined);
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 16px 48px' }}>

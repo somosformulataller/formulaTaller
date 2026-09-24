@@ -96,12 +96,16 @@ export interface Order {
   client_last_name: string;
   client_whatsapp: string;
   car_model: string;
+  /**
+   * ESPEJO, no la verdad. Desde la 0021 la asignación vive en la tabla
+   * `order_mechanics` (varios mecánicos por orden) y esta columna la mantiene
+   * al día un trigger con el primero de la lista. Se lee; no se escribe.
+   * Para saber quién trabaja el carro, usa `mechanics`.
+   */
   assigned_mechanic_id: string | null;
   /**
-   * true = en el seguimiento del CLIENTE, donde iría el nombre del mecánico se
-   * enseña el nombre del taller. Solo se usa cuando la orden está asignada al
-   * dueño, que sale dos veces en la lista: como el taller y como él mismo
-   * (migración 0020).
+   * true = en el seguimiento del CLIENTE, donde irían los nombres de los
+   * mecánicos se enseña el nombre del taller (migración 0020).
    */
   show_workshop_as_mechanic: boolean;
   status: OrderStatus;
@@ -111,12 +115,24 @@ export interface Order {
   updated_at: string;
   // joined
   assigned_mechanic?: Profile | null;
+  /** Todos los mecánicos asignados, sin jerarquía (tabla order_mechanics, 0021). */
+  mechanics?: Profile[];
   stages?: OrderStage[];
   workshop?: { name: string; logo_url?: string | null } | null;
 }
 
-export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages' | 'workshop'>;
-export type OrderUpdate = Partial<Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'stages' | 'workshop'>>;
+export type OrderInsert = Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'mechanics' | 'stages' | 'workshop'>;
+export type OrderUpdate = Partial<Omit<Order, 'id' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'mechanics' | 'stages' | 'workshop'>>;
+
+/**
+ * Una fila de `order_mechanics`: «esta persona trabaja este carro». Varias por
+ * orden, todas iguales (migración 0021).
+ */
+export interface OrderMechanic {
+  order_id: string;
+  mechanic_id: string;
+  created_at: string;
+}
 
 export interface StageAttachment {
   id: string;
@@ -197,6 +213,12 @@ export type Database = {
         Update: OrderUpdate;
         Relationships: [];
       };
+      order_mechanics: {
+        Row: OrderMechanic;
+        Insert: Omit<OrderMechanic, 'created_at'>;
+        Update: never;
+        Relationships: [];
+      };
       order_stages: {
         Row: OrderStage;
         Insert: OrderStageInsert;
@@ -239,7 +261,8 @@ export interface CreateOrderPayload {
   client_last_name: string;
   client_whatsapp: string;
   car_model: string;
-  assigned_mechanic_id?: string | null;
+  /** Los mecánicos asignados. Lista vacía = sin asignar (0021). */
+  mechanic_ids?: string[];
   show_workshop_as_mechanic?: boolean;
   notes?: string | null;
 }
@@ -249,7 +272,8 @@ export interface UpdateOrderPayload {
   client_last_name?: string;
   client_whatsapp?: string;
   car_model?: string;
-  assigned_mechanic_id?: string | null;
+  /** Reemplaza la lista completa de mecánicos asignados (0021). */
+  mechanic_ids?: string[];
   show_workshop_as_mechanic?: boolean;
   status?: OrderStatus;
   notes?: string | null;

@@ -27,7 +27,9 @@ Navegador
 | `src/lib/supabase/middleware.ts` | Refresca la sesión desde cookies (usado por el middleware). |
 | `src/lib/types.ts` | Tipos TypeScript de todo (Profile, Order, OrderStage, StageAttachment, payloads). Fuente de verdad de los datos. |
 | `src/lib/utils.ts` | Utilidades: fechas, links de WhatsApp (`buildWhatsAppLink`, mensajes de tracking y credenciales), etiquetas/colores de estado. |
-| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol+**taller**) y `canManageOrder()` (admin: su taller; mecánico: **solo la orden que le asignaron**). Base del **aislamiento multi-taller** y de la separación entre admin y mecánico. |
+| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol+**taller**) y `canManageOrder()` (admin: su taller; mecánico: **solo las órdenes en cuya lista de mecánicos está**). Base del **aislamiento multi-taller** y de la separación entre admin y mecánico. |
+| `src/lib/mecanicos-orden.ts` | La asignación vista desde el servidor (tabla `order_mechanics`, 0021): el trozo de `select` que trae los mecánicos, «¿cuáles son mis órdenes?» y `guardarMecanicos()`, que deja la orden con exactamente los que se le pasan y rechaza a los de otro taller. |
+| `src/lib/asignacion.ts` | Las mismas cuentas del lado del navegador: quiénes están asignados, qué nombres se enseñan (o el del taller, 0020) y si una orden es mía. |
 | `src/lib/mechanics.ts` | `listMechanicsWithEmail()`: junta `profiles` con el email de `auth.users`. |
 | `src/lib/image.ts` | Compresión de imágenes en el navegador (canvas): redimensiona y re-codifica a JPEG antes de subir. |
 | `src/lib/attachments.ts` | `uploadStageAttachment()`: comprime imágenes, pide URL firmada, sube el archivo **directo a Storage** y registra el adjunto. |
@@ -120,7 +122,10 @@ workshops (taller / tenant)
          └── order_budget_items (1 orden : N ítems de presupuesto)
 ```
 - Cada **taller** tiene sus **usuarios** y **órdenes** aislados (`workshop_id`).
-- Una **orden** se asigna a un **mecánico** y tiene varias **etapas**; cada etapa puede tener **adjuntos**.
+- Una **orden** se asigna a **uno o varios mecánicos** (tabla puente `order_mechanics`, migración 0021;
+  todos iguales, sin jerarquía) y tiene varias **etapas**; cada etapa puede tener **adjuntos**.
+  La columna `orders.assigned_mechanic_id` sigue existiendo, pero es solo un **espejo** que mantiene un
+  trigger con el primero de la lista: se lee, no se escribe.
 - Una **orden** también tiene su **presupuesto**: repuestos y servicios con precio en dólares
   (`order_budget_items`). El **total no se guarda**, se suma siempre desde los ítems, así no puede
   quedar desfasado del detalle. Lo editan admin y mecánico del taller; el cliente lo ve.

@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
 import { sumarTotal } from '@/lib/budget';
+import { idsDeMisOrdenes } from '@/lib/mecanicos-orden';
 import type { BudgetSummary, OrderStatus } from '@/lib/types';
 
 // GET /api/budgets — todas las órdenes del taller con su total ya sumado.
@@ -38,6 +39,12 @@ export async function GET() {
   const service = createServiceClient();
 
   try {
+    // El mecánico solo ve el presupuesto de las órdenes en cuya lista de
+    // mecánicos está (0021), no solo de aquellas donde figura el primero.
+    const misOrdenes =
+      caller.role === 'mechanic' ? await idsDeMisOrdenes(service, caller.userId) : [];
+    if (caller.role === 'mechanic' && misOrdenes.length === 0) return NextResponse.json([]);
+
     type FilaOrden = {
       id: string;
       client_first_name: string;
@@ -56,7 +63,7 @@ export async function GET() {
       // la pantalla de Presupuestos sería la puerta trasera para ver todos
       // los clientes y los montos del taller.
       if (caller.role === 'mechanic') {
-        q = q.eq('assigned_mechanic_id', caller.userId);
+        q = q.in('id', misOrdenes);
       }
       return q.order('created_at', { ascending: false }).range(desde, hasta);
     });

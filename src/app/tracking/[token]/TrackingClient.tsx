@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Order, OrderStage, StageStatus, OrderStatus, BudgetItem } from '@/lib/types';
 import { formatDate, ORDER_STATUS_LABELS } from '@/lib/utils';
 import { formatUsd, sumarTotal } from '@/lib/budget';
@@ -8,6 +9,13 @@ import AttachmentGallery from '@/components/orders/AttachmentGallery';
 
 interface TrackingClientProps {
   order: Order;
+  /**
+   * Los nombres que el cliente debe leer como responsables de su carro, ya
+   * resueltos en el servidor: o los mecánicos asignados, o el nombre del
+   * taller si la orden se marcó «como el taller» (0020). Vienen decididos de
+   * allá a propósito — el nombre que no se muestra tampoco se manda.
+   */
+  mecanicos?: string[];
   /** Presupuesto de la orden. Vacío = el taller todavía no cobró nada, y
       entonces no se muestra la sección: un total en $0,00 asusta al cliente. */
   budget?: BudgetItem[];
@@ -42,7 +50,7 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   lista: '#34d399',
 };
 
-export default function TrackingClient({ order, budget = [] }: TrackingClientProps) {
+export default function TrackingClient({ order, budget = [], mecanicos = [] }: TrackingClientProps) {
   const allStages = (order.stages ?? []) as OrderStage[];
   // La posición 0 es la "recepción" (archivos adjuntados al crear la orden):
   // es información principal, no una etapa del servicio.
@@ -55,13 +63,6 @@ export default function TrackingClient({ order, budget = [] }: TrackingClientPro
   const workshopName = order.workshop?.name ?? 'Taller';
   const workshopLogo = order.workshop?.logo_url ?? null;
 
-  // Quién atiende el carro, tal como el taller decidió que lo vea el cliente:
-  // el nombre de la persona, o el del taller si se asignó «como el taller»
-  // (migración 0020). Muchos dueños prefieren lo segundo: el cliente conoce la
-  // marca del taller, no el nombre de pila de quien está debajo del carro.
-  const mechanic = (order as { show_workshop_as_mechanic?: boolean }).show_workshop_as_mechanic
-    ? { full_name: workshopName }
-    : (order.assigned_mechanic as { full_name: string } | null | undefined);
 
   return (
     <div
@@ -175,9 +176,7 @@ export default function TrackingClient({ order, budget = [] }: TrackingClientPro
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Row label="Cliente" value={clientName} />
           <Row icon={<Car size={13} />} label="Vehículo" value={order.car_model} />
-          {mechanic && (
-            <Row icon={<Wrench size={13} />} label="Mecánico" value={mechanic.full_name} />
-          )}
+          {mecanicos.length > 0 && <FilaMecanicos nombres={mecanicos} />}
           <Row
             icon={<Clock size={13} />}
             label="Recibido"
@@ -486,6 +485,93 @@ export default function TrackingClient({ order, budget = [] }: TrackingClientPro
       >
         {workshopName} © {new Date().getFullYear()} • Esta página se actualiza en tiempo real
       </p>
+    </div>
+  );
+}
+
+/**
+ * Quién atiende el carro. Un carro lo puede tocar más de una persona (0021),
+ * así que esto es una lista, no un nombre: las fichas bajan de línea solas y,
+ * si son muchas, se muestran las primeras y el resto se abre con un toque.
+ * Sin eso, cuatro nombres largos rompían el ancho del teléfono.
+ */
+function FilaMecanicos({ nombres }: { nombres: string[] }) {
+  const [abierto, setAbierto] = useState(false);
+  // Hasta tres caben sin apretar; a partir de ahí se recorta, porque si no el
+  // botón «+1» ocuparía lo mismo que el nombre que esconde.
+  const recorta = nombres.length > 3 && !abierto;
+  const visibles = recorta ? nombres.slice(0, 2) : nombres;
+  const ocultos = nombres.length - visibles.length;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <span style={{ color: 'var(--color-text-muted)', paddingTop: 3 }}>
+        <Wrench size={13} />
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          color: 'var(--color-text-muted)',
+          minWidth: 60,
+          flexShrink: 0,
+          paddingTop: 3,
+        }}
+      >
+        {nombres.length > 1 ? 'Mecánicos' : 'Mecánico'}
+      </span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }}>
+        {visibles.map((nombre) => (
+          <span
+            key={nombre}
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              padding: '3px 9px',
+              borderRadius: 999,
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              overflowWrap: 'anywhere',
+            }}
+          >
+            {nombre}
+          </span>
+        ))}
+        {ocultos > 0 && (
+          <button
+            type="button"
+            onClick={() => setAbierto(true)}
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              padding: '3px 9px',
+              borderRadius: 999,
+              background: 'transparent',
+              border: '1px dashed var(--color-border)',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            +{ocultos} más
+          </button>
+        )}
+        {abierto && nombres.length > 3 && (
+          <button
+            type="button"
+            onClick={() => setAbierto(false)}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '3px 6px',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-text-muted)',
+              cursor: 'pointer',
+            }}
+          >
+            Ver menos
+          </button>
+        )}
+      </div>
     </div>
   );
 }

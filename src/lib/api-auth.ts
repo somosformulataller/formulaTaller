@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { mecanicosDeLaOrden } from '@/lib/mecanicos-orden';
 import type { UserRole } from '@/lib/types';
 
 export interface Caller {
@@ -87,8 +88,8 @@ export async function getPlatformAdmin(): Promise<PlatformAdmin | null> {
  * attachments and budget) the given order.
  *
  * El administrador gestiona cualquier orden de SU taller. El mecánico, solo
- * las que el administrador le asignó: ni las de otros compañeros ni las que
- * están sin asignar (migración 0019).
+ * aquellas en cuya lista está: ni las de otros compañeros ni las que están sin
+ * asignar (migraciones 0019 y 0021).
  *
  * Esta comprobación no es un adorno de la de la base de datos: los endpoints
  * escriben con la clave de servicio, que se SALTA RLS. Aquí es donde de verdad
@@ -101,13 +102,11 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
   const service = createServiceClient();
   const { data } = await service
     .from('orders')
-    .select('workshop_id, assigned_mechanic_id')
+    .select('workshop_id')
     .eq('id', orderId)
     .single();
 
-  const order = data as unknown as
-    | { workshop_id: string; assigned_mechanic_id: string | null }
-    | null;
+  const order = data as unknown as { workshop_id: string } | null;
   if (!order) return false;
 
   // Primera frontera, la de siempre: el taller.
@@ -115,17 +114,18 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
 
   if (caller.role === 'admin') return true;
 
-  // Segunda frontera, nueva: al mecánico solo lo suyo.
-  return order.assigned_mechanic_id === caller.userId;
+  // Segunda frontera: al mecánico solo lo suyo. Desde la 0021 «suyo» es estar
+  // en la lista de la orden, que puede tener varios.
+  return (await mecanicosDeLaOrden(service, orderId)).includes(caller.userId);
 }
 
 /**
  * True if the caller may DELETE the given order. El admin puede eliminar
- * cualquier orden de su taller; el mecánico, solo las asignadas a él.
+ * cualquier orden de su taller; el mecánico, solo aquellas en cuya lista de
+ * mecánicos está.
  *
- * Desde la 0019 el mecánico ya no crea órdenes, pero se conserva el caso de
- * `created_by`: las que creó ANTES del cambio siguen siendo suyas si además se
- * las asignaron. Si no se las asignaron, no las ve, así que no puede borrarlas.
+ * Haber creado la orden ya no cuenta: desde la 0019 el mecánico no crea
+ * órdenes, y las que creó antes solo las ve si además se las asignaron.
  */
 export async function canDeleteOrder(caller: Caller, orderId: string): Promise<boolean> {
   if (!caller.workshopId) return false;
@@ -134,16 +134,14 @@ export async function canDeleteOrder(caller: Caller, orderId: string): Promise<b
   const service = createServiceClient();
   const { data } = await service
     .from('orders')
-    .select('assigned_mechanic_id, workshop_id, created_by')
+    .select('workshop_id')
     .eq('id', orderId)
     .single();
 
-  const order = data as unknown as
-    | { assigned_mechanic_id: string | null; workshop_id: string; created_by: string | null }
-    | null;
+  const order = data as unknown as { workshop_id: string } | null;
   if (!order) return false;
   if (order.workshop_id !== caller.workshopId) return false;
 
   if (caller.role === 'admin') return true;
-  return order.assigned_mechanic_id === caller.userId;
+  return (await mecanicosDeLaOrden(service, orderId)).includes(caller.userId);
 }

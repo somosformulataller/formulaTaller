@@ -14,8 +14,11 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 > - **Login único:** todos entran por el mismo login; según el rol van a `/superadmin`, `/admin` o `/mecanico`.
 > - **El mecánico solo ve lo suyo:** el administrador reparte las órdenes; el mecánico ve y trabaja
 >   únicamente las que le asignaron. Ni se asigna a sí mismo ni crea órdenes (migración 0019).
-> - **Permisos verificados en el servidor:** `canManageOrder` (admin: su taller; mecánico: solo la orden
->   asignada a él), `canDeleteOrder` (eliminar orden), rol `admin`, `platform_admins` (superadmin).
+> - **Una orden puede tener varios mecánicos:** todos iguales, sin principal ni ayudante; todos la ven
+>   y la trabajan igual. Quien asigna sigue siendo solo el administrador (migración 0021).
+> - **Permisos verificados en el servidor:** `canManageOrder` (admin: su taller; mecánico: solo las
+>   órdenes en cuya lista está), `canDeleteOrder` (eliminar orden), rol `admin`, `platform_admins`
+>   (superadmin).
 
 ---
 
@@ -67,8 +70,10 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
   **eliminar** (ícono de papelera rojo, solo si es suya).
 
 **Crear / editar orden** — se abre en un **modal**:
-- Campos: nombre y apellido, **WhatsApp** (con selector de país), modelo del vehículo, **mecánico asignado**
-  (selector desplegable propio), notas.
+- Campos: nombre y apellido, **WhatsApp** (con selector de país), modelo del vehículo, **mecánicos
+  asignados** (lista propia de casillas: se puede marcar a varios y el menú no se cierra entre uno y
+  otro), notas. Debajo de la lista, una casilla aparte: **«Mostrarle al cliente "[nombre del taller]"»**,
+  que no cambia quién trabaja el carro sino el nombre que lee el cliente en su seguimiento (0020).
 - Al crear: bloque para **adjuntar archivos** con botón "＋ Agregar foto, video, nota de voz o documento"
   (abre un menú con opciones: galería, cámara foto, cámara video, grabar/adjuntar voz, documento); las
   pendientes se ven como miniaturas con ✕.
@@ -180,12 +185,12 @@ Con el **enlace de tracking** (`/tracking/<token>`) ve una página de seguimient
 
 | Función | Mecánico | Admin del taller | Superadmin |
 |---|:---:|:---:|:---:|
-| Ver órdenes | Solo las **asignadas a él** | ✅ (todo su taller) | — |
+| Ver órdenes | Solo aquellas en cuya **lista de mecánicos** está | ✅ (todo su taller) | — |
 | Crear órdenes | ❌ | ✅ | — |
 | Editar / estado / etapas / adjuntos / presupuesto | Solo en **sus** órdenes | ✅ (cualquiera del taller) | — |
-| Asignar el mecánico de una orden | ❌ | ✅ | — |
+| Asignar los mecánicos de una orden (uno o varios) | ❌ | ✅ | — |
 | Avisar al cliente por WhatsApp | ✅ | ✅ | — |
-| Eliminar órdenes | Solo las **asignadas a él** | ✅ (todas) | — |
+| Eliminar órdenes | Solo aquellas en cuya **lista** está | ✅ (todas) | — |
 | Gestionar mecánicos | ❌ | ✅ | — |
 | Perfil / logo del taller | ❌ | ✅ | — |
 | Eliminar la cuenta del taller | ❌ | ✅ | — |

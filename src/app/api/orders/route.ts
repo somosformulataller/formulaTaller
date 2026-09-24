@@ -1,11 +1,13 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
+import { MECHANICS_EMBED, idsDeMisOrdenes, guardarMecanicos } from '@/lib/mecanicos-orden';
 import type { CreateOrderPayload } from '@/lib/types';
 
 const ORDER_SELECT = `
   *,
   assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+  ${MECHANICS_EMBED},
   stages:order_stages(*),
   workshop:workshops(name)
 `;
@@ -23,9 +25,13 @@ export async function GET() {
     .eq('workshop_id', caller.workshopId);
 
   // Al mecánico, solo lo que el administrador le asignó (0019). Se filtra aquí
-  // porque esta consulta usa la clave de servicio y no pasa por RLS.
+  // porque esta consulta usa la clave de servicio y no pasa por RLS. Y se
+  // filtra por la LISTA de la orden (0021), no por la columna espejo: si no,
+  // el segundo mecánico de un carro no lo vería.
   if (caller.role === 'mechanic') {
-    query = query.eq('assigned_mechanic_id', caller.userId);
+    const mios = await idsDeMisOrdenes(service, caller.userId);
+    if (mios.length === 0) return NextResponse.json([]);
+    query = query.in('id', mios);
   }
 
   const { data, error } = await query.order('created_at', { ascending: false });
@@ -96,10 +102,12 @@ export async function POST(req: Request) {
       client_last_name: body.client_last_name,
       client_whatsapp: body.client_whatsapp,
       car_model: body.car_model,
-      assigned_mechanic_id: body.assigned_mechanic_id ?? null,
+      show_workshop_as_mechanic: !!body.show_workshop_as_mechanic,
       notes: body.notes ?? null,
       created_by: caller.userId,
-      status: body.assigned_mechanic_id ? 'con_mecanico' : 'sin_mecanico',
+      // La asignación se escribe aparte, en order_mechanics; el estado y la
+      // columna espejo los pone al día el trigger de la 0021.
+      status: 'sin_mecanico',
     })
     .select('id')
     .single();
@@ -107,6 +115,16 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const orderId = (created as unknown as { id: string }).id;
+
+  // Los mecánicos de la orden. Si esto fallara, la orden ya existe: se avisa
+  // en vez de dejar creado un carro que el administrador cree asignado.
+  const fallo = await guardarMecanicos(
+    service,
+    orderId,
+    caller.workshopId,
+    body.mechanic_ids ?? []
+  );
+  if (fallo) return NextResponse.json({ error: fallo }, { status: 400 });
 
   // Etapa de "Recepción" (posición 0): contiene los archivos adjuntados al
   // crear la orden (fotos, video, notas de voz, documentos). Es información

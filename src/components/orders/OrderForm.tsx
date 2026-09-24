@@ -9,7 +9,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
-import { cambioDeAsignacion, valorDeAsignacion } from '@/lib/asignacion';
+import { cambioDeAsignacion, idsAsignados } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
 import { uploadStageAttachment } from '@/lib/attachments';
@@ -37,9 +37,9 @@ interface OrderFormProps {
   /** Se llama al crear un mecánico, para que el padre actualice su lista compartida. */
   onMechanicCreated?: (m: Mechanic) => void;
   /**
-   * Si quien usa el formulario puede decidir el mecánico de la orden. Solo el
-   * administrador (0019). Con `false` no se muestra el selector Y no se manda
-   * `assigned_mechanic_id`: el endpoint lo rechazaría con un 403 y el mecánico
+   * Si quien usa el formulario puede decidir los mecánicos de la orden. Solo
+   * el administrador (0019). Con `false` no se muestra el selector Y no se
+   * manda `mechanic_ids`: el endpoint lo rechazaría con un 403 y el mecánico
    * vería un error al guardar un cambio que ni siquiera pidió.
    */
   canAssign?: boolean;
@@ -50,7 +50,7 @@ const EMPTY: CreateOrderPayload = {
   client_last_name: '',
   client_whatsapp: '',
   car_model: '',
-  assigned_mechanic_id: null,
+  mechanic_ids: [],
   notes: '',
 };
 
@@ -80,7 +80,7 @@ export default function OrderForm({
           client_last_name: order.client_last_name,
           client_whatsapp: order.client_whatsapp,
           car_model: order.car_model,
-          assigned_mechanic_id: order.assigned_mechanic_id,
+          mechanic_ids: idsAsignados(order),
           show_workshop_as_mechanic: order.show_workshop_as_mechanic,
           notes: order.notes ?? '',
         }
@@ -136,7 +136,12 @@ export default function OrderForm({
   // y avisar al padre para que actualice su lista compartida.
   function handleMechanicCreated(m: Mechanic) {
     setMechanicsList((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-    set('assigned_mechanic_id', m.id);
+    // Recién creado y ya asignado: se SUMA a los que ya estaban, no los
+    // reemplaza (0021).
+    setForm((prev) => ({
+      ...prev,
+      mechanic_ids: [...new Set([...(prev.mechanic_ids ?? []), m.id])],
+    }));
     onMechanicCreated?.(m);
   }
 
@@ -174,11 +179,8 @@ export default function OrderForm({
         ...form,
         // Quien no puede asignar ni siquiera manda el campo (0019).
         ...(canAssign
-          ? {
-              assigned_mechanic_id: form.assigned_mechanic_id || null,
-              show_workshop_as_mechanic: !!form.show_workshop_as_mechanic,
-            }
-          : { assigned_mechanic_id: undefined, show_workshop_as_mechanic: undefined }),
+          ? cambioDeAsignacion(form.mechanic_ids ?? [], !!form.show_workshop_as_mechanic)
+          : { mechanic_ids: undefined, show_workshop_as_mechanic: undefined }),
         notes: form.notes || null,
       }),
     });
@@ -315,17 +317,15 @@ export default function OrderForm({
       {/* Mechanic selector — solo para quien puede asignar (el admin) */}
       {canAssign && (
       <div className="form-field">
-        <label className="form-label">Mecánico asignado</label>
+        <label className="form-label">Mecánicos asignados</label>
         <MechanicSelect
           mechanics={mechanicsList}
           workshopName={workshopName ?? order?.workshop?.name}
-          value={valorDeAsignacion(form)}
-          onChange={(elegido) => {
-            // Las dos entradas del dueño (el taller y él) guardan la misma
-            // persona; lo que cambia es el nombre que verá el cliente.
-            const cambio = cambioDeAsignacion(elegido, mechanicsList);
-            setForm((prev) => ({ ...prev, ...cambio }));
-          }}
+          value={form.mechanic_ids ?? []}
+          comoTaller={!!form.show_workshop_as_mechanic}
+          onChange={(ids, comoTaller) =>
+            setForm((prev) => ({ ...prev, ...cambioDeAsignacion(ids, comoTaller) }))
+          }
           disabled={loading}
           onAddNew={canCreateMechanic ? () => setShowAddMechanic(true) : undefined}
         />

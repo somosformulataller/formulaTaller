@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { idsDeMisOrdenes } from '@/lib/mecanicos-orden';
 import type { Order, Profile } from '@/lib/types';
 import MecanicoOrdenesClient from './OrdenesClient';
 
@@ -18,22 +19,27 @@ export default async function MecanicoPage() {
     .single();
   const wid = (me as unknown as Profile | null)?.workshop_id ?? '';
 
+  // Sus órdenes son aquellas en cuya lista de mecánicos está (0021): un carro
+  // puede tener varios y el segundo también tiene que verlo.
+  const mias = await idsDeMisOrdenes(supabase, user.id);
+
   const [ordersRes, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+        mechanics:profiles!order_mechanics(id, full_name, phone),
         stages:order_stages(*),
         workshop:workshops(name)
       `)
       .eq('workshop_id', wid)
-      // Solo las órdenes que el administrador le asignó (0019). El filtro va
-      // aquí además de en la política de la base de datos: esta consulta usa
-      // la sesión del usuario, así que RLS ya lo cubriría, pero dejarlo
-      // explícito evita que un cambio futuro en las políticas abra la lista
-      // sin que nadie se dé cuenta.
-      .eq('assigned_mechanic_id', user.id)
+      // Solo las órdenes que el administrador le asignó (0019, 0021). El
+      // filtro va aquí además de en la política de la base de datos: esta
+      // consulta usa la sesión del usuario, así que RLS ya lo cubriría, pero
+      // dejarlo explícito evita que un cambio futuro en las políticas abra la
+      // lista sin que nadie se dé cuenta.
+      .in('id', mias.length ? mias : ['00000000-0000-0000-0000-000000000000'])
       .order('created_at', { ascending: false }),
     supabase
       .from('profiles')

@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import MechanicSelect from '@/components/orders/MechanicSelect';
-import { cambioDeAsignacion, nombreDelAsignado } from '@/lib/asignacion';
+import { cambioDeAsignacion, esMio, idsAsignados, nombresAsignados } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import { Car, User, Phone, MessageCircle, Edit2, Trash2, ChevronRight, CheckCircle2 } from 'lucide-react';
@@ -49,7 +49,9 @@ export default function OrderCard({
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   // El mecánico solo puede eliminar las órdenes que tiene asignadas; desde la
   // 0019 no ve ninguna otra. El administrador puede eliminar cualquiera.
-  const isOwn = !!currentUserId && order.assigned_mechanic_id === currentUserId;
+  const isOwn = esMio(order, currentUserId);
+  const asignados = idsAsignados(order);
+  const nombres = nombresAsignados(order, order.workshop?.name ?? workshopName);
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const waLink = buildWhatsAppLink(
     order.client_whatsapp,
@@ -93,21 +95,20 @@ export default function OrderCard({
     }
   }
 
-  // `elegido` es el id de un mecánico o COMO_TALLER (el dueño, enseñándole al
-  // cliente el nombre del taller en vez del suyo).
-  async function handleAssignMechanic(elegido: string) {
-    if (!elegido) return;
+  // La orden puede quedar con varios mecánicos (0021); `comoTaller` decide si
+  // el cliente lee sus nombres o el del taller.
+  async function handleAssignMechanic(ids: string[], comoTaller: boolean) {
     setLoading(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cambioDeAsignacion(elegido, mechanics)),
+        body: JSON.stringify(cambioDeAsignacion(ids, comoTaller)),
       });
       if (res.ok) {
         onUpdate?.(await res.json());
       } else {
-        alert('No se pudo asignar el mecánico.');
+        alert('No se pudo guardar la asignación.');
       }
     } catch {
       alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
@@ -120,7 +121,7 @@ export default function OrderCard({
   // asignar esta orden al nuevo mecánico.
   function handleMechanicCreated(m: Mechanic) {
     onMechanicCreated?.(m);
-    handleAssignMechanic(m.id);
+    handleAssignMechanic([...new Set([...asignados, m.id])], false);
   }
 
   // Transiciones de estado por botón. La asignación de mecánico (cuando la orden
@@ -153,16 +154,12 @@ export default function OrderCard({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <InfoRow icon={<Car size={14} />} text={order.car_model} />
         <InfoRow icon={<Phone size={14} />} text={order.client_whatsapp} />
-        {order.assigned_mechanic_id && (
+        {nombres.length > 0 && (
           <InfoRow
             icon={<User size={14} />}
-            // Si se asignó «como el taller», aquí va el nombre del taller: es
-            // lo que el cliente está viendo en su seguimiento.
-            text={
-              nombreDelAsignado(order, order.workshop?.name ?? workshopName) ??
-              order.assigned_mechanic?.full_name ??
-              ''
-            }
+            // Lo mismo que está viendo el cliente en su seguimiento: los
+            // nombres de todos los asignados, o el del taller si así se marcó.
+            text={nombres.join(' · ')}
             color="var(--color-brand-400)"
           />
         )}
@@ -221,7 +218,7 @@ export default function OrderCard({
 
         {/* Mechanic: mark as ready when working on it */}
         {role === 'mechanic' &&
-          order.assigned_mechanic_id === currentUserId &&
+          isOwn &&
           order.status === 'con_mecanico' && (
             <Button
               variant="primary"
@@ -243,15 +240,14 @@ export default function OrderCard({
 
         {/* Admin: asignar mecánico con la lista desplegable propia (si no tiene uno) */}
         {role === 'admin' &&
-          !order.assigned_mechanic_id &&
+          asignados.length === 0 &&
           (mechanics.length > 0 || canCreateMechanic) && (
             <MechanicSelect
               mechanics={mechanics}
               workshopName={order.workshop?.name ?? workshopName}
-              value={null}
-              onChange={(id) => id && handleAssignMechanic(id)}
+              value={[]}
+              onChange={handleAssignMechanic}
               disabled={loading}
-              includeNone={false}
               placeholder="Asignar mecánico"
               compact
               float

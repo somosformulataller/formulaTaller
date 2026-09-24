@@ -2,6 +2,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
 import type { Order, OrderStage, BudgetItem } from '@/lib/types';
+import { MECHANICS_EMBED } from '@/lib/mecanicos-orden';
+import { nombresAsignados } from '@/lib/asignacion';
 import TrackingClient from './TrackingClient';
 import type { Metadata } from 'next';
 
@@ -54,7 +56,7 @@ export default async function TrackingPage({ params }: Props) {
       created_at,
       updated_at,
       show_workshop_as_mechanic,
-      assigned_mechanic:profiles!assigned_mechanic_id(full_name),
+      ${MECHANICS_EMBED},
       workshop:workshops(name, logo_url),
       stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at)),
       budget:order_budget_items(id, order_id, description, amount, position, created_by, created_at, updated_at)
@@ -84,18 +86,22 @@ export default async function TrackingPage({ params }: Props) {
   // Fotos del bucket privado: firmar sus URLs antes de mandarlas al cliente.
   await signStageAttachments(service, sortedStages);
 
-  // Si el taller decidió dar la cara como taller y no como persona, el nombre
-  // del mecánico NO SALE DEL SERVIDOR. No basta con no pintarlo: iba igual en
-  // el HTML de la página, así que cualquiera que mirara el código fuente lo
-  // leía. Si se oculta, se oculta de verdad.
-  const asignado = rawOrder.show_workshop_as_mechanic
-    ? { full_name: rawOrder.workshop?.name ?? 'Taller' }
-    : rawOrder.assigned_mechanic ?? null;
+  // Los nombres que verá el cliente se deciden AQUÍ, en el servidor. Si el
+  // taller eligió dar la cara como taller y no como personas, los nombres de
+  // esas personas ni siquiera salen de aquí: no basta con no pintarlos, iban
+  // igual dentro del HTML y cualquiera que mirara el código fuente los leía.
+  // Si se ocultan, se ocultan de verdad.
+  const mecanicos = nombresAsignados(rawOrder, rawOrder.workshop?.name ?? 'Taller');
+
+  // Y por lo mismo, la orden que baja al navegador va sin la lista de perfiles.
+  const { mechanics: _perfiles, ...orderSinPerfiles } = rawOrder;
+  void _perfiles;
 
   return (
     <TrackingClient
-      order={{ ...rawOrder, stages: sortedStages, assigned_mechanic: asignado as Order['assigned_mechanic'] }}
+      order={{ ...orderSinPerfiles, stages: sortedStages, assigned_mechanic: null } as Order & { stages: OrderStage[] }}
       budget={budget}
+      mecanicos={mecanicos}
     />
   );
 }

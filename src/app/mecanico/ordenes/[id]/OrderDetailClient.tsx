@@ -12,6 +12,7 @@ import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import BudgetCard from '@/components/orders/BudgetCard';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
+import { esMio } from '@/lib/asignacion';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -58,7 +59,7 @@ export default function MecanicoOrderDetailClient({
 
   // Desde la 0019 el mecánico solo llega hasta aquí si la orden es suya, así
   // que puede eliminarla. Se deja la comprobación explícita igualmente.
-  const canDelete = order.assigned_mechanic_id === currentUserId;
+  const canDelete = esMio(order, currentUserId);
 
   async function patchOrder(body: Record<string, unknown>) {
     setBusy(true);

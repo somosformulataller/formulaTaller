@@ -14,6 +14,7 @@ export default async function AdminDashboardPage() {
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+        mechanics:profiles!order_mechanics(id, full_name, phone),
         stages:order_stages(*),
         workshop:workshops(name)
       `)

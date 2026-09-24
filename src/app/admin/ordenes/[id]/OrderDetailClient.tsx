@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import MechanicSelect from '@/components/orders/MechanicSelect';
-import { cambioDeAsignacion, valorDeAsignacion, nombreDelAsignado } from '@/lib/asignacion';
+import { cambioDeAsignacion, idsAsignados, nombresAsignados } from '@/lib/asignacion';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
@@ -101,20 +101,20 @@ export default function OrderDetailClient({
     }
   }
 
-  // `elegido` puede ser el id de un mecánico o COMO_TALLER (el dueño, pero
-  // enseñándole al cliente el nombre del taller). Los dos campos van juntos.
-  async function handleAssignMechanic(elegido: string | null) {
+  // La orden puede tener varios mecánicos (0021). `comoTaller` no cambia
+  // quién trabaja el carro: cambia el nombre que lee el cliente.
+  async function handleAssignMechanic(ids: string[], comoTaller: boolean) {
     setAssigning(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cambioDeAsignacion(elegido, mechanics)),
+        body: JSON.stringify(cambioDeAsignacion(ids, comoTaller)),
       });
       if (res.ok) {
         setOrder(await res.json());
       } else {
-        alert('No se pudo asignar el mecánico.');
+        alert('No se pudo guardar la asignación.');
       }
     } catch {
       alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
@@ -126,7 +126,8 @@ export default function OrderDetailClient({
   // Mecánico creado desde el selector: agregarlo a la lista y asignarlo a la orden.
   function handleMechanicCreated(m: Mechanic) {
     setMechanics((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-    handleAssignMechanic(m.id);
+    // Se suma a los que ya estaban, no los reemplaza.
+    handleAssignMechanic([...new Set([...idsAsignados(order), m.id])], false);
   }
 
   function handleEdited(updated: Order) {
@@ -186,10 +187,10 @@ export default function OrderDetailClient({
           <InfoRow icon={<Phone size={14} />} label="WhatsApp" value={order.client_whatsapp} />
           <InfoRow
             icon={<User size={14} />}
-            label="Mecánico"
-            // Lo mismo que lee el cliente: si la orden se asignó «como el
-            // taller», aquí sale el nombre del taller, no el de la persona.
-            value={nombreDelAsignado(order, order.workshop?.name) ?? 'Sin asignar'}
+            label={idsAsignados(order).length > 1 ? 'Mecánicos' : 'Mecánico'}
+            // Lo mismo que lee el cliente: todos los asignados, o el nombre
+            // del taller si la orden se marcó «como el taller».
+            value={nombresAsignados(order, order.workshop?.name).join(' · ') || 'Sin asignar'}
           />
           <InfoRow
             icon={<Calendar size={14} />}
@@ -227,12 +228,13 @@ export default function OrderDetailClient({
 
         {/* Assign mechanic — directamente desde el resumen, sin abrir "Editar" */}
         <div className="form-field" style={{ marginBottom: 12 }}>
-          <label className="form-label">Asignar mecánico</label>
+          <label className="form-label">Asignar mecánicos</label>
           <MechanicSelect
             mechanics={mechanics}
             workshopName={order.workshop?.name}
-            value={valorDeAsignacion(order)}
-            onChange={(id) => handleAssignMechanic(id)}
+            value={idsAsignados(order)}
+            comoTaller={order.show_workshop_as_mechanic}
+            onChange={handleAssignMechanic}
             disabled={assigning}
             onAddNew={() => setShowAddMechanic(true)}
           />

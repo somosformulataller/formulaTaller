@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { mecanicosDeLaOrden } from '@/lib/mecanicos-orden';
 import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
 import type { Order, Profile, OrderStage } from '@/lib/types';
@@ -14,19 +15,20 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
 
   if (!user) return null;
 
+  // ¿Está en la lista de esta orden? (0021). Si no, para él no existe.
+  const suya = (await mecanicosDeLaOrden(supabase, params.id)).includes(user.id);
+  if (!suya) notFound();
+
   const [orderRes, mechanicsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
+        mechanics:profiles!order_mechanics(id, full_name, phone),
         stages:order_stages(*, attachments:stage_attachments(*))
       `)
       .eq('id', params.id)
-      // Solo si esta orden es suya (0019). Sin esto, un mecánico que conociera
-      // el identificador de una orden ajena entraría a su ficha escribiendo la
-      // dirección a mano.
-      .eq('assigned_mechanic_id', user.id)
       .maybeSingle(),
     supabase
       .from('profiles')

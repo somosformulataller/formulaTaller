@@ -1,7 +1,17 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { MECHANICS_EMBED } from '@/lib/mecanicos-orden';
+import { nombresAsignados } from '@/lib/asignacion';
 
 type Params = { params: { token: string } };
+
+// Este endpoint es público y sin cookies, así que Next.js guardaba tanto la
+// respuesta como las consultas a Supabase y las servía viejas: al taller le
+// cambiaban los mecánicos y el JSON seguía devolviendo los de antes — incluido
+// un nombre que el taller acababa de decidir NO enseñar. La página del
+// seguimiento ya llevaba estas dos líneas por el mismo motivo; aquí faltaban.
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 // GET /api/tracking/:token — public, no auth required
 export async function GET(_: Request, { params }: Params) {
@@ -19,7 +29,7 @@ export async function GET(_: Request, { params }: Params) {
       created_at,
       updated_at,
       show_workshop_as_mechanic,
-      assigned_mechanic:profiles!assigned_mechanic_id(full_name),
+      ${MECHANICS_EMBED},
       workshop:workshops(name),
       stages:order_stages(id, name, position, status, completed_at),
       budget:order_budget_items(id, description, amount, position)
@@ -40,17 +50,23 @@ export async function GET(_: Request, { params }: Params) {
     (order.budget as Array<{ position: number }>).sort((a, b) => a.position - b.position);
   }
 
-  // Igual que en la página: si la orden se asignó «como el taller», el nombre
-  // de la persona no se manda. Este endpoint es PÚBLICO (basta el token), así
-  // que dejarlo dentro sería enseñarlo a quien pidiera el JSON.
+  // Igual que en la página: los nombres se resuelven aquí y la lista de
+  // perfiles no se manda. Este endpoint es PÚBLICO (basta el token), así que
+  // dejar dentro un nombre que el taller decidió no enseñar sería regalárselo
+  // a quien pidiera el JSON.
   const o = order as unknown as {
     show_workshop_as_mechanic?: boolean;
-    assigned_mechanic?: { full_name: string } | null;
+    mechanics?: { full_name: string }[] | null;
     workshop?: { name: string } | null;
   };
-  if (o.show_workshop_as_mechanic) {
-    o.assigned_mechanic = { full_name: o.workshop?.name ?? 'Taller' };
-  }
+  const mecanicos = nombresAsignados(o, o.workshop?.name ?? 'Taller');
+  delete o.mechanics;
 
-  return NextResponse.json(order);
+  return NextResponse.json({
+    ...o,
+    mecanicos,
+    // Se conserva el campo de siempre —con el primero de la lista— para no
+    // romper a quien ya consumía este JSON esperando un solo nombre.
+    assigned_mechanic: mecanicos.length ? { full_name: mecanicos[0] } : null,
+  });
 }
