@@ -34,8 +34,8 @@ interface MechanicSelectProps {
  * no una lista de una sola opción, y por eso el menú NO se cierra al elegir:
  * casi siempre se marca a más de uno de una vez.
  *
- * El dueño del taller sale en la lista como cualquier otro —muchos dueños
- * también reparan carros— y va marcado «(dueño)» para distinguirlo.
+ * El dueño del taller sale en la lista como uno más y sin etiqueta: muchos
+ * dueños también reparan carros, y quien está mirando es él mismo.
  *
  * Aparte va una casilla más, la de mostrar el nombre del taller: eso no cambia
  * QUIÉN trabaja el carro, sino qué lee el CLIENTE en su seguimiento. Con dos
@@ -56,6 +56,29 @@ export default function MechanicSelect({
 }: MechanicSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Hacia dónde abrir la lista y cuánto puede crecer. En el teléfono, una
+  // tarjeta de orden queda cerca del borde de abajo: la lista se salía de la
+  // pantalla, quedaba tapada por el botón flotante de Soporte y no había cómo
+  // subirla con el dedo. Si abajo no cabe, se abre hacia arriba.
+  const [haciaArriba, setHaciaArriba] = useState(false);
+  const [altoMax, setAltoMax] = useState<number | undefined>(undefined);
+
+  function alternarMenu() {
+    if (disabled) return;
+    if (open) { setOpen(false); return; }
+    const caja = ref.current?.getBoundingClientRect();
+    if (caja) {
+      // Debajo hay que dejar libre la barra de navegación y el botón de
+      // Soporte, que flotan encima de todo.
+      const ESTORBO_ABAJO = 96;
+      const sitioAbajo = window.innerHeight - caja.bottom - ESTORBO_ABAJO;
+      const sitioArriba = caja.top - 16;
+      const arriba = sitioAbajo < 170 && sitioArriba > sitioAbajo;
+      setHaciaArriba(arriba);
+      setAltoMax(Math.max(150, Math.min(280, arriba ? sitioArriba : sitioAbajo)));
+    }
+    setOpen(true);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -115,7 +138,7 @@ export default function MechanicSelect({
       <button
         type="button"
         className={compact ? undefined : 'form-input'}
-        onClick={() => !disabled && setOpen((o) => !o)}
+        onClick={alternarMenu}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -149,7 +172,18 @@ export default function MechanicSelect({
           aria-multiselectable
           style={
             float
-              ? { position: 'absolute', top: '100%', left: 0, zIndex: 30, minWidth: 230 }
+              ? {
+                  position: 'absolute',
+                  left: 0,
+                  // Por encima del botón flotante de Soporte (60), que si no
+                  // se le montaba encima justo a los nombres.
+                  zIndex: 70,
+                  minWidth: 230,
+                  maxHeight: altoMax,
+                  ...(haciaArriba
+                    ? { bottom: '100%', marginTop: 0, marginBottom: 6 }
+                    : { top: '100%' }),
+                }
               : undefined
           }
         >
@@ -186,9 +220,6 @@ export default function MechanicSelect({
                     }}
                   >
                     {m.full_name}
-                    {m.role === 'admin' && (
-                      <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>(dueño)</span>
-                    )}
                   </span>
                   {marcado && (
                     <Check size={16} style={{ flexShrink: 0, color: 'var(--color-brand-500)' }} />

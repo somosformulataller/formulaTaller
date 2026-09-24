@@ -58,7 +58,7 @@ async function explicarCorreoRepetido(
   }
 
   if (encontrado.id === caller.userId) {
-    return 'Ese correo es el tuyo, el del administrador del taller. No hace falta registrarte como mecánico: ya apareces en la lista de asignación como «(dueño)» y puedes asignarte órdenes a ti mismo.';
+    return 'Ese correo es el tuyo, el del administrador del taller. No hace falta registrarte como mecánico: ya apareces con tu nombre en la lista de asignación y puedes asignarte órdenes a ti mismo.';
   }
 
   const { data } = await service

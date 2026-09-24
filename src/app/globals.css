@@ -252,6 +252,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   transition: background 0.12s;
 }
 
+/* El color va aquí y no en cada componente: sin esto, un desplegable que no
+   pusiera su propio color heredaba el negro del botón del navegador, que sobre
+   el fondo oscuro no se lee. */
+.select-option { color: var(--color-text-primary); }
+
 .select-option:hover { background: var(--color-surface-3); }
 .select-option[aria-selected="true"] { background: var(--color-surface-3); }
 
