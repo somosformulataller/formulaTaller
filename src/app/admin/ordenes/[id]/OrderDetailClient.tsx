@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import CasillaComoTaller from '@/components/orders/CasillaComoTaller';
 import { cambioDeAsignacion, idsAsignados, nombresAsignados } from '@/lib/asignacion';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
@@ -237,6 +238,13 @@ export default function OrderDetailClient({
             onChange={handleAssignMechanic}
             disabled={assigning}
             onAddNew={() => setShowAddMechanic(true)}
+          />
+          <CasillaComoTaller
+            workshopName={order.workshop?.name}
+            hayAsignados={idsAsignados(order).length > 0}
+            marcada={order.show_workshop_as_mechanic}
+            disabled={assigning}
+            onChange={(v) => handleAssignMechanic(idsAsignados(order), v)}
           />
           {mechanics.length === 0 && (
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>

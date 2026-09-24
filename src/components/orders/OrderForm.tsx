@@ -9,6 +9,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import CasillaComoTaller from '@/components/orders/CasillaComoTaller';
 import { cambioDeAsignacion, idsAsignados } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
@@ -328,6 +329,18 @@ export default function OrderForm({
           }
           disabled={loading}
           onAddNew={canCreateMechanic ? () => setShowAddMechanic(true) : undefined}
+        />
+        <CasillaComoTaller
+          workshopName={workshopName ?? order?.workshop?.name}
+          hayAsignados={(form.mechanic_ids ?? []).length > 0}
+          marcada={!!form.show_workshop_as_mechanic}
+          disabled={loading}
+          onChange={(v) =>
+            setForm((prev) => ({
+              ...prev,
+              ...cambioDeAsignacion(prev.mechanic_ids ?? [], v),
+            }))
+          }
         />
       </div>
       )}

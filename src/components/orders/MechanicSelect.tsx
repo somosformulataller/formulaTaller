@@ -2,13 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Profile } from '@/lib/types';
-import { ChevronDown, Check, Plus, Store } from 'lucide-react';
+import { ChevronDown, Check, Plus } from 'lucide-react';
+
+// Ancho mínimo de la lista desplegable, y la medida con la que se decide si
+// cabe hacia la derecha o hay que anclarla por el otro lado.
+const ANCHO_MINIMO = 230;
 
 interface MechanicSelectProps {
   mechanics: Profile[];
   /**
-   * Nombre del taller. Si se pasa, abajo aparece la casilla para enseñarle al
-   * cliente el nombre del taller en lugar de los nombres de las personas.
+   * Nombre del taller. Solo se usa para el texto del botón cerrado cuando la
+   * orden se enseña «como el taller»: dentro de la lista no aparece, porque
+   * ahí solo van los mecánicos.
    */
   workshopName?: string | null;
   /** Los mecánicos asignados hoy. Varios: todos iguales (migración 0021). */
@@ -37,10 +42,10 @@ interface MechanicSelectProps {
  * El dueño del taller sale en la lista como uno más y sin etiqueta: muchos
  * dueños también reparan carros, y quien está mirando es él mismo.
  *
- * Aparte va una casilla más, la de mostrar el nombre del taller: eso no cambia
- * QUIÉN trabaja el carro, sino qué lee el CLIENTE en su seguimiento. Con dos
- * mecánicos asignados no tendría sentido como una entrada más de la lista, que
- * es como estaba antes de poder asignar a varios.
+ * Dentro de la lista NO hay nada más: solo los mecánicos y la opción de
+ * agregar uno. Lo de enseñarle al cliente el nombre del taller en vez de los
+ * nombres (0020) es una casilla aparte, debajo del campo, donde hay sitio para
+ * explicarla; metida aquí se leía como si fuera otro mecánico más.
  */
 export default function MechanicSelect({
   mechanics,
@@ -62,6 +67,10 @@ export default function MechanicSelect({
   // subirla con el dedo. Si abajo no cabe, se abre hacia arriba.
   const [haciaArriba, setHaciaArriba] = useState(false);
   const [altoMax, setAltoMax] = useState<number | undefined>(undefined);
+  // Y lo mismo a lo ancho: el botón vive en el lado derecho de la tarjeta, así
+  // que una lista anclada por su izquierda se salía por el borde de la
+  // pantalla y se comía las casillas. Si no cabe, se ancla por la derecha.
+  const [alaDerecha, setAlaDerecha] = useState(false);
 
   function alternarMenu() {
     if (disabled) return;
@@ -76,6 +85,7 @@ export default function MechanicSelect({
       const arriba = sitioAbajo < 170 && sitioArriba > sitioAbajo;
       setHaciaArriba(arriba);
       setAltoMax(Math.max(150, Math.min(280, arriba ? sitioArriba : sitioAbajo)));
+      setAlaDerecha(caja.left + ANCHO_MINIMO > window.innerWidth - 12);
     }
     setOpen(true);
   }
@@ -174,11 +184,14 @@ export default function MechanicSelect({
             float
               ? {
                   position: 'absolute',
-                  left: 0,
+                  ...(alaDerecha ? { right: 0 } : { left: 0 }),
                   // Por encima del botón flotante de Soporte (60), que si no
                   // se le montaba encima justo a los nombres.
                   zIndex: 70,
-                  minWidth: 230,
+                  minWidth: ANCHO_MINIMO,
+                  // Nunca más ancha que la pantalla, pase lo que pase con los
+                  // nombres largos.
+                  maxWidth: 'calc(100vw - 24px)',
                   maxHeight: altoMax,
                   ...(haciaArriba
                     ? { bottom: '100%', marginTop: 0, marginBottom: 6 }
@@ -213,58 +226,48 @@ export default function MechanicSelect({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 10,
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      minWidth: 0,
                     }}
                   >
-                    {m.full_name}
+                    {/* La casilla se ve siempre, marcada o no: es lo que dice
+                        que aquí se puede elegir a más de uno. Con solo la
+                        palomita al marcar, la lista parecía de una sola
+                        opción. */}
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 18,
+                        height: 18,
+                        flexShrink: 0,
+                        borderRadius: 5,
+                        border: `1.5px solid ${
+                          marcado ? 'var(--color-brand-500)' : 'var(--color-border)'
+                        }`,
+                        background: marcado ? 'var(--color-brand-500)' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#1a1a1a',
+                      }}
+                    >
+                      {marcado && <Check size={13} strokeWidth={3} />}
+                    </span>
+                    <span
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {m.full_name}
+                    </span>
                   </span>
-                  {marcado && (
-                    <Check size={16} style={{ flexShrink: 0, color: 'var(--color-brand-500)' }} />
-                  )}
                 </button>
               </li>
             );
           })}
-
-          {workshopName && (
-            <li style={{ borderTop: '1px solid var(--color-border)', marginTop: 2, paddingTop: 2 }}>
-              <button
-                type="button"
-                className="select-option"
-                disabled={value.length === 0}
-                onClick={() => onChange(value, !comoTaller)}
-                style={{
-                  opacity: value.length === 0 ? 0.5 : 1,
-                  cursor: value.length === 0 ? 'default' : 'pointer',
-                }}
-                title={
-                  value.length === 0
-                    ? 'Primero elige quién trabaja el carro'
-                    : `Al cliente le aparecerá "${workshopName}"`
-                }
-              >
-                <span
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <Store size={15} style={{ flexShrink: 0 }} />
-                  Mostrarle al cliente «{workshopName}»
-                </span>
-                {comoTaller && value.length > 0 && (
-                  <Check size={16} style={{ flexShrink: 0, color: 'var(--color-brand-500)' }} />
-                )}
-              </button>
-            </li>
-          )}
 
           {onAddNew && (
             <li style={{ borderTop: '1px solid var(--color-border)', marginTop: 2, paddingTop: 2 }}>
