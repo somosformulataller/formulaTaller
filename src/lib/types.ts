@@ -37,6 +37,19 @@ export interface WorkshopAdminRow {
   owner_email: string | null;
   whatsapp: string | null;
   order_count: number;
+  // ---- Ficha de registro (lo que el taller puso al darse de alta, más lo que
+  // la cuenta cuenta de sí misma). El superadmin la abre desde cada tarjeta.
+  /** Teléfono guardado en el perfil del dueño; al registrarse es el mismo WhatsApp. */
+  owner_phone: string | null;
+  /** Cuándo se creó la cuenta del dueño y cuándo entró por última vez. */
+  owner_created_at: string | null;
+  owner_last_sign_in_at: string | null;
+  /** null = el correo nunca se confirmó. */
+  owner_email_confirmed_at: string | null;
+  /** Cuánta gente tiene dentro: el dueño cuenta aparte de los mecánicos. */
+  mechanic_count: number;
+  /** Si subió logo, señal de que se tomó en serio la configuración. */
+  has_logo: boolean;
 }
 
 // ---- CRM de ventas (panel superadmin) --------------------------------------

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getPlatformAdmin, fetchAllAuthEmails } from '@/lib/api-auth';
+import { getPlatformAdmin, fetchAllAuthAccounts } from '@/lib/api-auth';
 import type { WorkshopAdminRow } from '@/lib/types';
 import LoadError from '@/components/ui/LoadError';
 import SuperadminClient from './SuperadminClient';
@@ -18,6 +18,7 @@ type WorkshopRow = {
   is_subscribed: boolean;
   is_test: boolean;
   whatsapp: string | null;
+  logo_url: string | null;
 };
 
 export default async function SuperadminDashboardPage() {
@@ -29,7 +30,7 @@ export default async function SuperadminDashboardPage() {
   const [workshopsRes, countsRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
-      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, whatsapp')
+      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, whatsapp, logo_url')
       .order('created_at', { ascending: false }),
     // Conteo por taller agregado en Postgres (GROUP BY): no lo topa el límite
     // de 1000 filas de PostgREST, a diferencia de traer todas las órdenes.
@@ -72,22 +73,44 @@ export default async function SuperadminDashboardPage() {
     countByWorkshop.set(c.workshop_id, Number(c.order_count));
   }
 
-  // Nombre del dueño de cada taller (join manual a profiles).
+  // Nombre y teléfono del dueño de cada taller (join manual a profiles).
   const ownerIds = workshops.map((w) => w.owner_id).filter((id): id is string => !!id);
-  const ownerNameById = new Map<string, string>();
+  const ownerById = new Map<string, { full_name: string; phone: string | null }>();
   if (ownerIds.length > 0) {
     const { data: owners } = await service
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, phone')
       .in('id', ownerIds);
-    for (const p of (owners ?? []) as unknown as { id: string; full_name: string }[]) {
-      ownerNameById.set(p.id, p.full_name);
+    for (const p of (owners ?? []) as unknown as {
+      id: string;
+      full_name: string;
+      phone: string | null;
+    }[]) {
+      ownerById.set(p.id, { full_name: p.full_name, phone: p.phone });
     }
   }
 
-  // Correo de registro del dueño (vive en auth.users; se lee con la admin API,
+  // Cuántos mecánicos tiene cada taller. Se trae por páginas: el tope de 1.000
+  // filas de PostgREST se aplica solo y sin avisar, y un taller que se quedara
+  // fuera aparecería con cero mecánicos como si fuera un dato real.
+  const mecanicosPorTaller = new Map<string, number>();
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await service
+      .from('profiles')
+      .select('workshop_id')
+      .eq('role', 'mechanic')
+      .range(desde, desde + 999);
+    if (error) break;
+    const filas = (data ?? []) as unknown as { workshop_id: string | null }[];
+    for (const f of filas) {
+      if (f.workshop_id) mecanicosPorTaller.set(f.workshop_id, (mecanicosPorTaller.get(f.workshop_id) ?? 0) + 1);
+    }
+    if (filas.length < 1000) break;
+  }
+
+  // La cuenta de acceso del dueño (vive en auth.users; se lee con la admin API,
   // recorriendo todas las páginas para no perder dueños tras los primeros 1000).
-  const emailById = await fetchAllAuthEmails(service);
+  const cuentaById = await fetchAllAuthAccounts(service);
 
   const rows: WorkshopAdminRow[] = workshops.map((w) => ({
     id: w.id,
@@ -97,10 +120,18 @@ export default async function SuperadminDashboardPage() {
     is_subscribed: w.is_subscribed,
     is_test: w.is_test,
     order_limit: w.order_limit,
-    owner_name: w.owner_id ? ownerNameById.get(w.owner_id) ?? null : null,
-    owner_email: w.owner_id ? emailById.get(w.owner_id) ?? null : null,
+    owner_name: w.owner_id ? ownerById.get(w.owner_id)?.full_name ?? null : null,
+    owner_email: w.owner_id ? cuentaById.get(w.owner_id)?.email ?? null : null,
     whatsapp: w.whatsapp,
     order_count: countByWorkshop.get(w.id) ?? 0,
+    owner_phone: w.owner_id ? ownerById.get(w.owner_id)?.phone ?? null : null,
+    owner_created_at: w.owner_id ? cuentaById.get(w.owner_id)?.created_at ?? null : null,
+    owner_last_sign_in_at: w.owner_id ? cuentaById.get(w.owner_id)?.last_sign_in_at ?? null : null,
+    owner_email_confirmed_at: w.owner_id
+      ? cuentaById.get(w.owner_id)?.email_confirmed_at ?? null
+      : null,
+    mechanic_count: mecanicosPorTaller.get(w.id) ?? 0,
+    has_logo: !!w.logo_url,
   }));
 
   return (

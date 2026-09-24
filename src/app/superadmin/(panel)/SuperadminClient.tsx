@@ -22,7 +22,13 @@ import {
   KeyRound,
   Send,
   Copy,
+  Check,
+  ChevronDown,
+  IdCard,
 } from 'lucide-react';
+
+// Para armar el enlace de acceso propio de cada taller (/login/su-slug).
+const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'https://formulataller.com';
 
 interface SuperadminClientProps {
   rows: WorkshopAdminRow[];
@@ -42,6 +48,20 @@ export default function SuperadminClient({
   const [rows, setRows] = useState<WorkshopAdminRow[]>(initialRows);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  // Qué fichas de registro están abiertas. Cerradas por defecto: la lista sirve
+  // para barrer muchos talleres de un vistazo, y la ficha es para mirar uno.
+  const [fichaAbierta, setFichaAbierta] = useState<Record<string, boolean>>({});
+  const [copiado, setCopiado] = useState<string | null>(null);
+
+  async function copiar(texto: string, clave: string) {
+    try {
+      await navigator.clipboard?.writeText(texto);
+      setCopiado(clave);
+      setTimeout(() => setCopiado((c) => (c === clave ? null : c)), 1500);
+    } catch {
+      /* si el navegador no deja copiar, el texto igual está a la vista */
+    }
+  }
 
   // Límite global del plan gratuito (aplicado) + valor del input.
   const [globalLimit, setGlobalLimit] = useState<number>(freeOrderLimit);
@@ -586,6 +606,136 @@ export default function SuperadminClient({
                   Ver detalle (órdenes y mecánicos) →
                 </Link>
 
+                {/* Ficha de registro: todo lo que el taller puso al darse de
+                    alta, más lo que la propia cuenta cuenta de sí misma. */}
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFichaAbierta((prev) => ({ ...prev, [row.id]: !prev[row.id] }))
+                    }
+                    aria-expanded={!!fichaAbierta[row.id]}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '6px 10px',
+                      background: 'var(--color-surface-2)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <IdCard size={13} />
+                    Datos de registro
+                    <ChevronDown
+                      size={14}
+                      style={{
+                        transition: 'transform 0.15s',
+                        transform: fichaAbierta[row.id] ? 'rotate(180deg)' : 'none',
+                      }}
+                    />
+                  </button>
+
+                  {fichaAbierta[row.id] && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: '12px 14px',
+                        background: 'var(--color-surface-2)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 10,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 14,
+                      }}
+                    >
+                      <Bloque titulo="El taller">
+                        <Dato etiqueta="Nombre" valor={row.name} />
+                        <Dato
+                          etiqueta="Su enlace de acceso"
+                          valor={`${sitio}/login/${row.slug}`}
+                          alCopiar={() => copiar(`${sitio}/login/${row.slug}`, `link-${row.id}`)}
+                          copiado={copiado === `link-${row.id}`}
+                        />
+                        <Dato
+                          etiqueta="WhatsApp del taller"
+                          valor={row.whatsapp}
+                          alCopiar={row.whatsapp ? () => copiar(row.whatsapp!, `wa-${row.id}`) : undefined}
+                          copiado={copiado === `wa-${row.id}`}
+                        />
+                        <Dato etiqueta="Se registró el" valor={formatDate(row.created_at)} />
+                        <Dato etiqueta="Logo" valor={row.has_logo ? 'Sí, ya lo subió' : 'Todavía no subió'} />
+                      </Bloque>
+
+                      <Bloque titulo="Quien lo registró">
+                        <Dato etiqueta="Nombre y apellido" valor={row.owner_name} />
+                        <Dato
+                          etiqueta="Correo"
+                          valor={row.owner_email}
+                          alCopiar={row.owner_email ? () => copiar(row.owner_email!, `mail-${row.id}`) : undefined}
+                          copiado={copiado === `mail-${row.id}`}
+                        />
+                        <Dato
+                          etiqueta="Correo confirmado"
+                          valor={
+                            row.owner_email_confirmed_at
+                              ? `Sí, el ${formatDate(row.owner_email_confirmed_at)}`
+                              : 'No'
+                          }
+                          alarma={!row.owner_email_confirmed_at}
+                        />
+                        {/* Al registrarse, el teléfono del perfil es el mismo
+                            WhatsApp del taller; solo se enseña si cambió. */}
+                        {row.owner_phone && row.owner_phone !== row.whatsapp && (
+                          <Dato etiqueta="Su teléfono" valor={row.owner_phone} />
+                        )}
+                        <Dato
+                          etiqueta="Cuenta creada"
+                          valor={row.owner_created_at ? formatDate(row.owner_created_at) : null}
+                        />
+                        <Dato
+                          etiqueta="Última vez que entró"
+                          // Un taller que nunca entró no es un cliente todavía:
+                          // es un formulario a medio llenar. Se marca en rojo.
+                          valor={
+                            row.owner_last_sign_in_at
+                              ? formatDate(row.owner_last_sign_in_at)
+                              : 'Nunca ha entrado'
+                          }
+                          alarma={!row.owner_last_sign_in_at}
+                        />
+                      </Bloque>
+
+                      <Bloque titulo="Cómo lo está usando">
+                        <Dato etiqueta="Órdenes creadas" valor={String(row.order_count)} />
+                        <Dato
+                          etiqueta="Mecánicos"
+                          valor={
+                            row.mechanic_count === 0
+                              ? 'Ninguno todavía'
+                              : `${row.mechanic_count} (sin contar al dueño)`
+                          }
+                        />
+                        <Dato
+                          etiqueta="Plan"
+                          valor={
+                            row.is_subscribed
+                              ? 'Suscrito (órdenes ilimitadas)'
+                              : `Gratuito · ${effectiveLimit} órdenes${
+                                  row.order_limit == null ? ' (límite global)' : ' (límite propio)'
+                                }`
+                          }
+                        />
+                        {row.is_test && <Dato etiqueta="Marcado como" valor="Taller de prueba" />}
+                      </Bloque>
+                    </div>
+                  )}
+                </div>
+
                 {/* Editor del límite (solo si no está suscrito) */}
                 {row.is_subscribed ? (
                   <p style={{ fontSize: 12, color: 'var(--color-brand-400)', marginTop: 10, fontWeight: 600 }}>
@@ -848,5 +998,91 @@ function Toggle({
         }}
       />
     </button>
+  );
+}
+
+/**
+ * Un grupo de la ficha de registro ("El taller", "Quien lo registró", …).
+ * La ficha se lee de arriba abajo, así que los datos van en filas de
+ * etiqueta + valor y no en columnas, que en el teléfono se parten.
+ */
+function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--color-text-muted)',
+          marginBottom: 6,
+        }}
+      >
+        {titulo}
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Una línea de la ficha. `alarma` la pinta en rojo: se usa para lo que pide
+ * actuar (un correo sin confirmar, un taller que nunca entró), no para
+ * cualquier dato ausente.
+ */
+function Dato({
+  etiqueta,
+  valor,
+  alCopiar,
+  copiado,
+  alarma,
+}: {
+  etiqueta: string;
+  valor: string | null | undefined;
+  alCopiar?: () => void;
+  copiado?: boolean;
+  alarma?: boolean;
+}) {
+  const vacio = valor === null || valor === undefined || valor === '';
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+      <span style={{ color: 'var(--color-text-muted)', minWidth: 130, flexShrink: 0 }}>
+        {etiqueta}
+      </span>
+      <span
+        style={{
+          color: vacio
+            ? 'var(--color-text-muted)'
+            : alarma
+            ? '#f87171'
+            : 'var(--color-text-primary)',
+          fontWeight: vacio ? 400 : 600,
+          overflowWrap: 'anywhere',
+          minWidth: 0,
+        }}
+      >
+        {vacio ? 'Sin dato' : valor}
+      </span>
+      {!vacio && alCopiar && (
+        <button
+          type="button"
+          onClick={alCopiar}
+          aria-label={`Copiar ${etiqueta}`}
+          title={`Copiar ${etiqueta}`}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            color: copiado ? '#34d399' : 'var(--color-text-muted)',
+            flexShrink: 0,
+            lineHeight: 0,
+          }}
+        >
+          {copiado ? <Check size={13} /> : <Copy size={13} />}
+        </button>
+      )}
+    </div>
   );
 }

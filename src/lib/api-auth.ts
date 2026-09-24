@@ -48,15 +48,47 @@ export async function fetchAllAuthEmails(
   service: ReturnType<typeof createServiceClient>
 ): Promise<Map<string, string | null>> {
   const emailById = new Map<string, string | null>();
+  for (const [id, cuenta] of await fetchAllAuthAccounts(service)) {
+    emailById.set(id, cuenta.email);
+  }
+  return emailById;
+}
+
+/**
+ * Lo que la ficha de registro de un taller necesita saber de la cuenta de su
+ * dueño, que no vive en `profiles` sino en `auth.users`: con qué correo se
+ * registró, cuándo, si lo confirmó y si ha llegado a entrar alguna vez.
+ *
+ * Eso último es el dato que más dice de un taller recién registrado: uno que
+ * nunca entró no es un cliente, es un formulario a medio llenar.
+ */
+export interface CuentaDeAcceso {
+  email: string | null;
+  created_at: string | null;
+  last_sign_in_at: string | null;
+  email_confirmed_at: string | null;
+}
+
+export async function fetchAllAuthAccounts(
+  service: ReturnType<typeof createServiceClient>
+): Promise<Map<string, CuentaDeAcceso>> {
+  const porId = new Map<string, CuentaDeAcceso>();
   const perPage = 1000;
   for (let page = 1; ; page++) {
     const { data, error } = await service.auth.admin.listUsers({ page, perPage });
     if (error) break;
     const users = data?.users ?? [];
-    for (const u of users) emailById.set(u.id, u.email ?? null);
+    for (const u of users) {
+      porId.set(u.id, {
+        email: u.email ?? null,
+        created_at: u.created_at ?? null,
+        last_sign_in_at: u.last_sign_in_at ?? null,
+        email_confirmed_at: u.email_confirmed_at ?? null,
+      });
+    }
     if (users.length < perPage) break;
   }
-  return emailById;
+  return porId;
 }
 
 /**
