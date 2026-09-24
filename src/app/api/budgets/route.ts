@@ -47,14 +47,19 @@ export async function GET() {
       created_at: string;
     };
 
-    const ordenes = await traerTodo<FilaOrden>((desde, hasta) =>
-      service
+    const ordenes = await traerTodo<FilaOrden>((desde, hasta) => {
+      let q = service
         .from('orders')
         .select('id, client_first_name, client_last_name, car_model, status, created_at')
-        .eq('workshop_id', caller.workshopId as string)
-        .order('created_at', { ascending: false })
-        .range(desde, hasta)
-    );
+        .eq('workshop_id', caller.workshopId as string);
+      // El mecánico solo ve el presupuesto de SUS órdenes (0019). Sin esto,
+      // la pantalla de Presupuestos sería la puerta trasera para ver todos
+      // los clientes y los montos del taller.
+      if (caller.role === 'mechanic') {
+        q = q.eq('assigned_mechanic_id', caller.userId);
+      }
+      return q.order('created_at', { ascending: false }).range(desde, hasta);
+    });
 
     if (ordenes.length === 0) return NextResponse.json([]);
 

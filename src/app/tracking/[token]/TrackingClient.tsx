@@ -55,7 +55,13 @@ export default function TrackingClient({ order, budget = [] }: TrackingClientPro
   const workshopName = order.workshop?.name ?? 'Taller';
   const workshopLogo = order.workshop?.logo_url ?? null;
 
-  const mechanic = order.assigned_mechanic as { full_name: string } | null | undefined;
+  // Quién atiende el carro, tal como el taller decidió que lo vea el cliente:
+  // el nombre de la persona, o el del taller si se asignó «como el taller»
+  // (migración 0020). Muchos dueños prefieren lo segundo: el cliente conoce la
+  // marca del taller, no el nombre de pila de quien está debajo del carro.
+  const mechanic = (order as { show_workshop_as_mechanic?: boolean }).show_workshop_as_mechanic
+    ? { full_name: workshopName }
+    : (order.assigned_mechanic as { full_name: string } | null | undefined);
 
   return (
     <div

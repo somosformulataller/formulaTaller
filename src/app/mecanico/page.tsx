@@ -28,12 +28,20 @@ export default async function MecanicoPage() {
         workshop:workshops(name)
       `)
       .eq('workshop_id', wid)
+      // Solo las órdenes que el administrador le asignó (0019). El filtro va
+      // aquí además de en la política de la base de datos: esta consulta usa
+      // la sesión del usuario, así que RLS ya lo cubriría, pero dejarlo
+      // explícito evita que un cambio futuro en las políticas abra la lista
+      // sin que nadie se dé cuenta.
+      .eq('assigned_mechanic_id', user.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('profiles')
       .select('*')
       .eq('workshop_id', wid)
-      .eq('role', 'mechanic')
+      // El dueño también atiende carros: entra como 'admin' pero se le pueden
+      // asignar órdenes igual que a un mecánico (no necesita una segunda cuenta).
+      .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
     supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
@@ -59,9 +67,6 @@ export default async function MecanicoPage() {
       initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       profile={profileRes.data as unknown as Profile}
-      orderLimit={orderLimit}
-      isSubscribed={isSubscribed}
-      supportPhones={settings?.support_phones ?? []}
     />
   );
 }

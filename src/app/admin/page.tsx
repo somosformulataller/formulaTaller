@@ -23,7 +23,9 @@ export default async function AdminDashboardPage() {
       .from('profiles')
       .select('*')
       .eq('workshop_id', wid)
-      .eq('role', 'mechanic')
+      // El dueño también atiende carros: entra como 'admin' pero se le pueden
+      // asignar órdenes igual que a un mecánico (no necesita una segunda cuenta).
+      .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name', { ascending: true }),
     supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),

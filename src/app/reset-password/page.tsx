@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Lock, ShieldCheck, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { alEscribir, alSerInvalido } from '@/lib/validacion';
 
 // Página a la que llega el usuario desde el correo de "restablecer contraseña".
 // El cliente de Supabase detecta el token de recuperación en la URL y crea una
@@ -149,6 +150,8 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  onInvalid={alSerInvalido}
+                  onInput={alEscribir}
                   minLength={8}
                   style={{ paddingLeft: 40, paddingRight: 44 }}
                 />
@@ -176,6 +179,8 @@ export default function ResetPasswordPage() {
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   required
+                  onInvalid={alSerInvalido}
+                  onInput={alEscribir}
                   style={{ paddingLeft: 40 }}
                 />
               </div>

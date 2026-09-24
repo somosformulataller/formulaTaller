@@ -18,6 +18,14 @@ export async function GET(_: Request, { params }: Params) {
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  // Antes bastaba con ser del mismo taller, así que un mecánico que conociera
+  // el identificador podía LEER cualquier orden del taller por aquí, aunque la
+  // lista ya no se la mostrara. Ahora vale la misma regla que para gestionarla
+  // (0019): al mecánico, solo las suyas.
+  if (!(await canManageOrder(caller, params.id))) {
+    return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
+  }
+
   const service = createServiceClient();
   const { data, error } = await service
     .from('orders')
@@ -55,10 +63,25 @@ export async function PATCH(req: Request, { params }: Params) {
     'notes',
     'status',
     'assigned_mechanic_id',
+    'show_workshop_as_mechanic',
   ] as const;
   const updates: UpdateOrderPayload = {};
   for (const k of ALLOWED) {
     if (k in body) (updates as Record<string, unknown>)[k] = (body as Record<string, unknown>)[k];
+  }
+
+  // Asignar es del administrador (0019). El mecánico ya no puede tocar
+  // `assigned_mechanic_id`: ni ponerse en una orden, ni quitarse de la suya,
+  // ni pasársela a un compañero. Se rechaza en vez de ignorarlo en silencio,
+  // para que nadie crea que su cambio se guardó.
+  if (
+    caller.role !== 'admin' &&
+    ('assigned_mechanic_id' in updates || 'show_workshop_as_mechanic' in updates)
+  ) {
+    return NextResponse.json(
+      { error: 'Solo el administrador del taller puede asignar o cambiar el mecánico de una orden.' },
+      { status: 403 }
+    );
   }
 
   // Auto-set status from mechanic assignment unless status is explicit.

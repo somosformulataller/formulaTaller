@@ -9,6 +9,7 @@ import PhoneInput from '@/components/ui/PhoneInput';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import { cambioDeAsignacion, valorDeAsignacion } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
 import { uploadStageAttachment } from '@/lib/attachments';
@@ -35,6 +36,13 @@ interface OrderFormProps {
   workshopName?: string;
   /** Se llama al crear un mecánico, para que el padre actualice su lista compartida. */
   onMechanicCreated?: (m: Mechanic) => void;
+  /**
+   * Si quien usa el formulario puede decidir el mecánico de la orden. Solo el
+   * administrador (0019). Con `false` no se muestra el selector Y no se manda
+   * `assigned_mechanic_id`: el endpoint lo rechazaría con un 403 y el mecánico
+   * vería un error al guardar un cambio que ni siquiera pidió.
+   */
+  canAssign?: boolean;
 }
 
 const EMPTY: CreateOrderPayload = {
@@ -59,6 +67,7 @@ export default function OrderForm({
   canCreateMechanic = false,
   workshopName,
   onMechanicCreated,
+  canAssign = true,
 }: OrderFormProps) {
   const isEdit = !!order;
   // Lista local de mecánicos: al crear uno nuevo desde aquí, se agrega y se selecciona.
@@ -72,6 +81,7 @@ export default function OrderForm({
           client_whatsapp: order.client_whatsapp,
           car_model: order.car_model,
           assigned_mechanic_id: order.assigned_mechanic_id,
+          show_workshop_as_mechanic: order.show_workshop_as_mechanic,
           notes: order.notes ?? '',
         }
       : { ...EMPTY }
@@ -162,7 +172,13 @@ export default function OrderForm({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        assigned_mechanic_id: form.assigned_mechanic_id || null,
+        // Quien no puede asignar ni siquiera manda el campo (0019).
+        ...(canAssign
+          ? {
+              assigned_mechanic_id: form.assigned_mechanic_id || null,
+              show_workshop_as_mechanic: !!form.show_workshop_as_mechanic,
+            }
+          : { assigned_mechanic_id: undefined, show_workshop_as_mechanic: undefined }),
         notes: form.notes || null,
       }),
     });
@@ -296,17 +312,25 @@ export default function OrderForm({
         icon={<Car size={15} />}
       />
 
-      {/* Mechanic selector */}
+      {/* Mechanic selector — solo para quien puede asignar (el admin) */}
+      {canAssign && (
       <div className="form-field">
         <label className="form-label">Mecánico asignado</label>
         <MechanicSelect
           mechanics={mechanicsList}
-          value={form.assigned_mechanic_id ?? null}
-          onChange={(id) => set('assigned_mechanic_id', id)}
+          workshopName={workshopName ?? order?.workshop?.name}
+          value={valorDeAsignacion(form)}
+          onChange={(elegido) => {
+            // Las dos entradas del dueño (el taller y él) guardan la misma
+            // persona; lo que cambia es el nombre que verá el cliente.
+            const cambio = cambioDeAsignacion(elegido, mechanicsList);
+            setForm((prev) => ({ ...prev, ...cambio }));
+          }}
           disabled={loading}
           onAddNew={canCreateMechanic ? () => setShowAddMechanic(true) : undefined}
         />
       </div>
+      )}
 
       {/* Notes */}
       <div className="form-field">

@@ -3,54 +3,35 @@
 import { useState } from 'react';
 import type { Order, Profile, OrderStatus } from '@/lib/types';
 import OrderCard from '@/components/orders/OrderCard';
-import OrderForm from '@/components/orders/OrderForm';
-import SubscriptionModal from '@/components/orders/SubscriptionModal';
-import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
-import { Plus, ClipboardList, Search } from 'lucide-react';
+import { ClipboardList, Search } from 'lucide-react';
 
 interface MecanicoOrdenesClientProps {
   initialOrders: Order[];
   mechanics: Profile[];
   profile: Profile;
-  orderLimit: number;
-  isSubscribed: boolean;
-  supportPhones: string[];
 }
 
-type FilterKey = 'mine' | 'all' | OrderStatus;
+type FilterKey = 'all' | OrderStatus;
 
+/**
+ * Las órdenes del mecánico. Desde la 0019 aquí SOLO llegan las que el
+ * administrador le asignó, así que ya no hay filtro «Mis órdenes / Todas»
+ * (todas son suyas) ni botón de crear: las órdenes las crea y las reparte el
+ * administrador.
+ */
 export default function MecanicoOrdenesClient({
   initialOrders,
   mechanics,
   profile,
-  orderLimit,
-  isSubscribed,
-  supportPhones,
 }: MecanicoOrdenesClientProps) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [filter, setFilter] = useState<FilterKey>('mine');
+  const [filter, setFilter] = useState<FilterKey>('all');
   const [search, setSearch] = useState('');
 
-  function handleNew() {
-    if (!isSubscribed && orders.length >= orderLimit) {
-      setShowPaywall(true);
-    } else {
-      setShowCreate(true);
-    }
-  }
-
-  const mineCount = orders.filter((o) => o.assigned_mechanic_id === profile.id).length;
+  const mineCount = orders.length;
 
   const filtered = orders.filter((o) => {
-    const matchScope =
-      filter === 'mine'
-        ? o.assigned_mechanic_id === profile.id
-        : filter === 'all'
-        ? true
-        : o.status === filter;
+    const matchScope = filter === 'all' ? true : o.status === filter;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -59,11 +40,6 @@ export default function MecanicoOrdenesClient({
       o.client_whatsapp.includes(q);
     return matchScope && matchSearch;
   });
-
-  function handleCreated(order: Order) {
-    setOrders((prev) => [order, ...prev]);
-    setShowCreate(false);
-  }
 
   function handleStatusChange(id: string, status: OrderStatus) {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
@@ -78,9 +54,7 @@ export default function MecanicoOrdenesClient({
   }
 
   const FILTERS: { value: FilterKey; label: string }[] = [
-    { value: 'mine', label: `Mis órdenes (${mineCount})` },
-    { value: 'all', label: `Todas (${orders.length})` },
-    { value: 'sin_mecanico', label: 'Sin asignar' },
+    { value: 'all', label: `Todas (${mineCount})` },
     { value: 'con_mecanico', label: 'En progreso' },
     { value: 'lista', label: 'Listas' },
   ];
@@ -106,10 +80,6 @@ export default function MecanicoOrdenesClient({
               : `Tienes ${mineCount} orden${mineCount > 1 ? 'es' : ''} asignada${mineCount > 1 ? 's' : ''}`}
           </p>
         </div>
-        <Button variant="primary" size="sm" onClick={handleNew}>
-          <Plus size={15} />
-          Nueva
-        </Button>
       </div>
 
       {/* Search */}
@@ -176,8 +146,8 @@ export default function MecanicoOrdenesClient({
           <p>
             {search
               ? 'No hay resultados para tu búsqueda'
-              : filter === 'mine'
-              ? 'No tienes órdenes asignadas'
+              : filter === 'all'
+              ? 'No tienes órdenes asignadas. El administrador del taller te las asigna.'
               : 'No hay órdenes con este filtro'}
           </p>
         </div>
@@ -198,18 +168,6 @@ export default function MecanicoOrdenesClient({
         </div>
       )}
 
-      {/* Create Modal */}
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva orden">
-        <OrderForm
-          mechanics={mechanics}
-          onSuccess={handleCreated}
-          onCancel={() => setShowCreate(false)}
-        />
-      </Modal>
-
-      {showPaywall && (
-        <SubscriptionModal onClose={() => setShowPaywall(false)} phones={supportPhones} />
-      )}
     </div>
   );
 }

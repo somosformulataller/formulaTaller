@@ -97,6 +97,13 @@ export interface Order {
   client_whatsapp: string;
   car_model: string;
   assigned_mechanic_id: string | null;
+  /**
+   * true = en el seguimiento del CLIENTE, donde iría el nombre del mecánico se
+   * enseña el nombre del taller. Solo se usa cuando la orden está asignada al
+   * dueño, que sale dos veces en la lista: como el taller y como él mismo
+   * (migración 0020).
+   */
+  show_workshop_as_mechanic: boolean;
   status: OrderStatus;
   notes: string | null;
   created_by: string | null;
@@ -233,6 +240,7 @@ export interface CreateOrderPayload {
   client_whatsapp: string;
   car_model: string;
   assigned_mechanic_id?: string | null;
+  show_workshop_as_mechanic?: boolean;
   notes?: string | null;
 }
 
@@ -242,6 +250,7 @@ export interface UpdateOrderPayload {
   client_whatsapp?: string;
   car_model?: string;
   assigned_mechanic_id?: string | null;
+  show_workshop_as_mechanic?: boolean;
   status?: OrderStatus;
   notes?: string | null;
 }

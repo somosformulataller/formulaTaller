@@ -17,11 +17,18 @@ export async function GET() {
   if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const service = createServiceClient();
-  const { data, error } = await service
+  let query = service
     .from('orders')
     .select(ORDER_SELECT)
-    .eq('workshop_id', caller.workshopId)
-    .order('created_at', { ascending: false });
+    .eq('workshop_id', caller.workshopId);
+
+  // Al mecánico, solo lo que el administrador le asignó (0019). Se filtra aquí
+  // porque esta consulta usa la clave de servicio y no pasa por RLS.
+  if (caller.role === 'mechanic') {
+    query = query.eq('assigned_mechanic_id', caller.userId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -33,6 +40,16 @@ export async function POST(req: Request) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Crear órdenes es del administrador (0019). El mecánico trabaja las que le
+  // asignan; si pudiera crearlas, se estaría dando trabajo a sí mismo por la
+  // puerta de atrás.
+  if (caller.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Solo el administrador del taller puede crear órdenes.' },
+      { status: 403 }
+    );
+  }
 
   const body: CreateOrderPayload = await req.json();
   const service = createServiceClient();

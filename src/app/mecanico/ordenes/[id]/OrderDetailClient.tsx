@@ -7,7 +7,6 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
-import MechanicSelect from '@/components/orders/MechanicSelect';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
@@ -23,7 +22,6 @@ import {
   MessageCircle,
   ExternalLink,
   Edit2,
-  UserCheck,
   Trash2,
 } from 'lucide-react';
 
@@ -58,10 +56,9 @@ export default function MecanicoOrderDetailClient({
     buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
   );
 
-  const isMine = order.assigned_mechanic_id === currentUserId;
-  // Un mecánico puede eliminar solo sus propias órdenes: asignadas a él o
-  // creadas por él.
-  const canDelete = isMine || order.created_by === currentUserId;
+  // Desde la 0019 el mecánico solo llega hasta aquí si la orden es suya, así
+  // que puede eliminarla. Se deja la comprobación explícita igualmente.
+  const canDelete = order.assigned_mechanic_id === currentUserId;
 
   async function patchOrder(body: Record<string, unknown>) {
     setBusy(true);
@@ -181,21 +178,9 @@ export default function MecanicoOrderDetailClient({
           />
         </div>
 
-        {/* Asignar mecánico */}
-        <div className="form-field" style={{ marginBottom: 12 }}>
-          <label className="form-label">Asignar mecánico</label>
-          <MechanicSelect
-            mechanics={mechanics}
-            value={order.assigned_mechanic_id ?? null}
-            onChange={(id) => patchOrder({ assigned_mechanic_id: id })}
-            disabled={busy}
-          />
-          {mechanics.length === 0 && (
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
-              No hay mecánicos disponibles.
-            </span>
-          )}
-        </div>
+        {/* Asignar es del administrador del taller (0019): el mecánico trabaja
+            la orden que le dieron, no decide de quién es. El nombre de quien
+            la tiene asignada se sigue viendo arriba, en los datos. */}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <a
@@ -251,17 +236,6 @@ export default function MecanicoOrderDetailClient({
 
           <CopyLinkButton url={trackingUrl} />
 
-          {!isMine && (
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={busy}
-              onClick={() => patchOrder({ assigned_mechanic_id: currentUserId })}
-            >
-              <UserCheck size={14} />
-              Asignarme
-            </Button>
-          )}
 
           <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>
             <Edit2 size={13} />
@@ -303,6 +277,9 @@ export default function MecanicoOrderDetailClient({
       <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar orden">
         <OrderForm
           mechanics={mechanics}
+          // El mecánico corrige los datos del cliente o del carro, pero no
+          // decide de quién es la orden (0019).
+          canAssign={false}
           order={order}
           onSuccess={(updated) => {
             setOrder(updated);

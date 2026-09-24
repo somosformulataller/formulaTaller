@@ -53,6 +53,7 @@ export default async function TrackingPage({ params }: Props) {
       status,
       created_at,
       updated_at,
+      show_workshop_as_mechanic,
       assigned_mechanic:profiles!assigned_mechanic_id(full_name),
       workshop:workshops(name, logo_url),
       stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at)),
@@ -83,5 +84,18 @@ export default async function TrackingPage({ params }: Props) {
   // Fotos del bucket privado: firmar sus URLs antes de mandarlas al cliente.
   await signStageAttachments(service, sortedStages);
 
-  return <TrackingClient order={{ ...rawOrder, stages: sortedStages }} budget={budget} />;
+  // Si el taller decidió dar la cara como taller y no como persona, el nombre
+  // del mecánico NO SALE DEL SERVIDOR. No basta con no pintarlo: iba igual en
+  // el HTML de la página, así que cualquiera que mirara el código fuente lo
+  // leía. Si se oculta, se oculta de verdad.
+  const asignado = rawOrder.show_workshop_as_mechanic
+    ? { full_name: rawOrder.workshop?.name ?? 'Taller' }
+    : rawOrder.assigned_mechanic ?? null;
+
+  return (
+    <TrackingClient
+      order={{ ...rawOrder, stages: sortedStages, assigned_mechanic: asignado as Order['assigned_mechanic'] }}
+      budget={budget}
+    />
+  );
 }

@@ -12,8 +12,10 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 > **Reglas transversales**
 > - **Aislamiento por taller:** admin y mecánico solo ven/gestionan datos de **su** taller.
 > - **Login único:** todos entran por el mismo login; según el rol van a `/superadmin`, `/admin` o `/mecanico`.
-> - **Permisos verificados en el servidor:** `canManageOrder` (gestionar orden/etapas/adjuntos = cualquier
->   staff de su taller), `canDeleteOrder` (eliminar orden), rol `admin`, `platform_admins` (superadmin).
+> - **El mecánico solo ve lo suyo:** el administrador reparte las órdenes; el mecánico ve y trabaja
+>   únicamente las que le asignaron. Ni se asigna a sí mismo ni crea órdenes (migración 0019).
+> - **Permisos verificados en el servidor:** `canManageOrder` (admin: su taller; mecánico: solo la orden
+>   asignada a él), `canDeleteOrder` (eliminar orden), rol `admin`, `platform_admins` (superadmin).
 
 ---
 
@@ -49,17 +51,19 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 
 **Acceso:** login → **`/mecanico`**. **Navegación:** 1 pestaña abajo — **Mis Órdenes**.
 
-> Sobre las órdenes de su taller gestiona **igual que el admin**. Diferencias: **eliminar** solo las
-> suyas, y **no** administra mecánicos ni el taller.
+> Trabaja **solo las órdenes que el administrador le asignó**, y sobre ellas hace casi todo lo que hace
+> el admin: editar los datos, cambiar el estado, llevar las etapas, subir adjuntos y tocar el
+> presupuesto. Lo que **no** hace: crear órdenes, decidir de quién es una orden, ver las de sus
+> compañeros ni las que están sin asignar, administrar mecánicos o el taller.
 
 ### Funciones y cómo se ven
 
 **Listado de órdenes (`/mecanico`)**
-- Encabezado "Hola, [nombre] 👋" con cuántas órdenes tiene asignadas. Botón **"Nueva"** (ámbar, con ➕) arriba a la derecha.
-- **Buscador** (campo con lupa) y **pestañas de filtro** en píldoras: *Mis órdenes / Todas / Sin asignar / En progreso / Listas* (la activa en ámbar).
+- Encabezado "Hola, [nombre] 👋" con cuántas órdenes tiene asignadas. **No hay botón de "Nueva"**: las órdenes las crea el administrador (0019).
+- **Buscador** (campo con lupa) y **pestañas de filtro** en píldoras: *Todas / En progreso / Listas* (la activa en ámbar). Ya no hay *Mis órdenes / Todas*: aquí solo llegan las suyas.
 - Cada orden es una **tarjeta**: nombre del cliente (negrita) + fecha, **Badge** de estado, línea divisoria,
   datos (íconos de auto, teléfono, mecánico) y una fila de botones: **WhatsApp** (verde), **copiar enlace**,
-  **"Ver orden"** (gris, con flecha ›), **"Asignarme"**, **"Marcar como lista"** (si es suya y en progreso) y
+  **"Ver orden"** (gris, con flecha ›), **"Marcar como lista"** (si es suya y en progreso) y
   **eliminar** (ícono de papelera rojo, solo si es suya).
 
 **Crear / editar orden** — se abre en un **modal**:
@@ -72,9 +76,9 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 **Detalle de la orden (resumen)** — mismas secciones que el admin:
 - **Tarjeta** con nombre del cliente (título), n.º de orden, **Badge** de estado y datos (auto, WhatsApp, mecánico, fecha).
 - **"Cambiar estado"** — etiqueta + **selector desplegable** (Sin mecánico / En progreso / Vehículo listo).
-- **"Asignar mecánico"** — etiqueta + **selector desplegable** con los mecánicos del taller.
+- *(No hay "Asignar mecánico": eso es del administrador. El nombre de quien la tiene se ve arriba, en los datos.)*
 - Fila de botones: **WhatsApp** (verde), **Ver tracking** (gris con ícono de enlace externo), **copiar enlace**,
-  **Asignarme**, **Editar**, **Eliminar** (rojo, solo si es suya).
+  **Editar**, **Eliminar** (rojo).
 - **"Archivos adjuntos"** (Recepción) — tarjeta con ícono de clip: **cuadrícula** de miniaturas + botón para
   **agregar**; cada miniatura con ✕ para eliminar.
 
@@ -87,7 +91,9 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 - Abajo, botón **"Agregar etapa personalizada"**.
 
 ### Límites / no puede
-- ❌ Eliminar **órdenes de otros** (solo las suyas). *(Editarlas/gestionarlas sí.)*
+- ❌ **Ver** las órdenes de sus compañeros ni las que están sin asignar: no aparecen en su lista, y
+  escribir la dirección a mano devuelve "no encontrada".
+- ❌ **Crear** órdenes ni **asignar** el mecánico de una (ni a sí mismo ni a otro).
 - ❌ Gestionar **mecánicos**; entrar a **`/admin/*`**, al **perfil del taller** o a **`/superadmin`**.
 - ❌ Cambiar el **límite de órdenes** o la **suscripción**.
 - ⚠️ Sujeto al **límite del plan** del taller.
@@ -104,10 +110,10 @@ Documentación de **todas las funciones de cada perfil** y **cómo se muestran v
 **Inicio (`/admin`)** — panel de resumen: tarjetas con **estadísticas** del taller (órdenes por estado)
 y accesos rápidos.
 
-**Órdenes (`/admin/ordenes`)** — misma pantalla y tarjetas que el mecánico (buscador, filtros, "Nueva"),
-pero puede actuar sobre **cualquier** orden. La tarjeta añade botones de **editar** (lápiz) y **eliminar**
-(papelera). El **detalle** es idéntico al del mecánico (Cambiar estado, Asignar mecánico, etapas, adjuntos),
-sin la restricción de "solo las mías".
+**Órdenes (`/admin/ordenes`)** — **aquí se crean las órdenes** (botón "Nueva") y **se reparten**: el
+selector de mecánico de la tarjeta y del detalle es del admin. Ve **todas** las del taller, incluidas
+las que todavía no tiene nadie. La tarjeta añade **editar** (lápiz) y **eliminar** (papelera). En el
+desplegable de asignación, el **dueño aparece marcado "(dueño)"**: también puede quedarse con la orden.
 
 **Mecánicos (`/admin/mecanicos`)**
 - Lista de **tarjetas** de mecánico (nombre, correo, estado activo/inactivo). Botón **"Nuevo mecánico"**.
@@ -174,12 +180,12 @@ Con el **enlace de tracking** (`/tracking/<token>`) ve una página de seguimient
 
 | Función | Mecánico | Admin del taller | Superadmin |
 |---|:---:|:---:|:---:|
-| Ver órdenes del taller | ✅ | ✅ | — |
-| Crear órdenes | ✅ | ✅ | — |
-| Editar / estado / asignar / etapas / adjuntos | ✅ (cualquiera del taller) | ✅ (cualquiera del taller) | — |
-| Autoasignarse una orden | ✅ | — (asigna a cualquiera) | — |
+| Ver órdenes | Solo las **asignadas a él** | ✅ (todo su taller) | — |
+| Crear órdenes | ❌ | ✅ | — |
+| Editar / estado / etapas / adjuntos / presupuesto | Solo en **sus** órdenes | ✅ (cualquiera del taller) | — |
+| Asignar el mecánico de una orden | ❌ | ✅ | — |
 | Avisar al cliente por WhatsApp | ✅ | ✅ | — |
-| Eliminar órdenes | Solo las **suyas** | ✅ (todas) | — |
+| Eliminar órdenes | Solo las **asignadas a él** | ✅ (todas) | — |
 | Gestionar mecánicos | ❌ | ✅ | — |
 | Perfil / logo del taller | ❌ | ✅ | — |
 | Eliminar la cuenta del taller | ❌ | ✅ | — |

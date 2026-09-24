@@ -23,11 +23,17 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
         stages:order_stages(*, attachments:stage_attachments(*))
       `)
       .eq('id', params.id)
+      // Solo si esta orden es suya (0019). Sin esto, un mecánico que conociera
+      // el identificador de una orden ajena entraría a su ficha escribiendo la
+      // dirección a mano.
+      .eq('assigned_mechanic_id', user.id)
       .maybeSingle(),
     supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'mechanic')
+      // El dueño también atiende carros: entra como 'admin' pero se le pueden
+      // asignar órdenes igual que a un mecánico (no necesita una segunda cuenta).
+      .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
   ]);

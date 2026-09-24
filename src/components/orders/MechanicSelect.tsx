@@ -5,8 +5,21 @@ import Select, { type SelectOption } from '@/components/ui/Select';
 
 const ADD_NEW = '__add_new_mechanic__';
 
+/**
+ * Valor especial: «se la queda el dueño, pero al cliente le sale el nombre del
+ * taller». Asigna a la misma persona que la entrada con su nombre; lo que
+ * cambia es lo que lee el cliente en su seguimiento (migración 0020).
+ */
+export const COMO_TALLER = '__como_taller__';
+
 interface MechanicSelectProps {
   mechanics: Profile[];
+  /**
+   * Nombre del taller. Si se pasa y el dueño está en la lista, aparece una
+   * entrada más con el nombre del taller, por encima de la del dueño.
+   */
+  workshopName?: string | null;
+  /** El id del mecánico, o COMO_TALLER. */
   value: string | null;
   onChange: (id: string | null) => void;
   disabled?: boolean;
@@ -28,6 +41,7 @@ interface MechanicSelectProps {
  */
 export default function MechanicSelect({
   mechanics,
+  workshopName,
   value,
   onChange,
   disabled,
@@ -37,9 +51,23 @@ export default function MechanicSelect({
   float = false,
   onAddNew,
 }: MechanicSelectProps) {
+  // El dueño del taller aparece en la lista porque también atiende carros. Y
+  // aparece DOS VECES: una con el nombre del taller y otra con el suyo. Las
+  // dos le asignan la orden a él; lo que cambia es el nombre que verá el
+  // cliente en su seguimiento (ver la migración 0020). Si el taller no tiene
+  // dueño en esta lista, no se ofrece la entrada del taller: no habría a quién
+  // asignarle la orden.
+  const hayDueno = mechanics.some((m) => m.role === 'admin');
+  const entradaTaller: SelectOption[] =
+    workshopName && hayDueno ? [{ value: COMO_TALLER, label: workshopName }] : [];
+
   const options: SelectOption[] = [
     ...(includeNone ? [{ value: '', label: 'Sin asignar', muted: true }] : []),
-    ...mechanics.map((m) => ({ value: m.id, label: m.full_name })),
+    ...entradaTaller,
+    ...mechanics.map((m) => ({
+      value: m.id,
+      label: m.role === 'admin' ? `${m.full_name} (dueño)` : m.full_name,
+    })),
     ...(onAddNew
       ? [
           {

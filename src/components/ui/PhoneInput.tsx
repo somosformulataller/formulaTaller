@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search, Check } from 'lucide-react';
 import { COUNTRIES, DEFAULT_DIAL, parsePhone, composePhone, countryByDial } from '@/lib/countries';
+import { alEscribir, alSerInvalido } from '@/lib/validacion';
 
 interface PhoneInputProps {
   label?: string;
@@ -118,6 +119,9 @@ export default function PhoneInput({
             value={local}
             onChange={(e) => onLocalChange(e.target.value)}
             required={required}
+            // El aviso de campo obligatorio, en español (ver lib/validacion.ts)
+            onInvalid={alSerInvalido}
+            onInput={alEscribir}
             style={{ flex: 1, minWidth: 0 }}
           />
         </div>

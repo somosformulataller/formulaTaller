@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Wrench, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { alEscribir, alSerInvalido } from '@/lib/validacion';
 import InstallButton from '@/components/pwa/InstallButton';
 import { trackFbEventOnce, trackInteraccionFormulaTaller } from '@/lib/fbpixel';
 
@@ -172,6 +173,8 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                onInvalid={alSerInvalido}
+                onInput={alEscribir}
                 autoComplete="current-password"
                 style={{ paddingLeft: 40, paddingRight: 44 }}
               />

@@ -28,7 +28,9 @@ export default async function AdminOrderDetailPage({ params, searchParams }: Pro
     supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'mechanic')
+      // El dueño también atiende carros: entra como 'admin' pero se le pueden
+      // asignar órdenes igual que a un mecánico (no necesita una segunda cuenta).
+      .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
   ]);

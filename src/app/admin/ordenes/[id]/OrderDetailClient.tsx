@@ -9,6 +9,7 @@ import Modal from '@/components/ui/Modal';
 import OrderForm from '@/components/orders/OrderForm';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import MechanicSelect from '@/components/orders/MechanicSelect';
+import { cambioDeAsignacion, valorDeAsignacion, nombreDelAsignado } from '@/lib/asignacion';
 import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
@@ -100,13 +101,15 @@ export default function OrderDetailClient({
     }
   }
 
-  async function handleAssignMechanic(mechanicId: string | null) {
+  // `elegido` puede ser el id de un mecánico o COMO_TALLER (el dueño, pero
+  // enseñándole al cliente el nombre del taller). Los dos campos van juntos.
+  async function handleAssignMechanic(elegido: string | null) {
     setAssigning(true);
     try {
       const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assigned_mechanic_id: mechanicId }),
+        body: JSON.stringify(cambioDeAsignacion(elegido, mechanics)),
       });
       if (res.ok) {
         setOrder(await res.json());
@@ -184,7 +187,9 @@ export default function OrderDetailClient({
           <InfoRow
             icon={<User size={14} />}
             label="Mecánico"
-            value={order.assigned_mechanic?.full_name ?? 'Sin asignar'}
+            // Lo mismo que lee el cliente: si la orden se asignó «como el
+            // taller», aquí sale el nombre del taller, no el de la persona.
+            value={nombreDelAsignado(order, order.workshop?.name) ?? 'Sin asignar'}
           />
           <InfoRow
             icon={<Calendar size={14} />}
@@ -225,7 +230,8 @@ export default function OrderDetailClient({
           <label className="form-label">Asignar mecánico</label>
           <MechanicSelect
             mechanics={mechanics}
-            value={order.assigned_mechanic_id ?? null}
+            workshopName={order.workshop?.name}
+            value={valorDeAsignacion(order)}
             onChange={(id) => handleAssignMechanic(id)}
             disabled={assigning}
             onAddNew={() => setShowAddMechanic(true)}

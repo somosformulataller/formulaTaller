@@ -83,10 +83,16 @@ export async function getPlatformAdmin(): Promise<PlatformAdmin | null> {
 }
 
 /**
- * True if the caller may manage (edit / change status / assign / update stages
- * and attachments) the given order. Any staff member (admin or mechanic) may
- * manage any order of THEIR workshop — mismo flujo para admin y mecánico. La
- * única frontera es el taller (aislamiento por tenant).
+ * True if the caller may manage (edit / change status / update stages,
+ * attachments and budget) the given order.
+ *
+ * El administrador gestiona cualquier orden de SU taller. El mecánico, solo
+ * las que el administrador le asignó: ni las de otros compañeros ni las que
+ * están sin asignar (migración 0019).
+ *
+ * Esta comprobación no es un adorno de la de la base de datos: los endpoints
+ * escriben con la clave de servicio, que se SALTA RLS. Aquí es donde de verdad
+ * se cierra la puerta.
  */
 export async function canManageOrder(caller: Caller, orderId: string): Promise<boolean> {
   if (!caller.workshopId) return false;
@@ -95,21 +101,31 @@ export async function canManageOrder(caller: Caller, orderId: string): Promise<b
   const service = createServiceClient();
   const { data } = await service
     .from('orders')
-    .select('workshop_id')
+    .select('workshop_id, assigned_mechanic_id')
     .eq('id', orderId)
     .single();
 
-  const order = data as unknown as { workshop_id: string } | null;
+  const order = data as unknown as
+    | { workshop_id: string; assigned_mechanic_id: string | null }
+    | null;
   if (!order) return false;
 
-  // Solo órdenes del propio taller.
-  return order.workshop_id === caller.workshopId;
+  // Primera frontera, la de siempre: el taller.
+  if (order.workshop_id !== caller.workshopId) return false;
+
+  if (caller.role === 'admin') return true;
+
+  // Segunda frontera, nueva: al mecánico solo lo suyo.
+  return order.assigned_mechanic_id === caller.userId;
 }
 
 /**
- * True if the caller may DELETE the given order. Más estricto que gestionar:
- * el admin puede eliminar cualquier orden de su taller; el mecánico solo las
- * suyas (asignadas a él o creadas por él).
+ * True if the caller may DELETE the given order. El admin puede eliminar
+ * cualquier orden de su taller; el mecánico, solo las asignadas a él.
+ *
+ * Desde la 0019 el mecánico ya no crea órdenes, pero se conserva el caso de
+ * `created_by`: las que creó ANTES del cambio siguen siendo suyas si además se
+ * las asignaron. Si no se las asignaron, no las ve, así que no puede borrarlas.
  */
 export async function canDeleteOrder(caller: Caller, orderId: string): Promise<boolean> {
   if (!caller.workshopId) return false;
@@ -129,5 +145,5 @@ export async function canDeleteOrder(caller: Caller, orderId: string): Promise<b
   if (order.workshop_id !== caller.workshopId) return false;
 
   if (caller.role === 'admin') return true;
-  return order.assigned_mechanic_id === caller.userId || order.created_by === caller.userId;
+  return order.assigned_mechanic_id === caller.userId;
 }

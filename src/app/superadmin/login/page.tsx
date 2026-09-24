@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ShieldCheck, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { alEscribir, alSerInvalido } from '@/lib/validacion';
 import Input from '@/components/ui/Input';
 
 // Login del panel de superadmin de la plataforma. Ruta discreta, no enlazada
@@ -123,6 +124,8 @@ export default function SuperadminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                onInvalid={alSerInvalido}
+                onInput={alEscribir}
                 autoComplete="current-password"
                 style={{ paddingLeft: 40, paddingRight: 44 }}
               />

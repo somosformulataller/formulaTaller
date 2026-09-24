@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { alEscribir, alSerInvalido } from '@/lib/validacion';
 import { type InputHTMLAttributes, forwardRef } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -13,7 +14,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, icon, hint, className, id, ...props }, ref) => {
+  ({ label, error, icon, hint, className, id, onInvalid, onInput, ...props }, ref) => {
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -44,6 +45,19 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn('form-input', className)}
             style={icon ? { paddingLeft: 40 } : undefined}
+            // Los avisos de "campo obligatorio" y "correo no válido" los
+            // escribe el navegador en SU idioma; aquí se sustituyen por los
+            // nuestros, en español (ver lib/validacion.ts). Si quien usa el
+            // campo pasa sus propios manejadores, se respetan y se ejecutan
+            // después.
+            onInvalid={(e) => {
+              alSerInvalido(e);
+              onInvalid?.(e);
+            }}
+            onInput={(e) => {
+              alEscribir(e);
+              onInput?.(e);
+            }}
             {...props}
           />
         </div>

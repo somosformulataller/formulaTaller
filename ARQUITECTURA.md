@@ -27,7 +27,7 @@ Navegador
 | `src/lib/supabase/middleware.ts` | Refresca la sesión desde cookies (usado por el middleware). |
 | `src/lib/types.ts` | Tipos TypeScript de todo (Profile, Order, OrderStage, StageAttachment, payloads). Fuente de verdad de los datos. |
 | `src/lib/utils.ts` | Utilidades: fechas, links de WhatsApp (`buildWhatsAppLink`, mensajes de tracking y credenciales), etiquetas/colores de estado. |
-| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol+**taller**) y `canManageOrder()` (mismo taller, y admin o mecánico asignado). Base del **aislamiento multi-taller**. |
+| `src/lib/api-auth.ts` | Autorización de los endpoints: `getCaller()` (usuario+rol+**taller**) y `canManageOrder()` (admin: su taller; mecánico: **solo la orden que le asignaron**). Base del **aislamiento multi-taller** y de la separación entre admin y mecánico. |
 | `src/lib/mechanics.ts` | `listMechanicsWithEmail()`: junta `profiles` con el email de `auth.users`. |
 | `src/lib/image.ts` | Compresión de imágenes en el navegador (canvas): redimensiona y re-codifica a JPEG antes de subir. |
 | `src/lib/attachments.ts` | `uploadStageAttachment()`: comprime imágenes, pide URL firmada, sube el archivo **directo a Storage** y registra el adjunto. |
@@ -61,8 +61,8 @@ Navegador
 | Archivo | Rol |
 |---|---|
 | `layout.tsx` | Estructura del panel del mecánico. |
-| `page.tsx` → `OrdenesClient.tsx` | Lista TODAS las órdenes con filtro **Mis órdenes / Todas**; crear y autoasignarse. |
-| `ordenes/[id]/page.tsx` → `[id]/OrderDetailClient.tsx` | Detalle: asignarse, editar, marcar lista y gestionar etapas. |
+| `page.tsx` → `OrdenesClient.tsx` | Lista **solo las órdenes asignadas a él** (0019), con buscador y filtro por estado. Ni crea órdenes ni se asigna. |
+| `ordenes/[id]/page.tsx` → `[id]/OrderDetailClient.tsx` | Detalle de una orden **suya**: editar datos, marcar lista y gestionar etapas. Si no es suya, 404. |
 
 ## Tracking del CLIENTE (público)
 | Archivo | Rol |
@@ -94,9 +94,9 @@ Navegador
 Todos validan permisos con `lib/api-auth.ts` y escriben con el service client.
 | Endpoint | Qué hace |
 |---|---|
-| `mechanics/route.ts` (GET/POST) | Listar (con email) y crear mecánico (crea usuario en Auth + perfil). |
+| `mechanics/route.ts` (GET/POST) | Listar (con email) y crear mecánico. **Solo admin**: la lista lleva los correos del equipo. |
 | `mechanics/[id]/route.ts` (PATCH/DELETE) | Editar mecánico (nombre/teléfono/email/**contraseña**) y desactivar. |
-| `orders/route.ts` (GET/POST) | Listar y crear órdenes (cualquier staff). |
+| `orders/route.ts` (GET/POST) | Listar (admin: todo su taller; mecánico: solo las suyas) y crear órdenes (**solo admin**). |
 | `orders/[id]/route.ts` (GET/PATCH/DELETE) | Ver, editar/asignar (staff) y eliminar (solo admin). |
 | `orders/[id]/stages/route.ts` (GET/POST) | Listar y crear etapas. |
 | `orders/[id]/stages/[sid]/route.ts` (PATCH/DELETE) | Cambiar estado/título/descripción y borrar etapa. |
