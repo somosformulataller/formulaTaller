@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 const SOPORTE_MENSAJE =
-  'Hola, acabo de ver el video de bienvenida y tengo una duda sobre Formula Taller.';
+  'Hola, tengo una consulta sobre el uso de la plataforma Formula Taller.';
 
 async function getSettings(): Promise<{ videoUrl: string; soporteLink: string | null }> {
   try {
