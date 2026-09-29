@@ -197,6 +197,18 @@ export default function LoginForm({ workshopName, logoUrl }: LoginFormProps = {}
                 {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+            <Link
+              href="/recuperar"
+              style={{
+                alignSelf: 'flex-end',
+                marginTop: 6,
+                fontSize: 13,
+                color: 'var(--color-brand-400)',
+                textDecoration: 'none',
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </div>
 
           {error && (
