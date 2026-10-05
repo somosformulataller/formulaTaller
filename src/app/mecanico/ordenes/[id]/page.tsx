@@ -1,8 +1,9 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getCaller } from '@/lib/api-auth';
 import { mecanicosDeLaOrden } from '@/lib/mecanicos-orden';
 import { signStageAttachments } from '@/lib/storage';
 import { notFound } from 'next/navigation';
-import type { Order, Profile, OrderStage } from '@/lib/types';
+import type { Order, Profile, OrderStage, BudgetItem } from '@/lib/types';
 import MecanicoOrderDetailClient from './OrderDetailClient';
 
 interface Props {
@@ -10,16 +11,14 @@ interface Props {
 }
 
 export default async function MecanicoOrderDetailPage({ params }: Props) {
+  const caller = await getCaller();
+  if (!caller) return null;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const service = createServiceClient();
 
-  if (!user) return null;
-
-  // ¿Está en la lista de esta orden? (0021). Si no, para él no existe.
-  const suya = (await mecanicosDeLaOrden(supabase, params.id)).includes(user.id);
-  if (!suya) notFound();
-
-  const [orderRes, mechanicsRes] = await Promise.all([
+  // Todo a la vez; los datos solo se usan si la orden es suya (abajo).
+  const [mecanicos, orderRes, mechanicsRes, budgetRes] = await Promise.all([
+    mecanicosDeLaOrden(supabase, params.id),
     supabase
       .from('orders')
       .select(`
@@ -38,7 +37,11 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
       .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
+    service.from('order_budget_items').select('*').eq('order_id', params.id).order('position'),
   ]);
+
+  // ¿Está en la lista de esta orden? (0021). Si no, para él no existe.
+  if (!mecanicos.includes(caller.userId)) notFound();
 
   const orderData = orderRes.data;
   if (!orderData) notFound();
@@ -47,7 +50,7 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
 
   // Fotos del bucket privado: firmar sus URLs (service client) antes de pasarlas.
   await signStageAttachments(
-    createServiceClient(),
+    service,
     (order as unknown as { stages?: OrderStage[] }).stages
   );
 
@@ -55,7 +58,8 @@ export default async function MecanicoOrderDetailPage({ params }: Props) {
     <MecanicoOrderDetailClient
       order={order}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
-      currentUserId={user.id}
+      currentUserId={caller.userId}
+      budgetItems={(budgetRes.data ?? []) as unknown as BudgetItem[]}
     />
   );
 }

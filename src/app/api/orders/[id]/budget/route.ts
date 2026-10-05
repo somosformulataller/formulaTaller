@@ -54,10 +54,12 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: 'Demasiados ítems de una vez' }, { status: 400 });
   }
 
-  const limpios: Array<{ description: string; amount: number }> = [];
+  const limpios: Array<{ description: string; amount: number; labor_amount: number }> = [];
   for (const it of entrada) {
     const description = String(it?.description ?? '').trim().slice(0, MAX_DESC);
     const amount = parseAmount(it?.amount);
+    // Mano de obra (0023): opcional, vacía = 0.
+    const labor_amount = it?.labor_amount === undefined ? 0 : parseAmount(it.labor_amount);
     if (!description) {
       return NextResponse.json({ error: 'Cada ítem necesita un nombre' }, { status: 400 });
     }
@@ -67,13 +69,19 @@ export async function POST(req: Request, { params }: Params) {
         { status: 400 }
       );
     }
-    if (amount > MAX_AMOUNT) {
+    if (labor_amount === null) {
+      return NextResponse.json(
+        { error: `La mano de obra de "${description}" no es un número válido` },
+        { status: 400 }
+      );
+    }
+    if (amount > MAX_AMOUNT || labor_amount > MAX_AMOUNT) {
       return NextResponse.json(
         { error: `El precio de "${description}" es demasiado alto` },
         { status: 400 }
       );
     }
-    limpios.push({ description, amount });
+    limpios.push({ description, amount, labor_amount });
   }
 
   const service = createServiceClient();
@@ -96,6 +104,7 @@ export async function POST(req: Request, { params }: Params) {
         order_id: params.id,
         description: it.description,
         amount: it.amount,
+        labor_amount: it.labor_amount,
         position: desde + i,
         created_by: caller.userId,
       }))

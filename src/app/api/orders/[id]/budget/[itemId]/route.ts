@@ -20,7 +20,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const body = (await req.json().catch(() => null)) as UpdateBudgetItemPayload | null;
   if (!body) return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
 
-  const patch: { description?: string; amount?: number } = {};
+  const patch: { description?: string; amount?: number; labor_amount?: number } = {};
 
   if (body.description !== undefined) {
     const d = String(body.description).trim().slice(0, MAX_DESC);
@@ -33,6 +33,14 @@ export async function PATCH(req: Request, { params }: Params) {
     if (a > MAX_AMOUNT) return NextResponse.json({ error: 'Precio demasiado alto' }, { status: 400 });
     patch.amount = a;
   }
+  if (body.labor_amount !== undefined) {
+    const l = parseAmount(body.labor_amount);
+    if (l === null) return NextResponse.json({ error: 'Mano de obra inválida' }, { status: 400 });
+    if (l > MAX_AMOUNT) return NextResponse.json({ error: 'Mano de obra demasiado alta' }, { status: 400 });
+    patch.labor_amount = l;
+  }
+  // Si el monto cambia y el cliente ya había decidido, el trigger de la 0023
+  // devuelve la decisión a «pendiente» y marca el ítem como actualizado.
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'Nada que cambiar' }, { status: 400 });
   }

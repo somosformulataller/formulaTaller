@@ -13,8 +13,9 @@ import CasillaComoTaller from '@/components/orders/CasillaComoTaller';
 import { cambioDeAsignacion, idsAsignados } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
+import CampoNotaDeVoz from '@/components/orders/CampoNotaDeVoz';
 import { uploadStageAttachment } from '@/lib/attachments';
-import { formatUsd, parseAmount } from '@/lib/budget';
+import { formatUsd, parseAmount, sumarTotal } from '@/lib/budget';
 import {
   User,
   Car,
@@ -24,6 +25,7 @@ import {
   Receipt,
   Video as VideoIcon,
   FileText,
+  Wrench,
 } from 'lucide-react';
 
 interface OrderFormProps {
@@ -99,6 +101,9 @@ export default function OrderForm({
   // la lista se guarda sola contra la orden (ver BudgetList).
   const [budget, setBudget] = useState<Renglon[]>([]);
   const [budgetTotal, setBudgetTotal] = useState(0);
+  // Condiciones previas del vehículo dictadas por voz (0024): van en la misma
+  // petición que la orden.
+  const [vehicleNotes, setVehicleNotes] = useState(order?.vehicle_notes ?? '');
 
   // Release image preview URLs when the form unmounts.
   useEffect(() => {
@@ -117,9 +122,9 @@ export default function OrderForm({
       try {
         const res = await fetch(`/api/orders/${order.id}/budget`, { cache: 'no-store' });
         if (!res.ok) return;
-        const items: Array<{ amount: number }> = await res.json();
+        const items: Array<{ amount: number; labor_amount: number }> = await res.json();
         if (!vivo) return;
-        setBudgetTotal(items.reduce((a, i) => a + Math.round(Number(i.amount) * 100), 0) / 100);
+        setBudgetTotal(sumarTotal(items));
       } catch {
         /* sin total en el botón; la lista se abre igual */
       }
@@ -183,6 +188,7 @@ export default function OrderForm({
           ? cambioDeAsignacion(form.mechanic_ids ?? [], !!form.show_workshop_as_mechanic)
           : { mechanic_ids: undefined, show_workshop_as_mechanic: undefined }),
         notes: form.notes || null,
+        vehicle_notes: vehicleNotes.trim() || null,
       }),
     });
 
@@ -204,7 +210,11 @@ export default function OrderForm({
     // de un viaje. Los renglones sin nombre se descartan (quedaron vacíos).
     if (!isEdit) {
       const items = budget
-        .map((r) => ({ description: r.description.trim(), amount: parseAmount(r.amount) ?? 0 }))
+        .map((r) => ({
+          description: r.description.trim(),
+          amount: parseAmount(r.amount) ?? 0,
+          labor_amount: parseAmount(r.labor) ?? 0,
+        }))
         .filter((r) => r.description !== '');
       if (items.length > 0) {
         setPhase('budget');
@@ -345,17 +355,21 @@ export default function OrderForm({
       </div>
       )}
 
-      {/* Notes */}
-      <div className="form-field">
-        <label className="form-label">Notas adicionales</label>
-        <textarea
-          className="form-input"
-          placeholder="Observaciones, descripción del problema..."
-          value={form.notes ?? ''}
-          onChange={(e) => set('notes', e.target.value)}
-          rows={3}
-        />
-      </div>
+      {/* Condiciones previas del vehículo — arriba de las notas */}
+      <CampoNotaDeVoz value={vehicleNotes} onChange={setVehicleNotes} disabled={loading} />
+
+      {/* Qué presenta el vehículo (la columna notes): igual que las
+          condiciones, se dicta y queda solo lo de la falla. */}
+      <CampoNotaDeVoz
+        titulo="¿Qué presenta el vehículo?"
+        modo="falla"
+        placeholder="Toca el micrófono y di qué presenta: la falla, ruidos, fugas, testigos encendidos…"
+        vacio="No se escuchó nada sobre lo que presenta el vehículo. Vuelve a grabar o escríbelo."
+        Icono={Wrench}
+        value={form.notes ?? ''}
+        onChange={(v) => set('notes', v)}
+        disabled={loading}
+      />
 
       {/* Presupuesto — repuestos y servicios con su precio.
           Está aquí, en el alta, porque es cuando el taller acuerda el precio
@@ -406,7 +420,7 @@ export default function OrderForm({
       {!isEdit && (
         <div className="form-field">
           <label className="form-label">
-            Fotos, video, nota de voz o documentos (opcional)
+            Fotos o videos (opcional)
           </label>
 
           {pending.length > 0 && (
@@ -436,7 +450,7 @@ export default function OrderForm({
             }}
           >
             <Plus size={14} />
-            Agregar foto, video, nota de voz o documento
+            Agregar foto o video
           </button>
         </div>
       )}
@@ -453,7 +467,7 @@ export default function OrderForm({
       </div>
 
       {showPicker && (
-        <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} />
+        <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} soloFotosYVideos />
       )}
 
       {showBudget && (

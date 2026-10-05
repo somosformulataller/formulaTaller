@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
 import { MECHANICS_EMBED, idsDeMisOrdenes, guardarMecanicos } from '@/lib/mecanicos-orden';
 import type { CreateOrderPayload } from '@/lib/types';
+import { limpiarCondiciones } from '@/lib/condiciones';
+import { paginaOrdenes, estadoValido } from '@/lib/ordenes-lista';
 
 const ORDER_SELECT = `
   *,
@@ -12,33 +14,32 @@ const ORDER_SELECT = `
   workshop:workshops(name)
 `;
 
-// GET /api/orders — orders of the caller's workshop only.
-export async function GET() {
+// GET /api/orders?estado=&q=&desde= — una página de órdenes del taller de
+// quien llama (ver lib/ordenes-lista.ts) → { orders, hayMas }.
+export async function GET(req: Request) {
   const caller = await getCaller();
   if (!caller) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (!caller.workshopId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const service = createServiceClient();
-  let query = service
-    .from('orders')
-    .select(ORDER_SELECT)
-    .eq('workshop_id', caller.workshopId);
+  const sp = new URL(req.url).searchParams;
+  const filtros = {
+    estado: estadoValido(sp.get('estado')),
+    q: (sp.get('q') ?? '').slice(0, 100),
+    desde: Math.max(0, Math.min(Number(sp.get('desde')) || 0, 100_000)),
+  };
 
   // Al mecánico, solo lo que el administrador le asignó (0019). Se filtra aquí
   // porque esta consulta usa la clave de servicio y no pasa por RLS. Y se
   // filtra por la LISTA de la orden (0021), no por la columna espejo: si no,
   // el segundo mecánico de un carro no lo vería.
-  if (caller.role === 'mechanic') {
-    const mios = await idsDeMisOrdenes(service, caller.userId);
-    if (mios.length === 0) return NextResponse.json([]);
-    query = query.in('id', mios);
+  const ids = caller.role === 'mechanic' ? await idsDeMisOrdenes(service, caller.userId) : undefined;
+
+  try {
+    return NextResponse.json(await paginaOrdenes(service, caller.workshopId, { ...filtros, ids }));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Error' }, { status: 500 });
   }
-
-  const { data, error } = await query.order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json(data);
 }
 
 // POST /api/orders
@@ -58,6 +59,8 @@ export async function POST(req: Request) {
   }
 
   const body: CreateOrderPayload = await req.json();
+  const condiciones = limpiarCondiciones(body as unknown as Record<string, unknown>);
+  if (condiciones.error) return NextResponse.json({ error: condiciones.error }, { status: 400 });
   const service = createServiceClient();
 
   // Free-plan limit: block once the workshop reaches its límite efectivo, salvo
@@ -104,6 +107,10 @@ export async function POST(req: Request) {
       car_model: body.car_model,
       show_workshop_as_mechanic: !!body.show_workshop_as_mechanic,
       notes: body.notes ?? null,
+      vehicle_conditions: condiciones.vehicle_conditions ?? [],
+      mileage: condiciones.mileage ?? null,
+      fuel_level: condiciones.fuel_level ?? null,
+      vehicle_notes: condiciones.vehicle_notes ?? null,
       created_by: caller.userId,
       // La asignación se escribe aparte, en order_mechanics; el estado y la
       // columna espejo los pone al día el trigger de la 0021.

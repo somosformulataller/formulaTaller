@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCaller } from '@/lib/api-auth';
-import type { Order, Profile } from '@/lib/types';
+import type { Profile } from '@/lib/types';
+import { paginaOrdenes, contarOrdenes } from '@/lib/ordenes-lista';
 import AdminDashboardClient from './DashboardClient';
 
 export default async function AdminDashboardPage() {
@@ -8,18 +9,10 @@ export default async function AdminDashboardPage() {
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [ordersRes, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
-    supabase
-      .from('orders')
-      .select(`
-        *,
-        assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
-        mechanics:profiles!order_mechanics(id, full_name, phone),
-        stages:order_stages(*),
-        workshop:workshops(name)
-      `)
-      .eq('workshop_id', wid)
-      .order('created_at', { ascending: false }),
+  const [pagina, conteos, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
+    // Solo la primera página y los conteos (ver lib/ordenes-lista.ts).
+    paginaOrdenes(supabase, wid),
+    contarOrdenes(supabase, wid),
     supabase
       .from('profiles')
       .select('*')
@@ -43,7 +36,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminDashboardClient
-      initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
+      inicial={pagina}
+      conteos={conteos}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       orderLimit={orderLimit}
       isSubscribed={isSubscribed}

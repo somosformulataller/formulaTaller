@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
-import { sumarTotal } from '@/lib/budget';
+import { sumarTotal, sumarRepuestos, sumarManoDeObra } from '@/lib/budget';
 import { idsDeMisOrdenes } from '@/lib/mecanicos-orden';
 import type { BudgetSummary, OrderStatus } from '@/lib/types';
 
@@ -71,7 +71,12 @@ export async function GET() {
     if (ordenes.length === 0) return NextResponse.json([]);
 
     const ids = ordenes.map((o) => o.id);
-    type FilaItem = { order_id: string; amount: number };
+    type FilaItem = {
+      order_id: string;
+      amount: number;
+      labor_amount: number;
+      client_decision: 'pendiente' | 'aprobado' | 'rechazado';
+    };
 
     // Los ítems se piden por lotes de ids: una lista `in(...)` enorme
     // terminaría en una URL más larga de lo que acepta PostgREST.
@@ -81,7 +86,7 @@ export async function GET() {
       const parte = await traerTodo<FilaItem>((desde, hasta) =>
         service
           .from('order_budget_items')
-          .select('order_id, amount')
+          .select('order_id, amount, labor_amount, client_decision')
           .in('order_id', lote)
           .range(desde, hasta)
       );
@@ -105,6 +110,11 @@ export async function GET() {
         created_at: o.created_at,
         item_count: suyos.length,
         total: sumarTotal(suyos),
+        parts_total: sumarRepuestos(suyos),
+        labor_total: sumarManoDeObra(suyos),
+        pending_count: suyos.filter((i) => i.client_decision === 'pendiente').length,
+        approved_count: suyos.filter((i) => i.client_decision === 'aprobado').length,
+        rejected_count: suyos.filter((i) => i.client_decision === 'rechazado').length,
       };
     });
 

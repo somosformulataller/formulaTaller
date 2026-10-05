@@ -32,7 +32,7 @@ export async function GET(_: Request, { params }: Params) {
       ${MECHANICS_EMBED},
       workshop:workshops(name),
       stages:order_stages(id, name, position, status, completed_at),
-      budget:order_budget_items(id, description, amount, position)
+      budget:order_budget_items(id, description, amount, labor_amount, position, client_decision, decided_at, revised_at)
     `)
     .eq('public_token', params.token)
     .single();

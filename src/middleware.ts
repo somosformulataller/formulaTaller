@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-import { createServerClient } from '@supabase/ssr';
-import type { Database } from '@/lib/types';
+import { CALLER_HEADERS, H_ROLE, H_USER, H_WORKSHOP } from '@/lib/caller-headers';
 
 // Routes that are accessible without authentication
 const PUBLIC_ROUTES = [
@@ -15,39 +14,54 @@ const PUBLIC_ROUTES = [
   '/video',
 ];
 
+/**
+ * Deja pasar la petición SIN las cabeceras internas de quién llama (un cliente
+ * no puede inventárselas) y, si se verificó la sesión, con las buenas. Copia
+ * las cookies que haya renovado Supabase en `base`.
+ */
+function continuar(request: NextRequest, base?: NextResponse, quien?: Record<string, string>) {
+  const headers = new Headers(request.headers);
+  for (const h of CALLER_HEADERS) headers.delete(h);
+  for (const [k, v] of Object.entries(quien ?? {})) headers.set(k, v);
+  const res = NextResponse.next({ request: { headers } });
+  base?.cookies.getAll().forEach((c) => res.cookies.set(c));
+  return res;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes (tracking pages and login)
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    return await updateSession(request).then((r) => r.supabaseResponse);
+    const { supabaseResponse } = await updateSession(request);
+    return continuar(request, supabaseResponse);
   }
 
   // Allow API auth callback
   if (pathname.startsWith('/api/auth')) {
-    return NextResponse.next();
+    return continuar(request);
   }
 
   // Allow public tracking API
   if (pathname.startsWith('/api/tracking')) {
-    return NextResponse.next();
+    return continuar(request);
   }
 
   // Allow public workshop registration API
   if (pathname.startsWith('/api/register')) {
-    return NextResponse.next();
+    return continuar(request);
   }
 
   // Facebook Conversions API relay: público (se dispara desde login/registro sin sesión).
   if (pathname.startsWith('/api/fb-event')) {
-    return NextResponse.next();
+    return continuar(request);
   }
 
   // Superadmin API: the route handlers enforce platform-admin auth themselves
   // (getPlatformAdmin). Don't run the workshop/profile logic here, and never
   // redirect an API request.
   if (pathname.startsWith('/api/superadmin')) {
-    return NextResponse.next();
+    return continuar(request);
   }
 
   // Superadmin panel. Superadmins have NO profiles row, so they must be handled
@@ -55,7 +69,8 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/superadmin')) {
     // Login page is public.
     if (pathname.startsWith('/superadmin/login')) {
-      return await updateSession(request).then((r) => r.supabaseResponse);
+      const { supabaseResponse } = await updateSession(request);
+      return continuar(request, supabaseResponse);
     }
     const { supabaseResponse, user } = await updateSession(request);
     if (!user) {
@@ -64,7 +79,7 @@ export async function middleware(request: NextRequest) {
     // Membership ("is this user a platform admin?") is verified server-side in
     // the /superadmin page (getPlatformAdmin), which redirects non-admins to
     // /superadmin/login.
-    return supabaseResponse;
+    return continuar(request, supabaseResponse);
   }
 
   const { supabaseResponse, user, supabase } = await updateSession(request);
@@ -79,11 +94,13 @@ export async function middleware(request: NextRequest) {
   // Get user role from profiles table
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('role, active')
+    .select('role, active, workshop_id')
     .eq('id', user.id)
     .single();
 
-  const profile = profileData as unknown as { role: string; active: boolean } | null;
+  const profile = profileData as unknown as
+    | { role: string; active: boolean; workshop_id: string | null }
+    | null;
 
   // Inactive users → login
   if (!profile || !profile.active) {
@@ -110,7 +127,13 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  return supabaseResponse;
+  // Sesión y perfil ya verificados: la página o la API los lee de aquí
+  // (getCaller) en vez de volver a consultarlos.
+  return continuar(request, supabaseResponse, {
+    [H_USER]: user.id,
+    [H_ROLE]: role,
+    [H_WORKSHOP]: profile.workshop_id ?? '',
+  });
 }
 
 export const config = {

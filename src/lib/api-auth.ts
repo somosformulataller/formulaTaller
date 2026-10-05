@@ -1,4 +1,6 @@
+import { headers } from 'next/headers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { H_ROLE, H_USER, H_WORKSHOP } from '@/lib/caller-headers';
 import { mecanicosDeLaOrden } from '@/lib/mecanicos-orden';
 import type { UserRole } from '@/lib/types';
 
@@ -11,8 +13,22 @@ export interface Caller {
 /**
  * Resolves the authenticated caller (id, role, workshop) from the session cookie.
  * Returns null if there is no valid session.
+ *
+ * Si el middleware ya verificó la sesión, la toma de sus cabeceras sin
+ * consultar a Supabase (ver lib/caller-headers.ts). Si no (rutas que el
+ * middleware deja pasar sin sesión), la consulta como siempre.
  */
 export async function getCaller(): Promise<Caller | null> {
+  const h = headers();
+  const uid = h.get(H_USER);
+  if (uid) {
+    return {
+      userId: uid,
+      role: (h.get(H_ROLE) as UserRole | null) || null,
+      workshopId: h.get(H_WORKSHOP) || null,
+    };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

@@ -4,11 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Building2, TrendingUp, LogOut, Menu, X, Wrench } from 'lucide-react';
+import { Building2, TrendingUp, LogOut, Menu, X, Wrench, SlidersHorizontal } from 'lucide-react';
 
 const NAV = [
   { href: '/superadmin', label: 'Talleres', icon: Building2, exact: true },
   { href: '/superadmin/ventas', label: 'Ventas', icon: TrendingUp, exact: false },
+  { href: '/superadmin/interfaz', label: 'Interfaz talleres', icon: SlidersHorizontal, exact: false },
 ];
 
 export default function SuperadminShell({

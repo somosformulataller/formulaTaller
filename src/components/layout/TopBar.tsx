@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, Receipt, Wrench } from 'lucide-react';
+import { LogOut, Receipt, Sparkles, Wrench } from 'lucide-react';
+import NotificationBell from '@/components/layout/NotificationBell';
 import { createClient } from '@/lib/supabase/client';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/types';
@@ -77,7 +78,30 @@ export default function TopBar({ profile, title }: TopBarProps) {
           junto a "Presupuestos", que es un acceso de uso diario, y las
           iniciales no hacían nada (el nombre del taller ya está a la
           izquierda). El tutorial sigue en /video. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {profile.role === 'admin' && (
+          <>
+            <Link
+              href="/admin/asistente"
+              aria-label="Asistente"
+              title="Asistente"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
+                padding: '6px 8px',
+                color: pathname.startsWith('/admin/asistente')
+                  ? 'var(--color-brand-400)'
+                  : 'var(--color-text-secondary)',
+              }}
+            >
+              <Sparkles size={16} />
+            </Link>
+            <NotificationBell workshopName={title || 'el taller'} />
+          </>
+        )}
         <Link
           href={presupuestosHref}
           aria-label="Ver presupuestos"
@@ -107,7 +131,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
           }}
         >
           <Receipt size={15} />
-          Presupuestos
+          <span className="tb-label">Presupuestos</span>
         </Link>
         <button
           onClick={handleLogout}

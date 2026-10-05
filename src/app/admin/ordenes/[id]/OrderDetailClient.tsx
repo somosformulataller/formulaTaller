@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, Profile, Mechanic, OrderStatus } from '@/lib/types';
+import type { Order, Profile, Mechanic, OrderStatus, BudgetItem } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -15,6 +15,10 @@ import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import BudgetCard from '@/components/orders/BudgetCard';
+import BudgetResponses from '@/components/orders/BudgetResponses';
+import VehicleConditionsCard from '@/components/orders/VehicleConditionsCard';
+import ClientReminders from '@/components/reminders/ClientReminders';
+import { Bell } from 'lucide-react';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import {
   formatDate,
@@ -38,6 +42,8 @@ interface OrderDetailClientProps {
   order: Order;
   mechanics: Profile[];
   startInEdit: boolean;
+  /** Presupuesto leído con la página: se ve sin esperar otra petición. */
+  budgetItems?: BudgetItem[];
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -52,6 +58,7 @@ export default function OrderDetailClient({
   order: initialOrder,
   mechanics: initialMechanics,
   startInEdit,
+  budgetItems,
 }: OrderDetailClientProps) {
   const router = useRouter();
   const [order, setOrder] = useState<Order>(initialOrder);
@@ -320,10 +327,41 @@ export default function OrderDetailClient({
         </div>
       </div>
 
+      {/* Condiciones previas del vehículo, dictadas por voz (0024) */}
+      <VehicleConditionsCard key={order.updated_at} order={order} onSaved={setOrder} />
+
       {/* Archivos adjuntados al crear la orden */}
       <InitialAttachments orderId={order.id} stages={stages} canEdit={true} />
+      {/* Lo que el cliente aprobó o rechazó desde su enlace */}
+      <BudgetResponses orderId={order.id} />
       {/* Presupuesto: repuestos y servicios cobrados */}
-      <BudgetCard orderId={order.id} />
+      <BudgetCard
+        orderId={order.id}
+        itemsIniciales={budgetItems}
+        cliente={{
+          firstName: order.client_first_name,
+          whatsapp: order.client_whatsapp,
+          publicToken: order.public_token,
+          carModel: order.car_model,
+          workshopName: order.workshop?.name,
+        }}
+      />
+
+      {/* Recordatorios del cliente de esta orden */}
+      {order.client_id && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
+            <Bell size={17} style={{ color: 'var(--color-brand-400)' }} />
+            Recordatorios del cliente
+          </h2>
+          <ClientReminders
+            clientId={order.client_id}
+            clientName={clientName}
+            orderId={order.id}
+            workshopName={order.workshop?.name ?? 'el taller'}
+          />
+        </div>
+      )}
 
 
       {/* Stages */}

@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ClipboardList, Users, LayoutDashboard, Store } from 'lucide-react';
+import { ClipboardList, Users, LayoutDashboard, Store, Contact } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -21,6 +21,11 @@ const ADMIN_NAV: NavItem[] = [
     href: '/admin/ordenes',
     label: 'Órdenes',
     icon: <ClipboardList size={22} />,
+  },
+  {
+    href: '/admin/clientes',
+    label: 'Clientes',
+    icon: <Contact size={22} />,
   },
   {
     href: '/admin/mecanicos',
@@ -84,14 +89,16 @@ export default function BottomNav({ role }: BottomNavProps) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: 4,
-              padding: '8px 20px',
+              padding: '8px 4px',
               borderRadius: 12,
               color: isActive ? 'var(--color-brand-400)' : 'var(--color-text-muted)',
               transition: 'color 0.15s, transform 0.1s',
               transform: isActive ? 'scale(1.05)' : 'scale(1)',
               textDecoration: 'none',
               WebkitTapHighlightColor: 'transparent',
-              minWidth: 64,
+              minWidth: 56,
+              flex: 1,
+              maxWidth: 96,
               justifyContent: 'center',
             }}
           >

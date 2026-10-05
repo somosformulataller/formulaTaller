@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, Receipt } from 'lucide-react';
-import type { BudgetItem } from '@/lib/types';
-import { formatUsd, parseAmount } from '@/lib/budget';
+import { Plus, Trash2, Receipt, Check, X, RefreshCw } from 'lucide-react';
+import type { BudgetItem, BudgetDecision } from '@/lib/types';
+import { formatUsd, parseAmount, DECISION_COLORS } from '@/lib/budget';
 
 // ============================================================================
-// Lista de presupuesto — repuestos y servicios con su precio
+// Lista de presupuesto — cada ítem con su repuesto/servicio y su mano de obra
 // ============================================================================
 //
 // Funciona de dos maneras, con la misma pinta para el usuario:
@@ -25,22 +25,51 @@ export interface Renglon {
   key: string;
   id: string | null;
   description: string;
-  /** Texto crudo mientras se teclea ("12,5"); se convierte al guardar. */
+  /** Costo del repuesto o servicio. Texto crudo mientras se teclea ("12,5"). */
   amount: string;
+  /** Costo de la mano de obra, también en texto crudo (0023). */
+  labor: string;
+  /** Lo que decidió el cliente en su enlace (solo en vivo). */
+  decision?: BudgetDecision;
+  /** El taller cambió el monto después de que el cliente decidiera. */
+  revisado?: boolean;
 }
 
 let contador = 0;
-export function nuevoRenglon(description = '', amount = ''): Renglon {
+export function nuevoRenglon(description = '', amount = '', labor = ''): Renglon {
   contador += 1;
-  return { key: `r${contador}`, id: null, description, amount };
+  return { key: `r${contador}`, id: null, description, amount, labor };
 }
 
+function centavos(raw: string): number {
+  return Math.round((parseAmount(raw) ?? 0) * 100);
+}
+
+/** Total de repuestos o servicios. */
+export function repuestosDe(renglones: Renglon[]): number {
+  return renglones.reduce((acc, r) => acc + centavos(r.amount), 0) / 100;
+}
+
+/** Total de mano de obra. */
+export function manoDeObraDe(renglones: Renglon[]): number {
+  return renglones.reduce((acc, r) => acc + centavos(r.labor), 0) / 100;
+}
+
+/** Total general: repuestos + mano de obra. */
 export function totalDe(renglones: Renglon[]): number {
-  const centavos = renglones.reduce(
-    (acc, r) => acc + Math.round((parseAmount(r.amount) ?? 0) * 100),
-    0
-  );
-  return centavos / 100;
+  return renglones.reduce((acc, r) => acc + centavos(r.amount) + centavos(r.labor), 0) / 100;
+}
+
+function desdeItem(i: BudgetItem): Renglon {
+  return {
+    key: i.id,
+    id: i.id,
+    description: i.description,
+    amount: String(Number(i.amount)),
+    labor: Number(i.labor_amount) ? String(Number(i.labor_amount)) : '',
+    decision: i.client_decision,
+    revisado: Boolean(i.revised_at) && i.client_decision === 'pendiente',
+  };
 }
 
 interface Props {
@@ -51,6 +80,10 @@ interface Props {
   onBorradorChange?: (r: Renglon[]) => void;
   /** Avisa el total al padre (para pintarlo fuera de la lista). */
   onTotalChange?: (total: number) => void;
+  /** Ítems ya leídos (en vivo): se muestran sin pedirlos otra vez. */
+  iniciales?: BudgetItem[];
+  /** Avisa los renglones al padre (en vivo), p. ej. para armar el WhatsApp. */
+  onFilasChange?: (filas: Renglon[]) => void;
 }
 
 export default function BudgetList({
@@ -58,10 +91,15 @@ export default function BudgetList({
   borrador,
   onBorradorChange,
   onTotalChange,
+  iniciales,
+  onFilasChange,
 }: Props) {
   const enVivo = Boolean(orderId);
-  const [filas, setFilas] = useState<Renglon[]>(borrador ?? []);
-  const [cargando, setCargando] = useState(enVivo);
+  const [filas, setFilas] = useState<Renglon[]>(
+    enVivo && iniciales ? iniciales.map(desdeItem) : borrador ?? []
+  );
+  const [cargando, setCargando] = useState(enVivo && !iniciales);
+  const yaCargada = useRef(Boolean(iniciales));
   const [guardando, setGuardando] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ultimoRef = useRef<HTMLInputElement | null>(null);
@@ -79,9 +117,9 @@ export default function BudgetList({
     [enVivo, onBorradorChange]
   );
 
-  // Carga inicial (solo en vivo).
+  // Carga inicial (solo en vivo y si no llegó con los ítems).
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId || yaCargada.current) return;
     let vivo = true;
     (async () => {
       try {
@@ -89,14 +127,7 @@ export default function BudgetList({
         if (!res.ok) throw new Error('No se pudo cargar el presupuesto');
         const data: BudgetItem[] = await res.json();
         if (!vivo) return;
-        setFilas(
-          data.map((i) => ({
-            key: i.id,
-            id: i.id,
-            description: i.description,
-            amount: String(Number(i.amount)),
-          }))
-        );
+        setFilas(data.map(desdeItem));
       } catch (e) {
         if (vivo) setError(e instanceof Error ? e.message : 'Error al cargar');
       } finally {
@@ -109,9 +140,21 @@ export default function BudgetList({
   }, [orderId]);
 
   const total = totalDe(filas);
+  const repuestos = repuestosDe(filas);
+  const manoDeObra = manoDeObraDe(filas);
+  const aprobado =
+    filas
+      .filter((f) => f.decision === 'aprobado')
+      .reduce((acc, f) => acc + centavos(f.amount) + centavos(f.labor), 0) / 100;
+  const hayDecisiones = filas.some((f) => f.decision && f.decision !== 'pendiente');
+
   useEffect(() => {
     onTotalChange?.(total);
   }, [total, onTotalChange]);
+
+  useEffect(() => {
+    if (enVivo) onFilasChange?.(filas);
+  }, [enVivo, filas, onFilasChange]);
 
   // Enfocar el renglón recién agregado para poder escribir de una vez.
   useEffect(() => {
@@ -126,7 +169,7 @@ export default function BudgetList({
     aplicar((prev) => [...prev, nuevoRenglon()]);
   }
 
-  function editar(key: string, campo: 'description' | 'amount', valor: string) {
+  function editar(key: string, campo: 'description' | 'amount' | 'labor', valor: string) {
     aplicar((prev) => prev.map((f) => (f.key === key ? { ...f, [campo]: valor } : f)));
   }
 
@@ -150,6 +193,7 @@ export default function BudgetList({
     if (!fila) return;
     const description = fila.description.trim();
     const amount = parseAmount(fila.amount) ?? 0;
+    const labor_amount = parseAmount(fila.labor) ?? 0;
     if (!description) return;
 
     setError(null);
@@ -159,15 +203,11 @@ export default function BudgetList({
         const res = await fetch(`/api/orders/${orderId}/budget/${fila.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ description, amount }),
+          body: JSON.stringify({ description, amount, labor_amount }),
         });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'No se pudo guardar');
         const guardado: BudgetItem = await res.json();
-        aplicar((prev) =>
-          prev.map((f) =>
-            f.key === key ? { ...f, description: guardado.description, amount: String(Number(guardado.amount)) } : f
-          )
-        );
+        aplicar((prev) => prev.map((f) => (f.key === key ? { ...desdeItem(guardado), key } : f)));
       });
       return;
     }
@@ -176,18 +216,12 @@ export default function BudgetList({
       const res = await fetch(`/api/orders/${orderId}/budget`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description, amount }),
+        body: JSON.stringify({ description, amount, labor_amount }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'No se pudo guardar');
       const [creado]: BudgetItem[] = await res.json();
       if (!creado) return;
-      aplicar((prev) =>
-        prev.map((f) =>
-          f.key === key
-            ? { key: creado.id, id: creado.id, description: creado.description, amount: String(Number(creado.amount)) }
-            : f
-        )
-      );
+      aplicar((prev) => prev.map((f) => (f.key === key ? desdeItem(creado) : f)));
     });
   }
 
@@ -236,63 +270,84 @@ export default function BudgetList({
       )}
 
       {filas.map((f, i) => (
-        <div key={f.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <input
-            ref={i === filas.length - 1 ? ultimoRef : undefined}
-            className="form-input"
-            placeholder="Repuesto o servicio"
-            value={f.description}
-            maxLength={120}
-            onChange={(e) => editar(f.key, 'description', e.target.value)}
-            onBlur={() => alSalir(f.key)}
-            style={{ flex: 1, minWidth: 0 }}
-          />
-          <div style={{ position: 'relative', width: 112, flexShrink: 0 }}>
-            <span
+        <div
+          key={f.key}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            padding: 10,
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <input
+              ref={i === filas.length - 1 ? ultimoRef : undefined}
+              className="form-input"
+              placeholder="Nombre del repuesto o servicio"
+              aria-label="Nombre del repuesto o servicio"
+              value={f.description}
+              maxLength={120}
+              onChange={(e) => editar(f.key, 'description', e.target.value)}
+              onBlur={() => alSalir(f.key)}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <button
+              type="button"
+              onClick={() => borrar(f.key)}
+              aria-label={`Eliminar ${f.description || 'ítem'}`}
               style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
-                fontSize: 13,
-                pointerEvents: 'none',
+                flexShrink: 0,
+                width: 40,
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 8,
+                color: '#ef4444',
+                cursor: 'pointer',
               }}
             >
-              $
-            </span>
-            <input
-              className="form-input"
-              // decimal, no "number": en el teléfono abre el teclado numérico
-              // sin las flechitas que cambian el monto sin querer al rozarlas.
-              inputMode="decimal"
-              placeholder="0,00"
-              value={f.amount}
-              onChange={(e) => editar(f.key, 'amount', e.target.value)}
+              <Trash2 size={15} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <CampoMonto
+              etiqueta="Repuesto o servicio"
+              valor={f.amount}
+              onChange={(v) => editar(f.key, 'amount', v)}
               onBlur={() => alSalir(f.key)}
-              style={{ paddingLeft: 24, width: '100%' }}
+            />
+            <CampoMonto
+              etiqueta="Mano de obra"
+              valor={f.labor}
+              onChange={(v) => editar(f.key, 'labor', v)}
+              onBlur={() => alSalir(f.key)}
             />
           </div>
-          <button
-            type="button"
-            onClick={() => borrar(f.key)}
-            aria-label={`Eliminar ${f.description || 'ítem'}`}
+
+          <div
             style={{
-              flexShrink: 0,
-              width: 40,
-              height: 40,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              color: '#ef4444',
-              cursor: 'pointer',
+              justifyContent: 'space-between',
+              gap: 8,
+              fontSize: 12,
             }}
           >
-            <Trash2 size={15} />
-          </button>
+            <EstadoCliente decision={f.decision} revisado={f.revisado} enVivo={enVivo && !!f.id} />
+            <span style={{ color: 'var(--color-text-secondary)' }}>
+              Subtotal{' '}
+              <strong style={{ color: 'var(--color-text-primary)' }}>
+                {formatUsd((centavos(f.amount) + centavos(f.labor)) / 100)}
+              </strong>
+            </span>
+          </div>
         </div>
       ))}
 
@@ -323,16 +378,32 @@ export default function BudgetList({
       <div
         style={{
           display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 10,
+          flexDirection: 'column',
+          gap: 4,
           marginTop: 2,
           paddingTop: 12,
           borderTop: '1px solid var(--color-border)',
+          fontSize: 13,
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        <FilaTotal etiqueta="Repuestos y servicios" valor={repuestos} />
+        <FilaTotal etiqueta="Mano de obra" valor={manoDeObra} />
+        {hayDecisiones && (
+          <FilaTotal etiqueta="Aprobado por el cliente" valor={aprobado} color={DECISION_COLORS.aprobado} />
+        )}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 10,
         }}
       >
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-          Total
+          Total general
           {guardando > 0 && (
             <span style={{ fontWeight: 500, color: 'var(--color-text-muted)', marginLeft: 8 }}>
               guardando…
@@ -344,5 +415,94 @@ export default function BudgetList({
         </span>
       </div>
     </div>
+  );
+}
+
+function CampoMonto({
+  etiqueta,
+  valor,
+  onChange,
+  onBlur,
+}: {
+  etiqueta: string;
+  valor: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)' }}>{etiqueta}</span>
+      <span style={{ position: 'relative' }}>
+        <span
+          style={{
+            position: 'absolute',
+            left: 10,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--color-text-muted)',
+            fontSize: 13,
+            pointerEvents: 'none',
+          }}
+        >
+          $
+        </span>
+        <input
+          className="form-input"
+          // decimal, no "number": en el teléfono abre el teclado numérico
+          // sin las flechitas que cambian el monto sin querer al rozarlas.
+          inputMode="decimal"
+          placeholder="0,00"
+          value={valor}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          style={{ paddingLeft: 24, width: '100%' }}
+        />
+      </span>
+    </label>
+  );
+}
+
+function FilaTotal({ etiqueta, valor, color }: { etiqueta: string; valor: number; color?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color }}>
+      <span>{etiqueta}</span>
+      <span style={{ fontWeight: 600 }}>{formatUsd(valor)}</span>
+    </div>
+  );
+}
+
+/** Lo que el cliente decidió en su enlace. En el borrador no se muestra nada. */
+function EstadoCliente({
+  decision,
+  revisado,
+  enVivo,
+}: {
+  decision?: BudgetDecision;
+  revisado?: boolean;
+  enVivo: boolean;
+}) {
+  if (!enVivo) return <span />;
+  if (decision === 'aprobado' || decision === 'rechazado') {
+    const Icono = decision === 'aprobado' ? Check : X;
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontWeight: 700,
+          color: DECISION_COLORS[decision],
+        }}
+      >
+        <Icono size={13} />
+        {decision === 'aprobado' ? 'El cliente lo aprobó' : 'El cliente lo rechazó'}
+      </span>
+    );
+  }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--color-text-muted)' }}>
+      {revisado && <RefreshCw size={12} />}
+      {revisado ? 'Actualizado: espera al cliente' : 'Esperando al cliente'}
+    </span>
   );
 }

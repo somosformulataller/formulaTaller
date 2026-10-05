@@ -52,6 +52,10 @@ export default async function TrackingPage({ params }: Props) {
       client_last_name,
       car_model,
       notes,
+      vehicle_conditions,
+      mileage,
+      fuel_level,
+      vehicle_notes,
       status,
       created_at,
       updated_at,
@@ -59,7 +63,7 @@ export default async function TrackingPage({ params }: Props) {
       ${MECHANICS_EMBED},
       workshop:workshops(name, logo_url),
       stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at)),
-      budget:order_budget_items(id, order_id, description, amount, position, created_by, created_at, updated_at)
+      budget:order_budget_items(id, order_id, description, amount, labor_amount, position, client_decision, decided_at, revised_at, created_by, created_at, updated_at)
     `)
     .eq('public_token', params.token)
     .maybeSingle();

@@ -201,9 +201,13 @@ export default function OrderCard({
         <CopyLinkButton url={trackingUrl} />
 
         {/* Detail / Stages */}
+        {/* Se precarga al apoyar el dedo (o pasar el mouse), antes de soltar:
+            la orden abre con su pantalla de carga sin esperar al servidor. */}
         <Button
           variant="secondary"
           size="sm"
+          onPointerDown={() => router.prefetch(`${role === 'admin' ? '/admin' : '/mecanico'}/ordenes/${order.id}`)}
+          onMouseEnter={() => router.prefetch(`${role === 'admin' ? '/admin' : '/mecanico'}/ordenes/${order.id}`)}
           onClick={() => {
             const base = role === 'admin' ? '/admin' : '/mecanico';
             router.push(`${base}/ordenes/${order.id}`);

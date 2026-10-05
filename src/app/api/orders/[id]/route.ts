@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { UpdateOrderPayload } from '@/lib/types';
 import { getCaller, canManageOrder, canDeleteOrder } from '@/lib/api-auth';
 import { MECHANICS_EMBED, guardarMecanicos } from '@/lib/mecanicos-orden';
+import { limpiarCondiciones } from '@/lib/condiciones';
 
 type Params = { params: { id: string } };
 
@@ -70,6 +71,14 @@ export async function PATCH(req: Request, { params }: Params) {
   for (const k of ALLOWED) {
     if (k in body) (updates as Record<string, unknown>)[k] = (body as Record<string, unknown>)[k];
   }
+
+  // Condiciones previas del vehículo (0023): se validan y se copian limpias.
+  const condiciones = limpiarCondiciones(body as unknown as Record<string, unknown>);
+  if (condiciones.error) return NextResponse.json({ error: condiciones.error }, { status: 400 });
+  if (condiciones.vehicle_conditions !== undefined) updates.vehicle_conditions = condiciones.vehicle_conditions;
+  if (condiciones.mileage !== undefined) updates.mileage = condiciones.mileage;
+  if (condiciones.fuel_level !== undefined) updates.fuel_level = condiciones.fuel_level;
+  if (condiciones.vehicle_notes !== undefined) updates.vehicle_notes = condiciones.vehicle_notes;
 
   // Asignar es del administrador (0019). El mecánico no puede tocar la lista
   // de mecánicos: ni ponerse en una orden, ni quitarse de la suya, ni meter a

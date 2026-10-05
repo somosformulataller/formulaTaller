@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCaller } from '@/lib/api-auth';
 import { idsDeMisOrdenes } from '@/lib/mecanicos-orden';
 import type { Order, Profile } from '@/lib/types';
 import MecanicoOrdenesClient from './OrdenesClient';
@@ -6,31 +7,25 @@ import MecanicoOrdenesClient from './OrdenesClient';
 export const dynamic = 'force-dynamic';
 
 export default async function MecanicoPage() {
+  const caller = await getCaller();
+  if (!caller) return null;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const wid = caller.workshopId ?? '';
 
-  if (!user) return null;
+  // Su perfil y sus órdenes: aquellas en cuya lista de mecánicos está (0021),
+  // porque un carro puede tener varios y el segundo también tiene que verlo.
+  const [{ data: me }, mias] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', caller.userId).single(),
+    idsDeMisOrdenes(supabase, caller.userId),
+  ]);
 
-  // Resolve the mechanic's workshop first, then scope everything to it.
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-  const wid = (me as unknown as Profile | null)?.workshop_id ?? '';
-
-  // Sus órdenes son aquellas en cuya lista de mecánicos está (0021): un carro
-  // puede tener varios y el segundo también tiene que verlo.
-  const mias = await idsDeMisOrdenes(supabase, user.id);
-
-  const [ordersRes, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
+  const [ordersRes, mechanicsRes] = await Promise.all([
     supabase
       .from('orders')
       .select(`
         *,
         assigned_mechanic:profiles!assigned_mechanic_id(id, full_name, phone),
         mechanics:profiles!order_mechanics(id, full_name, phone),
-        stages:order_stages(*),
         workshop:workshops(name)
       `)
       .eq('workshop_id', wid)
@@ -50,29 +45,13 @@ export default async function MecanicoPage() {
       .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
-    supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
-    supabase
-      .from('platform_settings')
-      .select('free_order_limit, support_phones')
-      .eq('id', 1)
-      .single(),
   ]);
-  const profileRes = { data: me };
-  const workshop = workshopRes.data as unknown as
-    | { order_limit: number | null; is_subscribed: boolean }
-    | null;
-  const settings = settingsRes.data as unknown as
-    | { free_order_limit: number; support_phones: string[] | null }
-    | null;
-  const globalLimit = settings?.free_order_limit ?? 3;
-  const orderLimit = workshop?.order_limit ?? globalLimit;
-  const isSubscribed = workshop?.is_subscribed ?? false;
 
   return (
     <MecanicoOrdenesClient
       initialOrders={(ordersRes.data ?? []) as unknown as Order[]}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
-      profile={profileRes.data as unknown as Profile}
+      profile={me as unknown as Profile}
     />
   );
 }

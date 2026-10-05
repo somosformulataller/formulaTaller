@@ -8,12 +8,17 @@ import VoiceRecorder from './VoiceRecorder';
 interface AttachmentPickerProps {
   onFiles: (files: File[]) => void;
   onClose: () => void;
+  /**
+   * Solo fotos y videos (al crear la orden): la nota de voz ya se dicta en
+   * «Condiciones previas» y «¿Qué presenta el vehículo?».
+   */
+  soloFotosYVideos?: boolean;
 }
 
 const DOC_ACCEPT =
   'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,.pdf,.doc,.docx,.xls,.xlsx,.txt';
 
-export default function AttachmentPicker({ onFiles, onClose }: AttachmentPickerProps) {
+export default function AttachmentPicker({ onFiles, onClose, soloFotosYVideos = false }: AttachmentPickerProps) {
   const [mode, setMode] = useState<'menu' | 'record'>('menu');
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -35,7 +40,8 @@ export default function AttachmentPicker({ onFiles, onClose }: AttachmentPickerP
 
   if (!mounted) return null;
 
-  const title = mode === 'record' ? 'Grabar nota de voz' : 'Agregar a la etapa';
+  const title =
+    mode === 'record' ? 'Grabar nota de voz' : soloFotosYVideos ? 'Agregar fotos o videos' : 'Agregar a la etapa';
 
   return createPortal(
     <div
@@ -88,21 +94,25 @@ export default function AttachmentPicker({ onFiles, onClose }: AttachmentPickerP
               label="Hacer un video"
               onClick={() => videoRef.current?.click()}
             />
-            <Option
-              icon={<Mic size={18} />}
-              label="Grabar nota de voz"
-              onClick={() => setMode('record')}
-            />
-            <Option
-              icon={<Music size={18} />}
-              label="Adjuntar nota de voz"
-              onClick={() => audioRef.current?.click()}
-            />
-            <Option
-              icon={<FileText size={18} />}
-              label="Adjuntar documento"
-              onClick={() => docRef.current?.click()}
-            />
+            {!soloFotosYVideos && (
+              <>
+                <Option
+                  icon={<Mic size={18} />}
+                  label="Grabar nota de voz"
+                  onClick={() => setMode('record')}
+                />
+                <Option
+                  icon={<Music size={18} />}
+                  label="Adjuntar nota de voz"
+                  onClick={() => audioRef.current?.click()}
+                />
+                <Option
+                  icon={<FileText size={18} />}
+                  label="Adjuntar documento"
+                  onClick={() => docRef.current?.click()}
+                />
+              </>
+            )}
           </div>
         )}
 

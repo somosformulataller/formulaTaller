@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Order, Profile, OrderStatus } from '@/lib/types';
+import type { Order, Profile, OrderStatus, BudgetItem } from '@/lib/types';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -11,6 +11,7 @@ import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import BudgetCard from '@/components/orders/BudgetCard';
+import VehicleConditionsCard from '@/components/orders/VehicleConditionsCard';
 import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { esMio } from '@/lib/asignacion';
 import { formatDate, buildWhatsAppLink, buildTrackingMessage, openWhatsApp } from '@/lib/utils';
@@ -30,6 +31,8 @@ interface MecanicoOrderDetailClientProps {
   order: Order;
   mechanics: Profile[];
   currentUserId: string;
+  /** Presupuesto leído con la página: se ve sin esperar otra petición. */
+  budgetItems?: BudgetItem[];
 }
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -44,6 +47,7 @@ export default function MecanicoOrderDetailClient({
   order: initialOrder,
   mechanics,
   currentUserId,
+  budgetItems,
 }: MecanicoOrderDetailClientProps) {
   const router = useRouter();
   const [order, setOrder] = useState<Order>(initialOrder);
@@ -252,10 +256,23 @@ export default function MecanicoOrderDetailClient({
         </div>
       </div>
 
+      {/* Condiciones previas del vehículo, dictadas por voz (0024) */}
+      <VehicleConditionsCard key={order.updated_at} order={order} onSaved={setOrder} />
+
       {/* Archivos adjuntados al crear la orden */}
       <InitialAttachments orderId={order.id} stages={stages} canEdit={true} />
       {/* Presupuesto: repuestos y servicios cobrados */}
-      <BudgetCard orderId={order.id} />
+      <BudgetCard
+        orderId={order.id}
+        itemsIniciales={budgetItems}
+        cliente={{
+          firstName: order.client_first_name,
+          whatsapp: order.client_whatsapp,
+          publicToken: order.public_token,
+          carModel: order.car_model,
+          workshopName: order.workshop?.name,
+        }}
+      />
 
 
       {/* Stages */}

@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    // Volver a una pestaña visitada hace menos de 30 s es instantáneo: se
+    // reutiliza lo que ya se cargó. Crear, editar o borrar sigue refrescando
+    // al momento (router.refresh y el estado de cada pantalla).
+    staleTimes: { dynamic: 30, static: 180 },
+  },
   async headers() {
     return [
       {

@@ -59,7 +59,7 @@ export default function PresupuestosClient({ basePath }: { basePath: string }) {
   if (error) return <LoadError message={error} detail="Recarga la página para volver a intentarlo." />;
 
   return (
-    <div>
+    <div className="animate-fade-in" style={{ paddingTop: 16 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Presupuestos</h1>
         <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
@@ -156,6 +156,24 @@ export default function PresupuestosClient({ basePath }: { basePath: string }) {
                     {f.car_model} · {formatDateShort(f.created_at)}
                     {f.item_count > 0 && ` · ${f.item_count} ítem${f.item_count === 1 ? '' : 's'}`}
                   </span>
+                  {f.item_count > 0 && (
+                    <span style={{ display: 'block', fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                      Repuestos {formatUsd(f.parts_total)} · Mano de obra {formatUsd(f.labor_total)}
+                    </span>
+                  )}
+                  {(f.approved_count > 0 || f.rejected_count > 0) && (
+                    <span style={{ display: 'block', fontSize: 11.5, marginTop: 2 }}>
+                      {f.approved_count > 0 && (
+                        <span style={{ color: '#34d399', marginRight: 8 }}>✓ {f.approved_count} aprobado{f.approved_count === 1 ? '' : 's'}</span>
+                      )}
+                      {f.rejected_count > 0 && (
+                        <span style={{ color: '#f87171', marginRight: 8 }}>✗ {f.rejected_count} rechazado{f.rejected_count === 1 ? '' : 's'}</span>
+                      )}
+                      {f.pending_count > 0 && (
+                        <span style={{ color: 'var(--color-text-muted)' }}>{f.pending_count} por decidir</span>
+                      )}
+                    </span>
+                  )}
                 </span>
                 <span
                   style={{

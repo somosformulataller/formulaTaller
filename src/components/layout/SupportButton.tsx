@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { LifeBuoy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { openWhatsApp } from '@/lib/utils';
@@ -15,6 +16,7 @@ const SUPPORT_MESSAGE =
  */
 export default function SupportButton() {
   const [phone, setPhone] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     let active = true;
@@ -32,7 +34,8 @@ export default function SupportButton() {
     };
   }, []);
 
-  if (!phone) return null;
+  // En el asistente IA tapaba el campo para escribir la pregunta.
+  if (!phone || pathname.startsWith('/admin/asistente')) return null;
 
   return (
     <button

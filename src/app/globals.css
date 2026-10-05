@@ -57,6 +57,15 @@ html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   height: 100%;
+  /* Nada puede ensanchar la pantalla: un texto largo o un elemento más ancho
+     que el teléfono dejaba mover la app de lado. */
+  overflow-x: hidden;
+}
+
+/* clip, a diferencia de hidden, no convierte al body en contenedor de scroll
+   y la barra superior fija (sticky) sigue funcionando. */
+@supports (overflow: clip) {
+  html, body { overflow-x: clip; }
 }
 
 body {
@@ -68,6 +77,8 @@ body {
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Correos, enlaces o nombres largos parten línea en vez de salirse. */
+  overflow-wrap: break-word;
 }
 
 /* Prevent text selection on UI elements */
@@ -322,7 +333,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 6px; }
 .btn-lg { padding: 16px 28px; font-size: 16px; border-radius: var(--border-radius); }
-.btn-full { width: 100%; }
+/* A lo ancho (y sobre todo dos lado a lado en un formulario angosto): si el
+   texto no cabe en una línea, se parte en dos en vez de cortarse contra los
+   bordes del botón. */
+.btn-full { width: 100%; min-width: 0; white-space: normal; text-align: center; line-height: 1.25; }
 .btn-icon { padding: 10px; border-radius: var(--border-radius-sm); aspect-ratio: 1; }
 
 /* ============================================================

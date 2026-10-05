@@ -144,7 +144,7 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: 480, margin: '0 auto', paddingTop: 16 }}>
       <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>Perfil del Taller</h1>
       <p style={{ color: 'var(--color-text-secondary)', fontSize: 13, marginBottom: 20 }}>
         Estos datos identifican tu taller. El nombre y el logo aparecen en tu panel, en el login

@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import type { Order, OrderStage, StageStatus, OrderStatus, BudgetItem } from '@/lib/types';
 import { formatDate, ORDER_STATUS_LABELS } from '@/lib/utils';
-import { formatUsd, sumarTotal } from '@/lib/budget';
-import { CheckCircle2, Circle, Loader2, Car, Wrench, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Car, Wrench, Clock } from 'lucide-react';
 import AttachmentGallery from '@/components/orders/AttachmentGallery';
+import TrackingBudget from './TrackingBudget';
+import VehicleConditionsView from '@/components/orders/VehicleConditionsView';
 
 interface TrackingClientProps {
   order: Order;
@@ -207,60 +208,22 @@ export default function TrackingClient({ order, budget = [], mecanicos = [] }: T
         )}
       </div>
 
-      {/* Presupuesto — lo que el taller cobra por este servicio. Solo lectura:
-          el cliente lo consulta, lo edita el taller. */}
+      {/* Cómo llegó el carro: lo marcó el taller al recibirlo. Solo lectura. */}
+      <VehicleConditionsView
+        conditions={order.vehicle_conditions ?? []}
+        mileage={order.mileage ?? null}
+        fuelLevel={order.fuel_level ?? null}
+        notes={order.vehicle_notes ?? null}
+        variant="tracking"
+      />
+
+      {/* Presupuesto — el cliente aprueba o rechaza cada ítem (0023). */}
       {budget.length > 0 && (
-        <div className="card animate-fade-in" style={{ marginBottom: 20 }}>
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--color-text-muted)',
-              marginBottom: 10,
-            }}
-          >
-            Presupuesto
-          </p>
-
-          {budget.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                display: 'flex',
-                alignItems: 'baseline',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '7px 0',
-              }}
-            >
-              <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                {item.description}
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                {formatUsd(Number(item.amount))}
-              </span>
-            </div>
-          ))}
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              gap: 12,
-              marginTop: 8,
-              paddingTop: 12,
-              borderTop: '1px solid var(--color-border)',
-            }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 700 }}>Total</span>
-            <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-brand-400)' }}>
-              {formatUsd(sumarTotal(budget))}
-            </span>
-          </div>
-        </div>
+        <TrackingBudget
+          token={order.public_token}
+          initialItems={budget}
+          cerrado={order.status === 'lista'}
+        />
       )}
 
       {/* Progress summary */}

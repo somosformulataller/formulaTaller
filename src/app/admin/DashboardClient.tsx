@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import type { Order, Profile, Mechanic, OrderStatus } from '@/lib/types';
+import type { Profile, Mechanic } from '@/lib/types';
+import type { Conteos, FiltroEstado, PaginaOrdenes } from '@/lib/ordenes-lista';
+import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
+import ListaPie from '@/components/orders/ListaPie';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
 import SubscriptionModal from '@/components/orders/SubscriptionModal';
@@ -10,21 +13,25 @@ import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle } from 'lucide-react';
 
 interface AdminDashboardClientProps {
-  initialOrders: Order[];
+  /** Primera página de órdenes y conteos por estado, leídos por el servidor. */
+  inicial: PaginaOrdenes;
+  conteos: Conteos;
   mechanics: Profile[];
   orderLimit: number;
   isSubscribed: boolean;
 }
 
-type FilterStatus = 'all' | OrderStatus;
+type FilterStatus = FiltroEstado;
 
 export default function AdminDashboardClient({
-  initialOrders,
+  inicial,
+  conteos: conteosIniciales,
   mechanics: initialMechanics,
   orderLimit,
   isSubscribed,
 }: AdminDashboardClientProps) {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const lista = useOrdenesPaginadas(inicial, conteosIniciales);
+  const { visibles: filtered, conteos, filter, setFilter } = lista;
   const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
 
   function handleMechanicCreated(m: Mechanic) {
@@ -33,44 +40,27 @@ export default function AdminDashboardClient({
   const [showCreate, setShowCreate] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
-  const [filter, setFilter] = useState<FilterStatus>('all');
 
   function handleNew() {
-    if (!isSubscribed && orders.length >= orderLimit) {
+    if (!isSubscribed && conteos.total >= orderLimit) {
       setShowPaywall(true);
     } else {
       setShowCreate(true);
     }
   }
 
-  const filtered =
-    filter === 'all' ? orders : orders.filter((o) => o.status === filter);
+  const stats = conteos;
 
-  const stats = {
-    total: orders.length,
-    sin_mecanico: orders.filter((o) => o.status === 'sin_mecanico').length,
-    con_mecanico: orders.filter((o) => o.status === 'con_mecanico').length,
-    lista: orders.filter((o) => o.status === 'lista').length,
-  };
-
-  function handleCreated(order: Order) {
-    setOrders((prev) => [order, ...prev]);
+  function handleCreated(order: Parameters<typeof lista.agregar>[0]) {
+    lista.agregar(order);
     setShowCreate(false);
   }
 
-  function handleDelete(id: string) {
-    setOrders((prev) => prev.filter((o) => o.id !== id));
-  }
+  const handleDelete = lista.quitar;
+  const handleStatusChange = lista.cambiarEstado;
+  const handleUpdate = lista.actualizar;
 
-  function handleStatusChange(id: string, status: OrderStatus) {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status } : o))
-    );
-  }
 
-  function handleUpdate(updated: Order) {
-    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-  }
 
   const FILTERS: { value: FilterStatus; label: string }[] = [
     { value: 'all', label: 'Todas' },
@@ -175,7 +165,7 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Order list */}
-      {filtered.length === 0 ? (
+      {filtered.length === 0 && lista.cargando ? null : filtered.length === 0 ? (
         <div className="empty-state">
           <ClipboardList size={48} />
           <p>No hay órdenes {filter !== 'all' ? 'con este filtro' : 'aún'}</p>
@@ -211,6 +201,14 @@ export default function AdminDashboardClient({
           ))}
         </div>
       )}
+
+      <ListaPie
+        hayMas={lista.hayMas}
+        cargando={lista.cargando}
+        error={lista.error}
+        onVerMas={lista.verMas}
+        onReintentar={lista.reintentar}
+      />
 
       {/* Create Modal */}
       <Modal
