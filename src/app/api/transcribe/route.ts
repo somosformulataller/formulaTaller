@@ -45,6 +45,11 @@ const PROMPTS = {
     COMUN,
 } as const;
 type Modo = keyof typeof PROMPTS;
+// En el recordatorio, además del texto, la IA sugiere el título.
+const PROMPT_TITULO =
+  'Responde en JSON con dos campos: "texto" (lo anterior) y "titulo": un título corto para el recordatorio, ' +
+  'de 3 a 8 palabras, sin punto final, que diga qué hay que hacer (ej.: «Cambio de pastillas de freno», ' +
+  '«Mantenimiento de los 10.000 km»). Si no se dijo nada relacionado, ambos vacíos.';
 // Las notas de las condiciones van directo en la petición, sin guardarse en
 // el bucket. Vercel corta los cuerpos de más de 4,5 MB.
 const MAX_DIRECTO = 4 * 1024 * 1024;
@@ -86,7 +91,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'La nota de voz es demasiado larga. Graba una más corta.' }, { status: 400 });
     }
     const m = form?.get('modo');
-    if (m === 'condiciones' || m === 'falla') modo = m;
+    if (m === 'condiciones' || m === 'falla' || m === 'recordatorio') modo = m;
     blob = audio;
     nombre = audio instanceof File ? audio.name : 'nota.webm';
   } else {
@@ -113,6 +118,7 @@ export async function POST(req: Request) {
   const mimeType = ext === 'ogg' ? 'audio/ogg' : ext === 'm4a' ? 'audio/mp4' : 'audio/webm';
   const data = Buffer.from(await blob.arrayBuffer()).toString('base64');
 
+  const inicio = Date.now();
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
@@ -120,9 +126,28 @@ export async function POST(req: Request) {
         method: 'POST',
         headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: PROMPTS[modo] }, { inlineData: { mimeType, data } }] }],
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { text: modo === 'recordatorio' ? `${PROMPTS[modo]} ${PROMPT_TITULO}` : PROMPTS[modo] },
+                { inlineData: { mimeType, data } },
+              ],
+            },
+          ],
           // Filtrar lo que importa es poco razonamiento: el nivel bajo basta y es más rápido y barato.
-          generationConfig: { thinkingConfig: { thinkingLevel: 'low' }, temperature: 0 },
+          generationConfig: {
+            thinkingConfig: { thinkingLevel: 'low' },
+            temperature: 0,
+            ...(modo === 'recordatorio' && {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: 'OBJECT',
+                properties: { texto: { type: 'STRING' }, titulo: { type: 'STRING' } },
+                required: ['texto', 'titulo'],
+              },
+            }),
+          },
         }),
       }
     );
@@ -134,6 +159,8 @@ export async function POST(req: Request) {
         { status: 502 }
       );
     }
+    // Para saber qué parte de la espera es de Gemini y cuál de la subida.
+    console.log(`[transcribe] ${modo} ${Math.round(blob.size / 1024)} KB, Gemini ${Date.now() - inicio} ms`);
     const json = (await res.json()) as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
     };
@@ -142,6 +169,17 @@ export async function POST(req: Request) {
       .map((p) => p.text)
       .join('')
       .trim();
+    if (modo === 'recordatorio') {
+      try {
+        const r = JSON.parse(text) as { texto?: unknown; titulo?: unknown };
+        return NextResponse.json({
+          text: typeof r.texto === 'string' ? r.texto.trim() : '',
+          titulo: typeof r.titulo === 'string' ? r.titulo.trim().replace(/\.$/, '').slice(0, 120) : '',
+        });
+      } catch {
+        // Si no vino en JSON, al menos queda el texto.
+      }
+    }
     return NextResponse.json({ text });
   } catch {
     return NextResponse.json(

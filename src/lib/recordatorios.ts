@@ -1,4 +1,5 @@
 import type { NotifyOffset, ReminderTagColor } from '@/lib/types';
+import { saludoTaller } from '@/lib/utils';
 
 // ============================================================================
 // Recordatorios (0023) — helpers compartidos (servidor y navegador)
@@ -65,9 +66,8 @@ export function mensajeRecordatorio(opts: {
   texto?: string | null;
   fecha: string;
 }): string {
-  const nombre = opts.nombreCliente.trim();
   const partes = [
-    `Hola${nombre ? ` ${nombre}` : ''}, espero que estés muy bien. Te escribimos de ${opts.taller} para recordarte: ${opts.titulo.trim()} (para el ${formatDia(opts.fecha)}).`,
+    `${saludoTaller(opts.nombreCliente, opts.taller)} Espero que estés muy bien. Te escribo para recordarte: ${opts.titulo.trim()} (para el ${formatDia(opts.fecha)}).`,
   ];
   const texto = (opts.texto ?? '').trim();
   if (texto) partes.push(texto);

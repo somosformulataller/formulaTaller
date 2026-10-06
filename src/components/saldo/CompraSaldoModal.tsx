@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { formatUsd } from '@/lib/budget';
 import { compressImage } from '@/lib/image';
+import TasaDelDia from '@/components/saldo/TasaDelDia';
 
 const MONTOS = [5, 10, 20];
 const MIN_USD = 1;
@@ -49,18 +50,21 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [vista, setVista] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Al tocar «Enviar» sin referencia o sin captura, se marca en rojo lo que falta.
+  const [faltaRef, setFaltaRef] = useState(false);
+  const [faltaCaptura, setFaltaCaptura] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let vivo = true;
-    Promise.all([
-      fetch('/api/saldo', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)),
-      fetch('/api/tasa-bcv', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ]).then(([s, t]) => {
+    // La tasa la consulta <TasaDelDia />, que la muestra siempre arriba.
+    fetch('/api/saldo', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((s) => {
       if (!vivo) return;
       setPagoMovil(s?.pagoMovil ?? null);
-      setTasa(t?.rate ?? null);
       const p = ((s?.compras ?? []) as Compra[]).find((c) => c.status === 'pendiente') ?? null;
       setPendiente(p);
       setFase(p ? 'pendiente' : 'form');
@@ -94,6 +98,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
     if (!f) return;
     if (!f.type.startsWith('image/')) return setError('El comprobante debe ser una imagen (captura de pantalla).');
     setError(null);
+    setFaltaCaptura(false);
     const comprimida = await compressImage(f);
     setArchivo(comprimida);
     setVista(URL.createObjectURL(comprimida));
@@ -102,8 +107,12 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
   async function enviar() {
     setError(null);
     if (!montoValido) return setError(`El monto debe estar entre $${MIN_USD} y $${MAX_USD}.`);
-    if (referencia.replace(/\D/g, '').length < 4) return setError('Escribe el número de referencia del pago.');
-    if (!archivo) return setError('Sube la captura del comprobante.');
+    const sinRef = referencia.replace(/\D/g, '').length < 4;
+    setFaltaRef(sinRef);
+    setFaltaCaptura(!archivo);
+    if (sinRef && !archivo) return setError('Falta el número de referencia y la captura del pago.');
+    if (sinRef) return setError('Falta el número de referencia del pago.');
+    if (!archivo) return setError('Falta la captura del pago. Súbela para poder enviarlo.');
 
     setFase('enviando');
     const form = new FormData();
@@ -168,6 +177,8 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
 
       {(fase === 'form' || fase === 'enviando') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TasaDelDia onTasa={(t) => setTasa(t?.rate ?? null)} />
+
           {/* 1. Monto */}
           <div className="form-field">
             <label className="form-label">1. ¿Cuánto saldo quieres comprar?</label>
@@ -206,6 +217,9 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setMonto(e.target.value.replace(/[^\d.,]/g, '').slice(0, 7))}
                 style={{ width: 110 }}
               />
+              {bs !== null && (
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-secondary)' }}>= {formatBs(bs)}</span>
+              )}
             </div>
           </div>
 
@@ -273,8 +287,15 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
               placeholder="Número de referencia"
               maxLength={30}
               value={referencia}
-              onChange={(e) => setReferencia(e.target.value.replace(/[^\d]/g, ''))}
+              onChange={(e) => {
+                setReferencia(e.target.value.replace(/[^\d]/g, ''));
+                setFaltaRef(false);
+              }}
+              style={faltaRef ? { borderColor: 'var(--color-danger)' } : undefined}
             />
+            {faltaRef && (
+              <p style={{ color: 'var(--color-danger)', fontSize: 12.5, marginTop: 4 }}>Escribe el número de referencia.</p>
+            )}
             <input ref={input} type="file" accept="image/*" hidden onChange={elegir} />
             {vista ? (
               <div style={{ position: 'relative', width: 96, marginTop: 10 }}>
@@ -322,11 +343,11 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
                   marginTop: 10,
                   padding: '10px 14px',
                   background: 'var(--color-surface-2)',
-                  border: '1px dashed var(--color-border)',
+                  border: `1px dashed ${faltaCaptura ? 'var(--color-danger)' : 'var(--color-border)'}`,
                   borderRadius: 10,
                   fontSize: 13,
                   fontWeight: 600,
-                  color: 'var(--color-text-secondary)',
+                  color: faltaCaptura ? 'var(--color-danger)' : 'var(--color-text-secondary)',
                   cursor: 'pointer',
                   alignSelf: 'flex-start',
                 }}
@@ -334,6 +355,11 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
                 <ImagePlus size={16} />
                 Subir captura del pago
               </button>
+            )}
+            {faltaCaptura && !vista && (
+              <p style={{ color: 'var(--color-danger)', fontSize: 12.5, marginTop: 4 }}>
+                Falta la captura del pago. Es obligatoria para revisarlo.
+              </p>
             )}
           </div>
 

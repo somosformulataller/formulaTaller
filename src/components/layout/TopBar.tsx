@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, Receipt, Sparkles, Wrench } from 'lucide-react';
+import { LogOut, Sparkles, Wrench } from 'lucide-react';
 import NotificationBell from '@/components/layout/NotificationBell';
-import SaldoChip from '@/components/saldo/SaldoChip';
 import { createClient } from '@/lib/supabase/client';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/types';
@@ -17,11 +16,6 @@ export default function TopBar({ profile, title }: TopBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
-
-  // Cada rol tiene su propia sección, protegida por su layout.
-  const presupuestosHref =
-    profile.role === 'admin' ? '/admin/presupuestos' : '/mecanico/presupuestos';
-  const activo = pathname.startsWith(presupuestosHref);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -73,7 +67,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
         </div>
       </div>
 
-      {/* Presupuestos + Logout.
+      {/* Asistente, campana y Salir.
           Antes había aquí el tutorial y un círculo con las iniciales del
           taller. Se quitaron los dos a propósito: en un teléfono no cabían
           junto a "Presupuestos", que es un acceso de uso diario, y las
@@ -82,7 +76,6 @@ export default function TopBar({ profile, title }: TopBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {profile.role === 'admin' && (
           <>
-            <SaldoChip />
             <Link
               href="/admin/asistente"
               aria-label="Asistente"
@@ -104,37 +97,8 @@ export default function TopBar({ profile, title }: TopBarProps) {
             <NotificationBell workshopName={title || 'el taller'} />
           </>
         )}
-        <Link
-          href={presupuestosHref}
-          aria-label="Ver presupuestos"
-          title="Presupuestos"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            padding: '7px 12px',
-            color: activo ? 'var(--color-brand-400)' : 'var(--color-text-secondary)',
-            textDecoration: 'none',
-            fontSize: 12.5,
-            fontWeight: 600,
-            transition: 'all 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.color = 'var(--color-brand-400)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLAnchorElement).style.color = activo
-              ? 'var(--color-brand-400)'
-              : 'var(--color-text-secondary)';
-          }}
-        >
-          <Receipt size={15} />
-          <span className="tb-label">Presupuestos</span>
-        </Link>
+        {/* «Presupuestos» salió del encabezado; el botón está guardado en
+            components/layout/BotonPresupuestos.tsx hasta decidir dónde va. */}
         <button
           onClick={handleLogout}
           style={{

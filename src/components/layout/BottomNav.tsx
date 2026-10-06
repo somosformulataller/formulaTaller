@@ -84,6 +84,9 @@ export default function BottomNav({ role }: BottomNavProps) {
           <Link
             key={item.href}
             href={item.href}
+            // Precarga la pantalla COMPLETA (con sus datos), no solo el esqueleto:
+            // al tocar la pestaña ya está lista y se ve al instante. Solo en producción.
+            prefetch={true}
             style={{
               display: 'flex',
               flexDirection: 'column',

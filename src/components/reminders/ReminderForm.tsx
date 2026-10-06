@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon, Plus, FileText, X } from 'lucide-react';
+import { Image as ImageIcon, Plus, FileText, Sparkles, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import CampoNotaDeVoz from '@/components/orders/CampoNotaDeVoz';
 import type { NotifyOffset, Reminder, ReminderTag, ReminderTagColor } from '@/lib/types';
@@ -42,6 +42,11 @@ const ATAJOS = [
  */
 export default function ReminderForm({ clientId, orderId, reminder, onSaved, onCancel }: Props) {
   const [title, setTitle] = useState(reminder?.title ?? '');
+  // Título que sugiere la IA cuando el usuario ya había escrito uno.
+  const [sugerido, setSugerido] = useState<string | null>(null);
+  // La transcripción tarda: se compara con el título de ese momento, no con el de cuando se grabó.
+  const titleRef = useRef(title);
+  titleRef.current = title;
   const [body, setBody] = useState(reminder?.body ?? '');
   const [dueDate, setDueDate] = useState(reminder?.due_date ?? '');
   const [offset, setOffset] = useState<NotifyOffset>(reminder?.notify_offset ?? '3_dias');
@@ -146,6 +151,28 @@ export default function ReminderForm({ clientId, orderId, reminder, onSaved, onC
 
   return (
     <form onSubmit={guardar} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Igual que en la orden: se dicta y queda solo lo del recordatorio.
+          La IA sugiere el título: si está vacío lo llena; si no, lo propone debajo. */}
+      <CampoNotaDeVoz
+        titulo="Texto o nota de voz"
+        modo="recordatorio"
+        placeholder="Escribe o toca el micrófono y di los detalles del recordatorio…"
+        vacio="No se escuchó nada sobre el recordatorio. Vuelve a grabar o escríbelo."
+        Icono={FileText}
+        value={body}
+        onChange={setBody}
+        onTitulo={(t) => {
+          const actual = titleRef.current.trim();
+          if (!actual) {
+            setTitle(t);
+            setSugerido(null);
+          } else {
+            setSugerido(t.trim() === actual ? null : t);
+          }
+        }}
+        disabled={guardando}
+      />
+
       <div className="form-field">
         <label className="form-label">Título</label>
         <input
@@ -156,19 +183,36 @@ export default function ReminderForm({ clientId, orderId, reminder, onSaved, onC
           onChange={(e) => setTitle(e.target.value)}
           required
         />
+        {sugerido && (
+          <button
+            type="button"
+            onClick={() => {
+              setTitle(sugerido);
+              setSugerido(null);
+            }}
+            title="Usar este título"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              alignSelf: 'flex-start',
+              marginTop: 8,
+              padding: '6px 11px',
+              borderRadius: 999,
+              fontSize: 12.5,
+              fontWeight: 600,
+              border: '1px dashed var(--color-brand-400)',
+              background: 'rgba(245,158,11,0.1)',
+              color: 'var(--color-brand-400)',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <Sparkles size={13} style={{ flexShrink: 0 }} />
+            Sugerido: {sugerido}
+          </button>
+        )}
       </div>
-
-      {/* Igual que en la orden: se dicta y queda solo lo del recordatorio. */}
-      <CampoNotaDeVoz
-        titulo="Texto o nota de voz"
-        modo="recordatorio"
-        placeholder="Escribe o toca el micrófono y di los detalles del recordatorio…"
-        vacio="No se escuchó nada sobre el recordatorio. Vuelve a grabar o escríbelo."
-        Icono={FileText}
-        value={body}
-        onChange={setBody}
-        disabled={guardando}
-      />
 
       <div className="form-field">
         <label className="form-label">Imagen (opcional)</label>

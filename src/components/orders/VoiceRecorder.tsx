@@ -69,11 +69,20 @@ export default function VoiceRecorder({ onRecorded, onCancel, entregarAlDetener 
 
   async function start() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Voz en mono y a 24 kbps: se entiende igual y el archivo pesa ~5 veces
+      // menos que el predeterminado (128 kbps), así sube más rápido.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
       streamRef.current = stream;
       chunksRef.current = [];
 
-      const recorder = new MediaRecorder(stream);
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, { audioBitsPerSecond: 24000 });
+      } catch {
+        recorder = new MediaRecorder(stream);
+      }
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };

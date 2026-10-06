@@ -5,6 +5,7 @@ import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import SupportButton from '@/components/layout/SupportButton';
 import SaldoProvider from '@/components/saldo/SaldoProvider';
+import SaldoChip from '@/components/saldo/SaldoChip';
 import type { Profile } from '@/lib/types';
 
 export default async function AdminLayout({
@@ -43,7 +44,13 @@ export default async function AdminLayout({
       }}
     >
       <TopBar profile={profile as Profile} title={workshopName} />
-      <main className="page-container">{children}</main>
+      <main className="page-container">
+        {/* El saldo, centrado debajo del encabezado: ahí se ve completo en el teléfono. */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12 }}>
+          <SaldoChip />
+        </div>
+        {children}
+      </main>
       <SupportButton />
       <BottomNav role="admin" />
     </SaldoProvider>

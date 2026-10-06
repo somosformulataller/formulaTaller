@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, ExternalLink, Loader2, Save, Settings2, X } from 'lucide-react';
 import { formatPrecioUsd, formatUsd } from '@/lib/budget';
 import { formatDate } from '@/lib/utils';
+import TasaDelDia from '@/components/saldo/TasaDelDia';
 
 export interface AjustesCobro {
   price_order_usd: number;
@@ -62,6 +63,7 @@ export default function PagosClient({ ajustesIniciales }: { ajustesIniciales: Aj
   const [rechazando, setRechazando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [verConfig, setVerConfig] = useState(false);
+  const [tasaHoy, setTasaHoy] = useState<number | null>(null);
 
   const cargar = useCallback(async (f: Filtro) => {
     setError(null);
@@ -120,6 +122,10 @@ export default function PagosClient({ ajustesIniciales }: { ajustesIniciales: Aj
         Las compras de saldo de los talleres. Revisa el comprobante y la referencia en el banco antes de aprobar: el
         saldo se suma al taller en cuanto apruebas.
       </p>
+
+      <div style={{ marginBottom: 16 }}>
+        <TasaDelDia url="/api/superadmin/tasa-bcv" onTasa={(t) => setTasaHoy(t?.rate ?? null)} />
+      </div>
 
       {verConfig && <ConfigCobro inicial={ajustesIniciales} />}
 
@@ -201,6 +207,11 @@ export default function PagosClient({ ajustesIniciales }: { ajustesIniciales: Aj
                   Ref. <b>{p.reference}</b> · {formatDate(p.created_at)}
                   {p.exchange_rate ? ` · tasa ${Number(p.exchange_rate).toLocaleString('es-VE')}` : ''}
                 </p>
+                {p.status === 'pendiente' && tasaHoy && (
+                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                    A la tasa de hoy: {formatBs(Number(p.amount_usd) * tasaHoy)}
+                  </p>
+                )}
                 <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
                   Saldo actual del taller: {formatPrecioUsd(Number(p.workshop?.balance_usd ?? 0))}
                   {p.workshop?.whatsapp ? ` · ${p.workshop.whatsapp}` : ''}

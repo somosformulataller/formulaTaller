@@ -105,7 +105,7 @@ export default function SaldoClient() {
         </div>
         <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
           Cada orden cuesta <b>{formatPrecioUsd(saldo.precios.orden)}</b> y cada pregunta al asistente IA{' '}
-          <b>{formatPrecioUsd(saldo.precios.preguntaIa)}</b>. Las notas de voz no tienen costo.
+          <b>{formatPrecioUsd(saldo.precios.preguntaIa)}</b>.
         </p>
         {pendiente && (
           <p

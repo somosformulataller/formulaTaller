@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { soloAdmin } from '@/lib/admin-taller';
 import { MODELO, costoUsd, type UsoGemini } from '@/lib/asistente';
 import { formatDia, hoyVE, mensajeRecordatorio } from '@/lib/recordatorios';
+import { saludoTaller } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -56,8 +57,9 @@ export async function POST(_req: Request, { params }: Params) {
   }
 
   const nombre = r.client?.first_name?.trim() ?? '';
-  const taller = r.workshop?.name ?? 'el taller';
+  const taller = r.workshop?.name ?? '';
   const texto = (r.body || r.transcript || '').trim();
+  const saludo = saludoTaller(nombre, taller);
   const respaldo = mensajeRecordatorio({ nombreCliente: nombre, taller, titulo: r.title, texto, fecha: r.due_date });
 
   const key = process.env.GEMINI_API_KEY;
@@ -67,10 +69,10 @@ export async function POST(_req: Request, { params }: Params) {
   const dias = Math.max(0, Math.round((Date.parse(hoy) - Date.parse(visita.slice(0, 10))) / 86_400_000));
   const datos = [
     `Nombre del cliente: ${nombre || '(no se sabe)'}`,
-    `Taller: ${taller}`,
+    taller ? `Taller: ${taller}` : null,
     carro ? `Vehículo: ${carro}` : null,
     `Recordatorio: ${r.title}`,
-    texto ? `Detalles que anotó el taller: ${texto}` : null,
+    texto ? `Lo que hay que hacerle al carro (transcrito de la nota de voz o escrito por el taller):\n${texto}` : null,
     `Fecha del recordatorio: ${formatDia(r.due_date)} (hoy es ${formatDia(hoy)})`,
     `Última visita del cliente al taller: hace ${dias} día${dias === 1 ? '' : 's'}`,
   ]
@@ -82,14 +84,14 @@ export async function POST(_req: Request, { params }: Params) {
 Tono: cercano, cálido y humano, como si lo escribiera la persona del taller que lo atendió, no una empresa ni un robot. Tutea al cliente. Español de Venezuela, natural y sencillo. Sin mayúsculas exageradas, sin listas, sin asteriscos y sin emojis de más (uno como máximo, opcional).
 
 Estructura:
-1. Saluda por su nombre y deséale que esté bien.
-2. Recuérdale lo que tiene pendiente, explicando con naturalidad el porqué a partir de los detalles (por ejemplo, lo que se vio en su última visita) y por qué conviene no dejarlo pasar.
+1. Empieza EXACTAMENTE con: "${saludo}" y luego deséale que esté bien.
+2. Recuérdale lo que tiene pendiente. El mensaje se basa en "Lo que hay que hacerle al carro": incluye TODOS los trabajos, repuestos, revisiones y detalles que aparecen ahí (piezas, medidas, kilometraje, plazos, motivos), sin resumir ni omitir ninguno. Si son varios, menciónalos todos en frases naturales. Explica con naturalidad el porqué (por ejemplo, lo que se vio en su última visita) y por qué conviene no dejarlo pasar.
 3. Cierra en un párrafo aparte poniéndote a la orden y pidiéndole que confirme qué día puede traer el carro.
 
-Usa SOLO los datos de abajo: no inventes fallas, precios, fechas ni nombres. Si un dato no está, no lo menciones. Máximo 90 palabras. Responde solo con el mensaje, sin comillas ni explicaciones.
+Usa SOLO los datos de abajo: no inventes fallas, precios, fechas ni nombres. Si un dato no está, no lo menciones. Sé breve en el saludo y el cierre, pero nunca recortes los detalles del trabajo: el mensaje puede ser tan largo como haga falta para incluirlos todos. Responde solo con el mensaje, sin comillas ni explicaciones.
 
 Ejemplo del tono buscado:
-Hola María, espero que estés muy bien. Recuerda que debes cambiar las pastillas de freno del carro: hace 15 días, cuando viniste, nos dimos cuenta de que les quedaba aproximadamente un mes, y ya está cerca la fecha. Es mejor cambiarlas a tiempo para evitar daños mayores.
+Hola María, te escribo desde el taller Los Andes. Espero que estés muy bien. Recuerda que debes cambiar las pastillas de freno del carro: hace 15 días, cuando viniste, nos dimos cuenta de que les quedaba aproximadamente un mes, y ya está cerca la fecha. Es mejor cambiarlas a tiempo para evitar daños mayores.
 
 Estamos por acá a tu orden para que nos confirmes el día que traerás el carro.
 
@@ -102,7 +104,7 @@ ${datos}`;
       headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { thinkingConfig: { thinkingLevel: 'low' }, temperature: 0.7, maxOutputTokens: 1000 },
+        generationConfig: { thinkingConfig: { thinkingLevel: 'low' }, temperature: 0.7, maxOutputTokens: 2000 },
       }),
       signal: AbortSignal.timeout(20_000),
     });
@@ -120,6 +122,7 @@ ${datos}`;
       .join('')
       .trim()
       .replace(/^["«]|["»]$/g, '');
+    const conSaludo = mensaje && !mensaje.toLowerCase().includes('te escribo desde') ? `${saludo} ${mensaje.replace(/^hola[^,.!\n]*[,.!]\s*/i, '')}` : mensaje;
 
     // Queda anotado como el resto del gasto de IA del taller.
     const u = json.usageMetadata ?? {};
@@ -131,7 +134,7 @@ ${datos}`;
       cost_usd: costoUsd(u),
     });
 
-    return NextResponse.json({ mensaje: mensaje || respaldo, ia: Boolean(mensaje) });
+    return NextResponse.json({ mensaje: conSaludo || respaldo, ia: Boolean(mensaje) });
   } catch {
     return NextResponse.json({ mensaje: respaldo, ia: false });
   }

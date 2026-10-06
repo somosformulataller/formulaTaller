@@ -37,12 +37,13 @@ export async function subirArchivoRecordatorio(input: File, kind: 'audio' | 'ima
  * recordatorio, el estado del vehículo al recibirlo ('condiciones') o lo que
  * presenta, la falla por la que lo traen ('falla').
  * Recibe la ruta de una nota ya subida o el audio mismo (que no se guarda).
+ * En el recordatorio trae además un título sugerido.
  * Lanza con un mensaje legible.
  */
 export async function transcribir(
   nota: string | File,
   modo: 'recordatorio' | 'condiciones' | 'falla' = 'recordatorio'
-): Promise<string> {
+): Promise<{ texto: string; titulo: string }> {
   let body: BodyInit;
   const headers: HeadersInit = {};
   if (typeof nota === 'string') {
@@ -57,5 +58,5 @@ export async function transcribir(
   const res = await fetch('/api/transcribe', { method: 'POST', headers, body });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'No se pudo transcribir la nota.');
-  return String(data.text ?? '');
+  return { texto: String(data.text ?? '').trim(), titulo: String(data.titulo ?? '').trim() };
 }

@@ -1,4 +1,5 @@
 import type { BudgetItem } from '@/lib/types';
+import { saludoTaller } from '@/lib/utils';
 
 // ============================================================================
 // Presupuesto — helpers compartidos (servidor y navegador)
@@ -111,7 +112,7 @@ export function buildBudgetMessage(
   const total = items.reduce((acc, i) => acc + Math.round((i.amount + i.labor) * 100), 0) / 100;
   // Tono cercano, como si lo escribiera el mecánico o el dueño del taller.
   const carro = carModel?.trim() ? `tu ${carModel.trim()}` : 'tu carro';
-  const encabezado = `Hola ${clientFirstName}, ¿cómo estás? Ya revisamos ${carro}${workshopName ? ` aquí en ${workshopName}` : ''} y te paso el presupuesto de lo que necesita:`;
+  const encabezado = `${saludoTaller(clientFirstName, workshopName)} ¿Cómo estás? Ya revisamos ${carro} y te paso el presupuesto de lo que necesita:`;
   return [
     encabezado,
     lineas.join('\n'),

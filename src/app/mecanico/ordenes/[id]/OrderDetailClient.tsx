@@ -289,6 +289,7 @@ export default function MecanicoOrderDetailClient({
           clientWhatsapp={order.client_whatsapp}
           publicToken={order.public_token}
           carModel={order.car_model}
+          workshopName={order.workshop?.name}
         />
       </div>
 

@@ -49,6 +49,18 @@ export function openWhatsApp(phone: string, message: string): void {
 // Los mensajes al cliente van en tono cercano, como si los escribiera el
 // mecánico o el dueño del taller, no una empresa.
 
+/**
+ * El saludo con el que empieza TODO mensaje al cliente, para que sepa que le
+ * escribe su taller: «Hola Ana, te escribo desde el taller Los Andes.».
+ * Si el nombre ya empieza por «Taller», no se repite la palabra.
+ */
+export function saludoTaller(nombreCliente: string, taller?: string | null): string {
+  const nombre = (nombreCliente ?? '').trim();
+  const t = (taller ?? '').trim();
+  const desde = !t ? 'el taller' : /^taller\b/i.test(t) ? `el ${t}` : `el taller ${t}`;
+  return `Hola${nombre ? ` ${nombre}` : ''}, te escribo desde ${desde}.`;
+}
+
 /** «tu Corolla» o, si no se sabe el modelo, «tu carro». */
 function tuCarro(carModel?: string | null): string {
   const m = (carModel ?? '').trim();
@@ -59,12 +71,12 @@ export function buildTrackingMessage(
   clientName: string,
   token: string,
   siteUrl: string,
-  workshopName = 'nuestro taller',
+  workshopName?: string | null,
   carModel?: string | null
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
   return (
-    `Hola ${clientName}, ¿cómo estás? Te escribimos de ${workshopName}. Ya tenemos ${tuCarro(carModel)} con nosotros y vamos a estar pendientes de todo.\n\n` +
+    `${saludoTaller(clientName, workshopName)} ¿Cómo estás? Ya tenemos ${tuCarro(carModel)} con nosotros y vamos a estar pendientes de todo.\n\n` +
     `Por aquí puedes ver cómo va el trabajo, paso a paso:\n${url}\n\n` +
     `Cualquier duda nos escribes por acá, estamos a tu orden.`
   );
@@ -79,34 +91,35 @@ export function buildStageReminderMessage(
   token: string,
   siteUrl: string,
   isFinal = false,
-  carModel?: string | null
+  carModel?: string | null,
+  workshopName?: string | null
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
-  const name = clientFirstName;
+  const saludo = saludoTaller(clientFirstName, workshopName);
   const carro = tuCarro(carModel);
 
   if (isFinal && status === 'done') {
     return (
-      `Hola ${name}, ¡buenas noticias! ${carro.charAt(0).toUpperCase()}${carro.slice(1)} ya está listo. Terminamos todo el trabajo y puedes pasar a buscarlo cuando quieras.\n\n` +
+      `${saludo} ¡Buenas noticias! ${carro.charAt(0).toUpperCase()}${carro.slice(1)} ya está listo. Terminamos todo el trabajo y puedes pasar a buscarlo cuando quieras.\n\n` +
       `Aquí puedes ver el detalle de lo que le hicimos:\n${url}\n\n` +
       `Avísanos a qué hora vienes y te esperamos.`
     );
   }
   if (status === 'done') {
     return (
-      `Hola ${name}, ¿cómo estás? Te cuento que ya terminamos «${stageName}» en ${carro}. Vamos avanzando bien.\n\n` +
+      `${saludo} ¿Cómo estás? Te cuento que ya terminamos «${stageName}» en ${carro}. Vamos avanzando bien.\n\n` +
       `Puedes ver cómo va todo aquí:\n${url}\n\n` +
       `Cualquier cosa, estamos a tu orden.`
     );
   }
   if (status === 'in_progress') {
     return (
-      `Hola ${name}, ¿cómo estás? Te cuento que ya estamos trabajando en «${stageName}» de ${carro}. Apenas tengamos novedades te avisamos.\n\n` +
+      `${saludo} ¿Cómo estás? Te cuento que ya estamos trabajando en «${stageName}» de ${carro}. Apenas tengamos novedades te avisamos.\n\n` +
       `Aquí puedes seguir el avance:\n${url}`
     );
   }
   return (
-    `Hola ${name}, ¿cómo estás? Te aviso que el siguiente paso con ${carro} es «${stageName}» y estamos por empezarlo.\n\n` +
+    `${saludo} ¿Cómo estás? Te aviso que el siguiente paso con ${carro} es «${stageName}» y estamos por empezarlo.\n\n` +
     `Aquí puedes seguir el avance:\n${url}\n\n` +
     `Cualquier duda, nos escribes.`
   );

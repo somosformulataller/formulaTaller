@@ -21,6 +21,7 @@ export default function CampoNotaDeVoz({
   placeholder = 'Toca el micrófono y di cómo llega el carro: golpes, rayones, kilometraje, combustible…',
   vacio = 'No se escuchó nada sobre el estado del vehículo. Vuelve a grabar o escríbelo.',
   Icono = ClipboardCheck,
+  onTitulo,
 }: {
   value: string;
   titulo?: string;
@@ -31,6 +32,8 @@ export default function CampoNotaDeVoz({
   vacio?: string;
   Icono?: LucideIcon;
   onChange: (v: string) => void;
+  /** Recordatorio: el título que sugiere la IA según lo que se dijo en la nota. */
+  onTitulo?: (t: string) => void;
   disabled?: boolean;
 }) {
   const [grabando, setGrabando] = useState(false);
@@ -42,11 +45,12 @@ export default function CampoNotaDeVoz({
     setAviso(null);
     setTranscribiendo(true);
     try {
-      const texto = (await transcribir(file, modo)).trim();
+      const { texto, titulo } = await transcribir(file, modo);
       if (!texto) {
         setAviso(vacio);
         return;
       }
+      if (titulo) onTitulo?.(titulo);
       // Una segunda nota se suma a lo que ya había.
       onChange(value.trim() ? `${value.trim()}\n${texto}` : texto);
     } catch (e) {
