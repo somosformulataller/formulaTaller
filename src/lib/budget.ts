@@ -109,11 +109,14 @@ export function buildBudgetMessage(
 ): string {
   const lineas = items.map((i) => `• ${i.description || 'Servicio'}: ${formatUsd(i.amount + i.labor)}`);
   const total = items.reduce((acc, i) => acc + Math.round((i.amount + i.labor) * 100), 0) / 100;
-  const encabezado = `Hola ${clientFirstName}! Este es el presupuesto de tu ${carModel}${workshopName ? ` en ${workshopName}` : ''}:`;
+  // Tono cercano, como si lo escribiera el mecánico o el dueño del taller.
+  const carro = carModel?.trim() ? `tu ${carModel.trim()}` : 'tu carro';
+  const encabezado = `Hola ${clientFirstName}, ¿cómo estás? Ya revisamos ${carro}${workshopName ? ` aquí en ${workshopName}` : ''} y te paso el presupuesto de lo que necesita:`;
   return [
     encabezado,
     lineas.join('\n'),
     `Total: ${formatUsd(total)}`,
-    `Puedes aprobar o rechazar cada servicio aquí:\n${siteUrl}/tracking/${token}`,
+    `Aquí puedes ver el detalle y aprobar o rechazar cada cosa:\n${siteUrl}/tracking/${token}`,
+    'Cualquier duda me escribes y te explico con gusto.',
   ].join('\n\n');
 }

@@ -53,7 +53,11 @@ export function formatDia(iso: string, conAno = true): string {
   }).format(fecha);
 }
 
-/** Mensaje que el taller le manda al cliente por WhatsApp. */
+/**
+ * Mensaje que el taller le manda al cliente por WhatsApp, en tono cercano,
+ * como si lo escribiera el mecánico. Es el de respaldo: normalmente lo redacta
+ * la IA a partir del recordatorio (POST /api/reminders/:id/mensaje).
+ */
 export function mensajeRecordatorio(opts: {
   nombreCliente: string;
   taller: string;
@@ -61,12 +65,12 @@ export function mensajeRecordatorio(opts: {
   texto?: string | null;
   fecha: string;
 }): string {
+  const nombre = opts.nombreCliente.trim();
   const partes = [
-    `Hola ${opts.nombreCliente.trim()}, te escribimos de ${opts.taller}.`,
-    `Te recordamos: *${opts.titulo.trim()}* para el ${formatDia(opts.fecha)}.`,
+    `Hola${nombre ? ` ${nombre}` : ''}, espero que estés muy bien. Te escribimos de ${opts.taller} para recordarte: ${opts.titulo.trim()} (para el ${formatDia(opts.fecha)}).`,
   ];
   const texto = (opts.texto ?? '').trim();
   if (texto) partes.push(texto);
-  partes.push('¡Te esperamos!');
+  partes.push('Estamos por acá a tu orden, avísanos qué día te queda bien para traer el carro.');
   return partes.join('\n\n');
 }

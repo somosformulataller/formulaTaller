@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { Bell, CalendarDays, Check, Edit2, FileText, MessageCircle, Trash2, User } from 'lucide-react';
 import type { Reminder } from '@/lib/types';
-import { TAG_COLOR_HEX, formatDia, notifyLabel, mensajeRecordatorio, hoyVE } from '@/lib/recordatorios';
-import { waLink } from '@/lib/whatsapp';
+import { TAG_COLOR_HEX, formatDia, notifyLabel, hoyVE } from '@/lib/recordatorios';
+import EnviarRecordatorioModal from '@/components/reminders/EnviarRecordatorioModal';
 
 /**
  * Un recordatorio: etiqueta, fecha, aviso, texto, nota de voz (con su texto a
@@ -28,6 +28,7 @@ export default function ReminderCard({
 }) {
   const [verTexto, setVerTexto] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const r = reminder;
   const color = r.tag ? TAG_COLOR_HEX[r.tag.color] ?? TAG_COLOR_HEX.neutral : 'var(--color-border)';
   const nombre = r.client ? `${r.client.first_name} ${r.client.last_name}`.trim() : '';
@@ -49,21 +50,13 @@ export default function ReminderCard({
     }
   }
 
+  // El mensaje lo redacta la IA y el taller lo revisa antes de enviarlo.
   function enviarWhatsApp() {
-    const texto = mensajeRecordatorio({
-      nombreCliente: r.client?.first_name ?? '',
-      taller: workshopName,
-      titulo: r.title,
-      texto: r.body || r.transcript,
-      fecha: r.due_date,
-    });
-    const link = waLink(r.client?.whatsapp, texto);
-    if (!link) {
+    if (!r.client?.whatsapp) {
       alert('Este cliente no tiene un WhatsApp válido.');
       return;
     }
-    window.open(link, '_blank', 'noopener');
-    if (r.status === 'pendiente') cambiarEstado('enviado');
+    setEnviando(true);
   }
 
   async function borrar() {
@@ -247,6 +240,16 @@ export default function ReminderCard({
           <Trash2 size={13} />
         </button>
       </div>
+      {enviando && (
+        <EnviarRecordatorioModal
+          reminder={r}
+          workshopName={workshopName}
+          onClose={() => setEnviando(false)}
+          onEnviado={() => {
+            if (r.status === 'pendiente') cambiarEstado('enviado');
+          }}
+        />
+      )}
     </div>
   );
 }

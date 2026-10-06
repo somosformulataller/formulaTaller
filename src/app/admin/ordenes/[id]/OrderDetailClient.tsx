@@ -72,7 +72,7 @@ export default function OrderDetailClient({
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const waLink = buildWhatsAppLink(
     order.client_whatsapp,
-    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
+    buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name, order.car_model)
   );
 
   async function handleDelete() {
@@ -270,7 +270,7 @@ export default function OrderDetailClient({
               e.preventDefault();
               openWhatsApp(
                 order.client_whatsapp,
-                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name)
+                buildTrackingMessage(order.client_first_name, order.public_token, SITE_URL, order.workshop?.name, order.car_model)
               );
             }}
             style={{
@@ -377,6 +377,7 @@ export default function OrderDetailClient({
           clientFirstName={order.client_first_name}
           clientWhatsapp={order.client_whatsapp}
           publicToken={order.public_token}
+          carModel={order.car_model}
         />
       </div>
 

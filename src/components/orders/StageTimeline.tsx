@@ -20,6 +20,8 @@ interface StageTimelineProps {
   clientFirstName: string;
   clientWhatsapp: string;
   publicToken: string;
+  /** Para que el aviso diga «tu Corolla» en vez de «tu carro». */
+  carModel?: string | null;
 }
 
 const STATUS_ICONS: Record<StageStatus, React.ReactNode> = {
@@ -36,6 +38,7 @@ export default function StageTimeline({
   clientFirstName,
   clientWhatsapp,
   publicToken,
+  carModel,
 }: StageTimelineProps) {
   const [stages, setStages] = useState<OrderStage[]>(
     [...initialStages].sort((a, b) => a.position - b.position)
@@ -573,7 +576,8 @@ export default function StageTimeline({
                                   stage.status,
                                   publicToken,
                                   SITE_URL,
-                                  slugify(stage.name) === 'vehiculo-listo'
+                                  slugify(stage.name) === 'vehiculo-listo',
+                                  carModel
                                 )
                               )
                             }

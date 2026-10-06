@@ -46,17 +46,27 @@ export function openWhatsApp(phone: string, message: string): void {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+// Los mensajes al cliente van en tono cercano, como si los escribiera el
+// mecánico o el dueño del taller, no una empresa.
+
+/** «tu Corolla» o, si no se sabe el modelo, «tu carro». */
+function tuCarro(carModel?: string | null): string {
+  const m = (carModel ?? '').trim();
+  return m ? `tu ${m}` : 'tu carro';
+}
+
 export function buildTrackingMessage(
   clientName: string,
   token: string,
   siteUrl: string,
-  workshopName = 'nuestro taller'
+  workshopName = 'nuestro taller',
+  carModel?: string | null
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
   return (
-    `Hola ${clientName}! Tu vehículo está en ${workshopName}.\n\n` +
-    `Puedes hacer seguimiento a tu orden aquí:\n${url}\n\n` +
-    `¡Cualquier duda estamos a tu disposición!`
+    `Hola ${clientName}, ¿cómo estás? Te escribimos de ${workshopName}. Ya tenemos ${tuCarro(carModel)} con nosotros y vamos a estar pendientes de todo.\n\n` +
+    `Por aquí puedes ver cómo va el trabajo, paso a paso:\n${url}\n\n` +
+    `Cualquier duda nos escribes por acá, estamos a tu orden.`
   );
 }
 
@@ -68,32 +78,37 @@ export function buildStageReminderMessage(
   status: StageStatus,
   token: string,
   siteUrl: string,
-  isFinal = false
+  isFinal = false,
+  carModel?: string | null
 ): string {
   const url = `${siteUrl}/tracking/${token}`;
   const name = clientFirstName;
+  const carro = tuCarro(carModel);
 
   if (isFinal && status === 'done') {
     return (
-      `¡${name}! Ya se completó la reparación de tu vehículo (etapa final: ${stageName}).\n\n` +
-      `Puedes verificarlo en el siguiente link:\n${url}`
+      `Hola ${name}, ¡buenas noticias! ${carro.charAt(0).toUpperCase()}${carro.slice(1)} ya está listo. Terminamos todo el trabajo y puedes pasar a buscarlo cuando quieras.\n\n` +
+      `Aquí puedes ver el detalle de lo que le hicimos:\n${url}\n\n` +
+      `Avísanos a qué hora vienes y te esperamos.`
     );
   }
   if (status === 'done') {
     return (
-      `¡${name}! Ya se completó la etapa «${stageName}».\n\n` +
-      `Recuerda que puedes verificar tu vehículo desde el siguiente link:\n${url}`
+      `Hola ${name}, ¿cómo estás? Te cuento que ya terminamos «${stageName}» en ${carro}. Vamos avanzando bien.\n\n` +
+      `Puedes ver cómo va todo aquí:\n${url}\n\n` +
+      `Cualquier cosa, estamos a tu orden.`
     );
   }
   if (status === 'in_progress') {
     return (
-      `¡${name}! Estamos trabajando en la etapa «${stageName}».\n\n` +
-      `Puedes seguir el avance de tu vehículo en el siguiente link:\n${url}`
+      `Hola ${name}, ¿cómo estás? Te cuento que ya estamos trabajando en «${stageName}» de ${carro}. Apenas tengamos novedades te avisamos.\n\n` +
+      `Aquí puedes seguir el avance:\n${url}`
     );
   }
   return (
-    `¡${name}! La etapa «${stageName}» está por comenzar.\n\n` +
-    `Puedes seguir el avance de tu vehículo en el siguiente link:\n${url}`
+    `Hola ${name}, ¿cómo estás? Te aviso que el siguiente paso con ${carro} es «${stageName}» y estamos por empezarlo.\n\n` +
+    `Aquí puedes seguir el avance:\n${url}\n\n` +
+    `Cualquier duda, nos escribes.`
   );
 }
 

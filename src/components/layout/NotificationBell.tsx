@@ -5,8 +5,8 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Bell, CalendarDays, MessageCircle, Receipt, X } from 'lucide-react';
 import type { AppNotification, Reminder } from '@/lib/types';
-import { formatDia, mensajeRecordatorio } from '@/lib/recordatorios';
-import { waLink } from '@/lib/whatsapp';
+import { formatDia } from '@/lib/recordatorios';
+import EnviarRecordatorioModal from '@/components/reminders/EnviarRecordatorioModal';
 import { formatDate } from '@/lib/utils';
 
 const CADA_MS = 60_000;
@@ -22,6 +22,7 @@ export default function NotificationBell({ workshopName }: { workshopName: strin
   const [sinLeer, setSinLeer] = useState(0);
   const [recordatorios, setRecordatorios] = useState<Reminder[]>([]);
   const [montado, setMontado] = useState(false);
+  const [enviando, setEnviando] = useState<Reminder | null>(null);
   const vivo = useRef(true);
 
   const cargar = useCallback(async () => {
@@ -62,22 +63,17 @@ export default function NotificationBell({ workshopName }: { workshopName: strin
     cargar();
   }
 
-  async function enviar(r: Reminder) {
-    const link = waLink(
-      r.client?.whatsapp,
-      mensajeRecordatorio({
-        nombreCliente: r.client?.first_name ?? '',
-        taller: workshopName,
-        titulo: r.title,
-        texto: r.body || r.transcript,
-        fecha: r.due_date,
-      })
-    );
-    if (!link) {
+  // El mensaje lo redacta la IA y el taller lo revisa antes de enviarlo.
+  function enviar(r: Reminder) {
+    if (!r.client?.whatsapp) {
       alert('Este cliente no tiene un WhatsApp válido.');
       return;
     }
-    window.open(link, '_blank', 'noopener');
+    setAbierto(false);
+    setEnviando(r);
+  }
+
+  async function marcarEnviado(r: Reminder) {
     await fetch(`/api/reminders/${r.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -90,6 +86,14 @@ export default function NotificationBell({ workshopName }: { workshopName: strin
 
   return (
     <>
+      {enviando && (
+        <EnviarRecordatorioModal
+          reminder={enviando}
+          workshopName={workshopName}
+          onClose={() => setEnviando(null)}
+          onEnviado={() => marcarEnviado(enviando)}
+        />
+      )}
       <button
         type="button"
         onClick={() => setAbierto(true)}
