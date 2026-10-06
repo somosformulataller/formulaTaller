@@ -26,9 +26,11 @@ export default function TerminosPage() {
 
       <h2>3. Planes y pagos</h2>
       <p>
-        El plan gratuito permite un número limitado de órdenes. Para superar ese límite deberás
-        contratar la suscripción correspondiente. Las condiciones y precios podrán actualizarse
-        avisando con antelación razonable.
+        La app funciona con saldo prepagado: cada taller recibe un saldo de bienvenida y, cuando
+        se agota, compra más saldo por Pago Móvil. Crear una orden y cada pregunta al asistente
+        descuentan el precio vigente, que se muestra dentro de la app. Los pagos se revisan y se
+        acreditan manualmente. Las condiciones y precios podrán actualizarse avisando con
+        antelación razonable.
       </p>
 
       <h2>4. Uso correcto</h2>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { LogOut, Receipt, Sparkles, Wrench } from 'lucide-react';
 import NotificationBell from '@/components/layout/NotificationBell';
+import SaldoChip from '@/components/saldo/SaldoChip';
 import { createClient } from '@/lib/supabase/client';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/types';
@@ -81,6 +82,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {profile.role === 'admin' && (
           <>
+            <SaldoChip />
             <Link
               href="/admin/asistente"
               aria-label="Asistente"

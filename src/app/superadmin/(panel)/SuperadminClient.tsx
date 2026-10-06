@@ -6,15 +6,15 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkshopAdminRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
+import { formatPrecioUsd } from '@/lib/budget';
 import PhoneInput from '@/components/ui/PhoneInput';
 import {
   Building2,
-  Star,
+  Wallet,
   ClipboardList,
   LogOut,
   Search,
   Save,
-  SlidersHorizontal,
   Phone,
   Plus,
   Trash2,
@@ -33,14 +33,12 @@ const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'https://formulataller.com';
 interface SuperadminClientProps {
   rows: WorkshopAdminRow[];
   adminEmail: string | null;
-  freeOrderLimit: number;
   supportPhones: string[];
 }
 
 export default function SuperadminClient({
   rows: initialRows,
   adminEmail,
-  freeOrderLimit,
   supportPhones,
 }: SuperadminClientProps) {
   const router = useRouter();
@@ -63,17 +61,8 @@ export default function SuperadminClient({
     }
   }
 
-  // Límite global del plan gratuito (aplicado) + valor del input.
-  const [globalLimit, setGlobalLimit] = useState<number>(freeOrderLimit);
-  const [globalInput, setGlobalInput] = useState<string>(String(freeOrderLimit));
-  const [savingGlobal, setSavingGlobal] = useState(false);
-
-  // Override por taller como texto editable ('' = usar el global).
-  const [overrides, setOverrides] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      initialRows.map((r) => [r.id, r.order_limit == null ? '' : String(r.order_limit)])
-    )
-  );
+  // Ajuste manual de saldo por taller (0025): monto con signo y motivo.
+  const [ajuste, setAjuste] = useState<Record<string, { monto: string; nota: string }>>({});
 
   // Números de atención al cliente (lista editable con id estable por fila para
   // que borrar/reordenar no confunda los campos).
@@ -96,9 +85,9 @@ export default function SuperadminClient({
     // Los talleres de prueba (etiqueta Test) no cuentan en el total.
     const real = rows.filter((r) => !r.is_test);
     const total = real.length;
-    const subscribed = real.filter((r) => r.is_subscribed).length;
+    const saldo = real.reduce((sum, r) => sum + r.balance_usd, 0);
     const orders = real.reduce((sum, r) => sum + r.order_count, 0);
-    return { total, subscribed, orders };
+    return { total, saldo, orders };
   }, [rows]);
 
   const filtered = useMemo(() => {
@@ -111,34 +100,6 @@ export default function SuperadminClient({
         (r.owner_name ?? '').toLowerCase().includes(q)
     );
   }, [rows, search]);
-
-  async function saveGlobal() {
-    const n = parseInt(globalInput, 10);
-    if (isNaN(n) || n < 0) {
-      alert('El límite debe ser un número entero mayor o igual a 0.');
-      return;
-    }
-    setSavingGlobal(true);
-    try {
-      const res = await fetch('/api/superadmin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ free_order_limit: n }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGlobalLimit(data.free_order_limit);
-        setGlobalInput(String(data.free_order_limit));
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'No se pudo guardar el límite global.');
-      }
-    } catch {
-      alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
-    } finally {
-      setSavingGlobal(false);
-    }
-  }
 
   async function savePhones() {
     const cleaned = phoneDraft.map((p) => p.value.trim()).filter((p) => p.length > 0);
@@ -161,33 +122,6 @@ export default function SuperadminClient({
       alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
       setSavingPhones(false);
-    }
-  }
-
-  async function toggleSubscription(row: WorkshopAdminRow) {
-    const next = !row.is_subscribed;
-    setSavingId(row.id);
-    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: next } : r)));
-
-    try {
-      const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_subscribed: next }),
-      });
-      if (!res.ok) {
-        // Revierte el interruptor al valor real: no se guardó nada.
-        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: !next } : r)));
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'No se pudo actualizar la suscripción.');
-      }
-    } catch {
-      // Fallo de red: el fetch lanza y nunca llegó al servidor. Sin este
-      // rollback el interruptor quedaría mostrando un cambio que no ocurrió.
-      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, is_subscribed: !next } : r)));
-      alert('No se pudo conectar. El cambio no se guardó.');
-    } finally {
-      setSavingId(null);
     }
   }
 
@@ -215,34 +149,31 @@ export default function SuperadminClient({
     }
   }
 
-  async function saveOverride(row: WorkshopAdminRow) {
-    const raw = (overrides[row.id] ?? '').trim();
-    let value: number | null;
-    if (raw === '') {
-      value = null;
-    } else {
-      const n = parseInt(raw, 10);
-      if (isNaN(n) || n < 0) {
-        alert('El límite debe ser un número entero mayor o igual a 0 (o vacío para usar el global).');
-        return;
-      }
-      value = n;
+  async function ajustarSaldo(row: WorkshopAdminRow) {
+    const a = ajuste[row.id] ?? { monto: '', nota: '' };
+    const monto = Number(a.monto.replace(',', '.'));
+    if (!Number.isFinite(monto) || monto === 0) {
+      alert('Escribe el monto: positivo para sumar, negativo (ej. -2) para descontar.');
+      return;
     }
-
+    if (!a.nota.trim()) {
+      alert('Escribe el motivo del ajuste.');
+      return;
+    }
     setSavingId(row.id);
     try {
-      const res = await fetch(`/api/superadmin/workshops/${row.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/superadmin/workshops/${row.id}/saldo`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_limit: value }),
+        body: JSON.stringify({ monto, nota: a.nota.trim() }),
       });
-      if (res.ok) {
-        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, order_limit: value } : r)));
-        setOverrides((prev) => ({ ...prev, [row.id]: value == null ? '' : String(value) }));
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'No se pudo actualizar el límite del taller.');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || 'No se pudo ajustar el saldo.');
+        return;
       }
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, balance_usd: Number(data.saldo) } : r)));
+      setAjuste((prev) => ({ ...prev, [row.id]: { monto: '', nota: '' } }));
     } catch {
       alert('No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.');
     } finally {
@@ -352,38 +283,8 @@ export default function SuperadminClient({
         style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}
       >
         <MetricCard icon={<Building2 size={18} />} label="Talleres" value={metrics.total} />
-        <MetricCard icon={<Star size={18} />} label="Suscritos" value={metrics.subscribed} />
+        <MetricCard icon={<Wallet size={18} />} label="Saldo en talleres" value={formatPrecioUsd(metrics.saldo)} />
         <MetricCard icon={<ClipboardList size={18} />} label="Órdenes" value={metrics.orders} />
-      </div>
-
-      {/* Límite global del plan gratuito */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <SlidersHorizontal size={16} color="var(--color-brand-400)" />
-          <h2 style={{ fontSize: 15, fontWeight: 700 }}>Límite del plan gratuito</h2>
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-          Órdenes máximas para talleres no suscritos. Aplica a todos los talleres que no tengan un
-          límite propio.
-        </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="number"
-            min={0}
-            className="form-input"
-            value={globalInput}
-            onChange={(e) => setGlobalInput(e.target.value)}
-            style={{ width: 120 }}
-          />
-          <button
-            onClick={saveGlobal}
-            disabled={savingGlobal || globalInput.trim() === String(globalLimit)}
-            style={primaryBtn(savingGlobal || globalInput.trim() === String(globalLimit))}
-          >
-            <Save size={14} />
-            Guardar
-          </button>
-        </div>
       </div>
 
       {/* Números de atención al cliente */}
@@ -393,8 +294,7 @@ export default function SuperadminClient({
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>Números de atención al cliente</h2>
         </div>
         <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 12 }}>
-          Aparecen en el mensaje del límite gratuito para que el taller escriba y pague la
-          suscripción. Usa formato internacional (ej. <b>+58 424 234 9786</b>) para que el enlace de
+          Aparecen en el botón de soporte para que el taller escriba. Usa formato internacional (ej. <b>+58 424 234 9786</b>) para que el enlace de
           WhatsApp abra bien.
         </p>
 
@@ -498,11 +398,8 @@ export default function SuperadminClient({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map((row) => {
-            const stored = row.order_limit == null ? '' : String(row.order_limit);
-            const current = overrides[row.id] ?? '';
-            const changed = current.trim() !== stored;
             const busy = savingId === row.id;
-            const effectiveLimit = row.order_limit ?? globalLimit;
+            const aj = ajuste[row.id] ?? { monto: '', nota: '' };
             const result = resetResult[row.id];
             const resettingEmail = resetting?.id === row.id && resetting.mode === 'email';
             const resettingTemp = resetting?.id === row.id && resetting.mode === 'temp';
@@ -522,22 +419,6 @@ export default function SuperadminClient({
                       >
                         {row.name}
                       </span>
-                      {row.is_subscribed && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: 'var(--color-brand-400)',
-                            background: 'rgba(245,158,11,0.12)',
-                            border: '1px solid rgba(245,158,11,0.3)',
-                            borderRadius: 999,
-                            padding: '2px 8px',
-                            flexShrink: 0,
-                          }}
-                        >
-                          PRO
-                        </span>
-                      )}
                       {row.is_test && (
                         <span
                           style={{
@@ -557,25 +438,12 @@ export default function SuperadminClient({
                     </div>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
                       {row.owner_name ? `${row.owner_name} · ` : ''}
-                      {row.is_subscribed
-                        ? `${row.order_count} órdenes`
-                        : `${row.order_count} / ${effectiveLimit} órdenes`}{' '}
+                      {row.order_count} órdenes · saldo {formatPrecioUsd(row.balance_usd)}{' '}
                       · {formatDate(row.created_at)}
                     </p>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                        Suscrito
-                      </span>
-                      <Toggle
-                        checked={row.is_subscribed}
-                        disabled={busy}
-                        onChange={() => toggleSubscription(row)}
-                        label="Suscrito"
-                      />
-                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
                         Test
@@ -720,64 +588,55 @@ export default function SuperadminClient({
                               : `${row.mechanic_count} (sin contar al dueño)`
                           }
                         />
-                        <Dato
-                          etiqueta="Plan"
-                          valor={
-                            row.is_subscribed
-                              ? 'Suscrito (órdenes ilimitadas)'
-                              : `Gratuito · ${effectiveLimit} órdenes${
-                                  row.order_limit == null ? ' (límite global)' : ' (límite propio)'
-                                }`
-                          }
-                        />
+                        <Dato etiqueta="Saldo" valor={formatPrecioUsd(row.balance_usd)} />
                         {row.is_test && <Dato etiqueta="Marcado como" valor="Taller de prueba" />}
                       </Bloque>
                     </div>
                   )}
                 </div>
 
-                {/* Editor del límite (solo si no está suscrito) */}
-                {row.is_subscribed ? (
-                  <p style={{ fontSize: 12, color: 'var(--color-brand-400)', marginTop: 10, fontWeight: 600 }}>
-                    Órdenes ilimitadas (suscrito)
-                  </p>
-                ) : (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTop: '1px solid var(--color-border)',
-                      flexWrap: 'wrap',
-                    }}
+                {/* Saldo: ajuste manual (regalo, corrección o devolución) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 12,
+                    paddingTop: 12,
+                    borderTop: '1px solid var(--color-border)',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    Saldo {formatPrecioUsd(row.balance_usd)} · Ajustar:
+                  </span>
+                  <input
+                    className="form-input"
+                    inputMode="decimal"
+                    placeholder="+5 o -2"
+                    value={aj.monto}
+                    onChange={(e) =>
+                      setAjuste((prev) => ({ ...prev, [row.id]: { ...aj, monto: e.target.value.replace(/[^\d.,-]/g, '') } }))
+                    }
+                    style={{ width: 90 }}
+                  />
+                  <input
+                    className="form-input"
+                    placeholder="Motivo"
+                    maxLength={200}
+                    value={aj.nota}
+                    onChange={(e) => setAjuste((prev) => ({ ...prev, [row.id]: { ...aj, nota: e.target.value } }))}
+                    style={{ flex: 1, minWidth: 120 }}
+                  />
+                  <button
+                    onClick={() => ajustarSaldo(row)}
+                    disabled={busy || !aj.monto.trim()}
+                    style={primaryBtn(busy || !aj.monto.trim())}
                   >
-                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 600 }}>
-                      Límite:
-                    </span>
-                    <input
-                      type="number"
-                      min={0}
-                      className="form-input"
-                      placeholder={`global (${globalLimit})`}
-                      value={current}
-                      onChange={(e) => setOverrides((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                      style={{ width: 130 }}
-                    />
-                    <button
-                      onClick={() => saveOverride(row)}
-                      disabled={busy || !changed}
-                      style={primaryBtn(busy || !changed)}
-                    >
-                      <Save size={13} />
-                      Guardar
-                    </button>
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                      {current.trim() === '' ? `usa el global (${globalLimit})` : 'límite propio'}
-                    </span>
-                  </div>
-                )}
+                    <Save size={13} />
+                    Aplicar
+                  </button>
+                </div>
 
                 {/* Datos de contacto + acceso */}
                 <div
@@ -939,7 +798,7 @@ function MetricCard({
 }: {
   icon: React.ReactNode;
   label: string;
-  value: number;
+  value: number | string;
 }) {
   return (
     <div className="card" style={{ padding: '14px 12px', textAlign: 'center' }}>

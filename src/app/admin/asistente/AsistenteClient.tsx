@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Send, Sparkles, Trash2 } from 'lucide-react';
+import { useSaldo } from '@/components/saldo/SaldoProvider';
+import { formatPrecioUsd, formatUsd } from '@/lib/budget';
 
 type Turno = { role: 'user' | 'assistant'; content: string };
 
@@ -24,6 +26,7 @@ export default function AsistenteClient() {
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const saldo = useSaldo();
 
   useEffect(() => {
     try {
@@ -47,6 +50,11 @@ export default function AsistenteClient() {
     const q = pregunta.trim();
     if (!q || pensando) return;
     setError(null);
+    // Sin saldo ni se intenta: el aviso trae el botón para comprar.
+    if (saldo && !saldo.alcanza(saldo.precios.preguntaIa)) {
+      saldo.avisarSinSaldo('No tienes saldo suficiente para preguntarle al asistente. Compra saldo para seguir usándolo.');
+      return;
+    }
     const siguientes: Turno[] = [...turnos, { role: 'user', content: q }];
     setTurnos(siguientes);
     setTexto('');
@@ -58,6 +66,15 @@ export default function AsistenteClient() {
         body: JSON.stringify({ messages: siguientes }),
       });
       const data = await res.json().catch(() => ({}));
+      if (typeof data.saldo === 'number') saldo?.setSaldo(data.saldo);
+      if (res.status === 402 && data.saldoInsuficiente) {
+        // La pregunta no se cobró: vuelve al cuadro para mandarla después de recargar.
+        setTurnos(turnos);
+        setTexto(q);
+        saldo?.refrescar();
+        saldo?.avisarSinSaldo(data.error);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'No pude responder en este momento.');
       setTurnos((prev) => [...prev, { role: 'assistant', content: String(data.reply ?? '') }]);
     } catch (e) {
@@ -182,6 +199,11 @@ export default function AsistenteClient() {
           </div>
         )}
         {error && <p style={{ fontSize: 13, color: 'var(--color-danger)' }}>{error}</p>}
+        {saldo && (
+          <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)' }}>
+            Cada pregunta cuesta {formatPrecioUsd(saldo.precios.preguntaIa)} · Tu saldo: {formatUsd(saldo.saldo)}
+          </p>
+        )}
         <div ref={finRef} />
       </div>
 

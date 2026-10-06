@@ -7,7 +7,7 @@ import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
 import ListaPie from '@/components/orders/ListaPie';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
-import SubscriptionModal from '@/components/orders/SubscriptionModal';
+import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, Search } from 'lucide-react';
@@ -17,9 +17,6 @@ interface OrdenesClientProps {
   inicial: PaginaOrdenes;
   conteos: Conteos;
   mechanics: Profile[];
-  orderLimit: number;
-  isSubscribed: boolean;
-  supportPhones: string[];
 }
 
 type FilterStatus = FiltroEstado;
@@ -28,20 +25,19 @@ export default function OrdenesClient({
   inicial,
   conteos: conteosIniciales,
   mechanics: initialMechanics,
-  orderLimit,
-  isSubscribed,
-  supportPhones,
 }: OrdenesClientProps) {
+  const saldo = useSaldo();
   const lista = useOrdenesPaginadas(inicial, conteosIniciales);
   const { visibles: filtered, conteos, filter, setFilter } = lista;
   const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
   const [showCreate, setShowCreate] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const { search, setSearch } = lista;
 
   function handleNew() {
-    if (!isSubscribed && conteos.total >= orderLimit) {
-      setShowPaywall(true);
+    // Saldo prepagado (0025): sin saldo para la orden, el aviso trae el botón
+    // para comprar. El servidor vuelve a comprobarlo al crearla.
+    if (saldo && !saldo.alcanza(saldo.precios.orden)) {
+      saldo.avisarSinSaldo('No tienes saldo suficiente para crear una orden. Compra saldo para seguir usando la app.');
     } else {
       setShowCreate(true);
     }
@@ -201,9 +197,6 @@ export default function OrdenesClient({
         />
       </Modal>
 
-      {showPaywall && (
-        <SubscriptionModal onClose={() => setShowPaywall(false)} phones={supportPhones} />
-      )}
     </div>
   );
 }

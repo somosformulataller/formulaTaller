@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { soloAdmin } from '@/lib/admin-taller';
+import { cobrar, devolver, leerPrecios } from '@/lib/saldo';
 import {
   HERRAMIENTAS,
   MODELO,
@@ -83,6 +84,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Espera un momento antes de enviar otra pregunta.' }, { status: 429 });
   }
 
+  // Saldo prepagado (0025): cada pregunta se cobra antes de responder y se
+  // devuelve si el asistente no pudo contestar.
+  const { preguntaIa: precio } = await leerPrecios(service);
+  const pregunta = historial[historial.length - 1].content;
+  const cobro = await cobrar(service, caller.workshopId, precio, 'pregunta_ia', {
+    userId: caller.userId,
+    note: `Asistente: ${pregunta}`.slice(0, 200),
+  });
+  if (!cobro.ok) {
+    return NextResponse.json(
+      { error: cobro.error, saldoInsuficiente: cobro.insuficiente },
+      { status: cobro.insuficiente ? 402 : 500 }
+    );
+  }
+
   const { data: ws } = await service.from('workshops').select('name').eq('id', caller.workshopId).maybeSingle();
   const taller = (ws as unknown as { name: string } | null)?.name ?? 'tu taller';
 
@@ -162,13 +178,15 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     await registrar();
+    const saldo = await devolver(service, caller.workshopId, precio, 'El asistente no pudo responder', caller.userId);
     const status = (err as { status?: number }).status;
     return NextResponse.json(
       {
         error:
           status === 429
-            ? 'El asistente está muy ocupado o se agotó el saldo. Intenta de nuevo en unos segundos.'
+            ? 'El asistente está muy ocupado. Intenta de nuevo en unos segundos.'
             : 'No pude responder en este momento. Intenta de nuevo.',
+        saldo,
       },
       { status: 502 }
     );
@@ -178,5 +196,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     reply: respuesta || 'No encontré una respuesta. ¿Puedes preguntarlo de otra forma?',
+    saldo: cobro.saldo,
   });
 }

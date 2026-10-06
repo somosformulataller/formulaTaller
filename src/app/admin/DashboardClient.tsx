@@ -7,7 +7,7 @@ import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
 import ListaPie from '@/components/orders/ListaPie';
 import OrderCard from '@/components/orders/OrderCard';
 import OrderForm from '@/components/orders/OrderForm';
-import SubscriptionModal from '@/components/orders/SubscriptionModal';
+import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle } from 'lucide-react';
@@ -17,8 +17,6 @@ interface AdminDashboardClientProps {
   inicial: PaginaOrdenes;
   conteos: Conteos;
   mechanics: Profile[];
-  orderLimit: number;
-  isSubscribed: boolean;
 }
 
 type FilterStatus = FiltroEstado;
@@ -27,9 +25,8 @@ export default function AdminDashboardClient({
   inicial,
   conteos: conteosIniciales,
   mechanics: initialMechanics,
-  orderLimit,
-  isSubscribed,
 }: AdminDashboardClientProps) {
+  const saldo = useSaldo();
   const lista = useOrdenesPaginadas(inicial, conteosIniciales);
   const { visibles: filtered, conteos, filter, setFilter } = lista;
   const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
@@ -38,12 +35,13 @@ export default function AdminDashboardClient({
     setMechanics((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
   }
   const [showCreate, setShowCreate] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
 
   function handleNew() {
-    if (!isSubscribed && conteos.total >= orderLimit) {
-      setShowPaywall(true);
+    // Saldo prepagado (0025): sin saldo para la orden, el aviso trae el botón
+    // para comprar. El servidor vuelve a comprobarlo al crearla.
+    if (saldo && !saldo.alcanza(saldo.precios.orden)) {
+      saldo.avisarSinSaldo('No tienes saldo suficiente para crear una orden. Compra saldo para seguir usando la app.');
     } else {
       setShowCreate(true);
     }
@@ -248,7 +246,6 @@ export default function AdminDashboardClient({
         />
       </Modal>
 
-      {showPaywall && <SubscriptionModal onClose={() => setShowPaywall(false)} />}
     </div>
   );
 }

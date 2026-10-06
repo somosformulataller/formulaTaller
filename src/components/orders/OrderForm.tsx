@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import PhoneInput from '@/components/ui/PhoneInput';
-import SubscriptionModal from '@/components/orders/SubscriptionModal';
+import { useSaldo } from '@/components/saldo/SaldoProvider';
 import AttachmentPicker from '@/components/orders/AttachmentPicker';
 import MechanicSelect from '@/components/orders/MechanicSelect';
 import CasillaComoTaller from '@/components/orders/CasillaComoTaller';
@@ -15,7 +15,7 @@ import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
 import CampoNotaDeVoz from '@/components/orders/CampoNotaDeVoz';
 import { uploadStageAttachment } from '@/lib/attachments';
-import { formatUsd, parseAmount, sumarTotal } from '@/lib/budget';
+import { formatPrecioUsd, formatUsd, parseAmount, sumarTotal } from '@/lib/budget';
 import {
   User,
   Car,
@@ -91,7 +91,7 @@ export default function OrderForm({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paywall, setPaywall] = useState<string | null>(null);
+  const saldo = useSaldo();
   const [pending, setPending] = useState<PendingFile[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'creating' | 'uploading' | 'budget'>('idle');
@@ -196,8 +196,9 @@ export default function OrderForm({
       setLoading(false);
       setPhase('idle');
       const data = await res.json().catch(() => ({}));
-      if (res.status === 402 || data.limitReached) {
-        setPaywall(data.error || null);
+      if (res.status === 402 && data.saldoInsuficiente) {
+        saldo?.refrescar();
+        saldo?.avisarSinSaldo(data.error);
         return;
       }
       setError(data.error || 'Error al guardar la orden');
@@ -205,6 +206,8 @@ export default function OrderForm({
     }
 
     const saved: Order = await res.json();
+    // Crear la orden descontó saldo (0025).
+    if (!isEdit) saldo?.refrescar();
 
     // El presupuesto armado antes de que la orden existiera: se manda entero
     // de un viaje. Los renglones sin nombre se descartan (quedaron vacíos).
@@ -281,15 +284,6 @@ export default function OrderForm({
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {paywall !== null && (
-        <SubscriptionModal
-          message={paywall || undefined}
-          onClose={() => {
-            setPaywall(null);
-            onCancel();
-          }}
-        />
-      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Input
@@ -465,6 +459,11 @@ export default function OrderForm({
           {submitLabel}
         </Button>
       </div>
+      {!isEdit && saldo && (
+        <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: -8 }}>
+          Crear la orden descuenta {formatPrecioUsd(saldo.precios.orden)} de tu saldo ({formatPrecioUsd(saldo.saldo)}).
+        </p>
+      )}
 
       {showPicker && (
         <AttachmentPicker onFiles={addFiles} onClose={() => setShowPicker(false)} soloFotosYVideos />

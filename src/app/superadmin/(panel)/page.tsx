@@ -17,6 +17,7 @@ type WorkshopRow = {
   order_limit: number | null;
   is_subscribed: boolean;
   is_test: boolean;
+  balance_usd: number | string;
   whatsapp: string | null;
   logo_url: string | null;
 };
@@ -30,7 +31,7 @@ export default async function SuperadminDashboardPage() {
   const [workshopsRes, countsRes, settingsRes] = await Promise.all([
     service
       .from('workshops')
-      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, whatsapp, logo_url')
+      .select('id, name, slug, created_at, owner_id, order_limit, is_subscribed, is_test, balance_usd, whatsapp, logo_url')
       .order('created_at', { ascending: false }),
     // Conteo por taller agregado en Postgres (GROUP BY): no lo topa el límite
     // de 1000 filas de PostgREST, a diferencia de traer todas las órdenes.
@@ -58,7 +59,6 @@ export default async function SuperadminDashboardPage() {
   const settings = settingsRes.data as unknown as
     | { free_order_limit: number; support_phones: string[] | null }
     | null;
-  const freeOrderLimit = settings?.free_order_limit ?? 3;
   const supportPhones = settings?.support_phones ?? [];
 
   const workshops = (workshopsRes.data ?? []) as unknown as WorkshopRow[];
@@ -120,6 +120,7 @@ export default async function SuperadminDashboardPage() {
     is_subscribed: w.is_subscribed,
     is_test: w.is_test,
     order_limit: w.order_limit,
+    balance_usd: Number(w.balance_usd ?? 0),
     owner_name: w.owner_id ? ownerById.get(w.owner_id)?.full_name ?? null : null,
     owner_email: w.owner_id ? cuentaById.get(w.owner_id)?.email ?? null : null,
     whatsapp: w.whatsapp,
@@ -138,7 +139,6 @@ export default async function SuperadminDashboardPage() {
     <SuperadminClient
       rows={rows}
       adminEmail={admin.email}
-      freeOrderLimit={freeOrderLimit}
       supportPhones={supportPhones}
     />
   );

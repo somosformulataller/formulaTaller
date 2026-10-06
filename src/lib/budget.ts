@@ -75,6 +75,16 @@ export const DECISION_COLORS: Record<'pendiente' | 'aprobado' | 'rechazado', str
 };
 
 /** "$1.234,50" — formato de moneda que lee un taller venezolano. */
+/** Como formatUsd, pero con hasta 3 decimales: para precios como $0,035. */
+export function formatPrecioUsd(n: number): string {
+  return new Intl.NumberFormat('es-VE', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 3,
+  }).format(Number.isFinite(n) ? n : 0);
+}
+
 export function formatUsd(n: number): string {
   return new Intl.NumberFormat('es-VE', {
     style: 'currency',

@@ -9,7 +9,7 @@ export default async function AdminDashboardPage() {
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [pagina, conteos, mechanicsRes, workshopRes, settingsRes] = await Promise.all([
+  const [pagina, conteos, mechanicsRes] = await Promise.all([
     // Solo la primera página y los conteos (ver lib/ordenes-lista.ts).
     paginaOrdenes(supabase, wid),
     contarOrdenes(supabase, wid),
@@ -22,25 +22,13 @@ export default async function AdminDashboardPage() {
       .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name', { ascending: true }),
-    supabase.from('workshops').select('order_limit, is_subscribed').eq('id', wid).single(),
-    supabase.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
   ]);
-
-  const workshop = workshopRes.data as unknown as
-    | { order_limit: number | null; is_subscribed: boolean }
-    | null;
-  const globalLimit =
-    (settingsRes.data as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
-  const orderLimit = workshop?.order_limit ?? globalLimit;
-  const isSubscribed = workshop?.is_subscribed ?? false;
 
   return (
     <AdminDashboardClient
       inicial={pagina}
       conteos={conteos}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
-      orderLimit={orderLimit}
-      isSubscribed={isSubscribed}
     />
   );
 }

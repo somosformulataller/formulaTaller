@@ -33,6 +33,8 @@ export interface WorkshopAdminRow {
   is_test: boolean;
   // Override por taller (null = usa el límite global del plan gratuito).
   order_limit: number | null;
+  /** Saldo prepagado (0025). */
+  balance_usd: number;
   owner_name: string | null;
   owner_email: string | null;
   whatsapp: string | null;

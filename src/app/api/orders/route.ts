@@ -5,6 +5,7 @@ import { MECHANICS_EMBED, idsDeMisOrdenes, guardarMecanicos } from '@/lib/mecani
 import type { CreateOrderPayload } from '@/lib/types';
 import { limpiarCondiciones } from '@/lib/condiciones';
 import { paginaOrdenes, estadoValido } from '@/lib/ordenes-lista';
+import { cobrar, devolver, leerPrecios } from '@/lib/saldo';
 
 const ORDER_SELECT = `
   *,
@@ -63,39 +64,22 @@ export async function POST(req: Request) {
   if (condiciones.error) return NextResponse.json({ error: condiciones.error }, { status: 400 });
   const service = createServiceClient();
 
-  // Free-plan limit: block once the workshop reaches its límite efectivo, salvo
-  // que el taller esté suscrito (plan pago) → órdenes ilimitadas.
-  // Límite efectivo = override del taller (order_limit) ?? límite global.
-  const [{ data: ws }, { data: settings }] = await Promise.all([
-    service
-      .from('workshops')
-      .select('order_limit, is_subscribed')
-      .eq('id', caller.workshopId)
-      .single(),
-    service.from('platform_settings').select('free_order_limit').eq('id', 1).single(),
-  ]);
-  const workshop = ws as unknown as { order_limit: number | null; is_subscribed: boolean } | null;
-  const globalLimit =
-    (settings as unknown as { free_order_limit: number } | null)?.free_order_limit ?? 3;
-  const limit = workshop?.order_limit ?? globalLimit;
-
-  if (!workshop?.is_subscribed) {
-    const { count } = await service
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('workshop_id', caller.workshopId);
-
-    if ((count ?? 0) >= limit) {
-      return NextResponse.json(
-        {
-          error:
-            'Alcanzaste el límite de órdenes del plan gratuito. Para seguir usando la app debes pagar la suscripción.',
-          limitReached: true,
-        },
-        { status: 402 }
-      );
-    }
+  // Saldo prepagado (0025): la orden se cobra ANTES de crearla. Si algo falla
+  // después, se devuelve. Sin saldo suficiente → 402 y no se crea nada.
+  const { orden: precio } = await leerPrecios(service);
+  const etiqueta = `${body.car_model ?? ''} · ${body.client_first_name ?? ''} ${body.client_last_name ?? ''}`.trim();
+  const cobro = await cobrar(service, caller.workshopId, precio, 'orden', {
+    userId: caller.userId,
+    note: `Orden: ${etiqueta}`.slice(0, 200),
+  });
+  if (!cobro.ok) {
+    return NextResponse.json(
+      { error: cobro.error, saldoInsuficiente: cobro.insuficiente },
+      { status: cobro.insuficiente ? 402 : 500 }
+    );
   }
+  const reembolsar = () =>
+    devolver(service, caller.workshopId!, precio, `No se creó la orden: ${etiqueta}`.slice(0, 200), caller.userId);
 
   const { data: created, error } = await service
     .from('orders')
@@ -119,7 +103,10 @@ export async function POST(req: Request) {
     .select('id')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    await reembolsar();
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const orderId = (created as unknown as { id: string }).id;
 

@@ -12,16 +12,28 @@ const MAX_PHONE_LEN = 32;
 // Cotas del onboarding (video tutorial).
 const MAX_VIDEO_URL_LEN = 2000;
 const MAX_TUTORIAL_MSG_LEN = 1500;
+// Saldo prepagado (0025): precios en USD y datos de Pago Móvil.
+const MAX_PRECIO_USD = 100;
+const MAX_BIENVENIDA_USD = 1000;
+const PRECIOS = {
+  price_order_usd: MAX_PRECIO_USD,
+  price_ai_question_usd: MAX_PRECIO_USD,
+  welcome_balance_usd: MAX_BIENVENIDA_USD,
+} as const;
+const PAGO_MOVIL = ['pago_movil_bank', 'pago_movil_phone', 'pago_movil_document', 'pago_movil_holder'] as const;
+const MAX_PAGO_MOVIL_LEN = 80;
 
 // PATCH /api/superadmin/settings — configuración global de la plataforma.
 // Solo superadmins de plataforma.
-// Body admite: { free_order_limit?, support_phones?, tutorial_video_url?, tutorial_message? }
+// Body admite: { free_order_limit?, support_phones?, tutorial_video_url?, tutorial_message?,
+//   price_order_usd?, price_ai_question_usd?, welcome_balance_usd?, pago_movil_*? }
 export async function PATCH(req: Request) {
   const admin = await getPlatformAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const updates: {
+    [k: string]: unknown;
     free_order_limit?: number;
     support_phones?: string[];
     tutorial_video_url?: string | null;
@@ -105,6 +117,25 @@ export async function PATCH(req: Request) {
     updates.tutorial_message = msg.trim();
   }
 
+  for (const [campo, max] of Object.entries(PRECIOS)) {
+    if (!(campo in (body ?? {}))) continue;
+    const n = Number(body[campo]);
+    if (!Number.isFinite(n) || n < 0 || n > max) {
+      return NextResponse.json({ error: `El monto debe estar entre 0 y ${max}` }, { status: 400 });
+    }
+    updates[campo] = Math.round(n * 10000) / 10000;
+  }
+
+  for (const campo of PAGO_MOVIL) {
+    if (!(campo in (body ?? {}))) continue;
+    const v = body[campo];
+    if (v !== null && typeof v !== 'string') {
+      return NextResponse.json({ error: 'Datos de Pago Móvil inválidos' }, { status: 400 });
+    }
+    const t = (v ?? '').trim().slice(0, MAX_PAGO_MOVIL_LEN);
+    updates[campo] = t || null;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }
@@ -114,7 +145,9 @@ export async function PATCH(req: Request) {
     .from('platform_settings')
     .update(updates)
     .eq('id', 1)
-    .select('free_order_limit, support_phones, tutorial_video_url, tutorial_message')
+    .select(
+      'free_order_limit, support_phones, tutorial_video_url, tutorial_message, price_order_usd, price_ai_question_usd, welcome_balance_usd, pago_movil_bank, pago_movil_phone, pago_movil_document, pago_movil_holder'
+    )
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

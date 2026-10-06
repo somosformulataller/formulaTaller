@@ -244,11 +244,11 @@ export default function NotificationBell({ workshopName }: { workshopName: strin
                   ) : null
                 }
               >
-                {notifs.length === 0 && <Vacio texto="Cuando un cliente apruebe o rechace un presupuesto, lo verás aquí." />}
+                {notifs.length === 0 && <Vacio texto="Aquí verás las respuestas de tus clientes al presupuesto y el estado de tus recargas de saldo." />}
                 {notifs.map((n) => (
                   <Link
                     key={n.id}
-                    href={n.order_id ? `/admin/ordenes/${n.order_id}` : '#'}
+                    href={n.order_id ? `/admin/ordenes/${n.order_id}` : n.kind === 'saldo' ? '/admin/saldo' : '#'}
                     onClick={() => {
                       if (!n.read_at) marcarLeidas({ ids: [n.id] });
                       setAbierto(false);
