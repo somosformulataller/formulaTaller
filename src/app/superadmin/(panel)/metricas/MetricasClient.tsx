@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, ClipboardList, Sparkles, Clock, RefreshCw } from 'lucide-react';
+import { MessageCircle, ClipboardList, Sparkles, Clock, RefreshCw, ChevronDown, ExternalLink } from 'lucide-react';
 import { openWhatsApp } from '@/lib/utils';
 import { waNumber } from '@/lib/whatsapp';
 
@@ -15,6 +15,10 @@ export interface Dia {
 
 export interface FilaOrden {
   id: string;
+  workshop_id: string;
+  /** #1 es la primera orden que creó el taller. */
+  numero: number;
+  total: number;
   created_at: string;
   cliente: string;
   carro: string;
@@ -65,12 +69,14 @@ const primerNombre = (n: string | null) => (n ?? '').trim().split(/\s+/)[0] ?? '
 export default function MetricasClient({
   dias,
   ultimas,
+  historial,
   primeras,
   inactivos,
   inactivoDias,
 }: {
   dias: Dia[];
   ultimas: FilaOrden[];
+  historial: Record<string, FilaOrden[]>;
   primeras: FilaTaller[];
   inactivos: FilaTaller[];
   inactivoDias: number;
@@ -218,6 +224,7 @@ export default function MetricasClient({
             <div key={o.id} className="card">
               <Encabezado taller={o.taller} dueno={o.dueno} whatsapp={o.whatsapp} />
               <Orden o={o} />
+              <VerOrdenes ordenes={historial[o.workshop_id] ?? []} />
               <BotonWa
                 onClick={() =>
                   escribir(
@@ -238,6 +245,7 @@ export default function MetricasClient({
               </p>
               <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--color-text-muted)', marginTop: 10 }}>PRIMERA ORDEN</p>
               <Orden o={f.primera} />
+              <VerOrdenes ordenes={historial[f.id] ?? []} />
               <BotonWa
                 onClick={() =>
                   escribir(
@@ -264,6 +272,7 @@ export default function MetricasClient({
                     · última el {fechaHora(f.ultima)} · {f.total} {f.total === 1 ? 'orden' : 'órdenes'} en total
                   </span>
                 </p>
+                <VerOrdenes ordenes={historial[f.id] ?? []} />
                 <BotonWa
                   onClick={() =>
                     escribir(
@@ -375,12 +384,65 @@ function Orden({ o }: { o: FilaOrden }) {
         fontSize: 13,
       }}
     >
-      <div style={{ fontWeight: 600 }}>
-        {o.carro || 'Sin modelo'} · {o.cliente || 'Sin nombre'}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: 11.5,
+            fontWeight: 800,
+            padding: '2px 7px',
+            borderRadius: 999,
+            background: 'rgba(245,158,11,0.15)',
+            color: 'var(--color-brand-400)',
+          }}
+        >
+          #{o.numero} de {o.total}
+        </span>
+        <span style={{ fontWeight: 600 }}>
+          {o.carro || 'Sin modelo'} · {o.cliente || 'Sin nombre'}
+        </span>
       </div>
-      <div style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 2 }}>
-        {fechaHora(o.created_at)} · {ESTADO[o.status] ?? o.status}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
+        <span>
+          {fechaHora(o.created_at)} · {ESTADO[o.status] ?? o.status}
+        </span>
+        <a
+          href={`/superadmin/talleres/${o.workshop_id}/ordenes/${o.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--color-brand-400)', fontWeight: 600 }}
+        >
+          Ver orden <ExternalLink size={12} />
+        </a>
       </div>
+    </div>
+  );
+}
+
+/** Despliega todas las órdenes del taller, de la #1 (la primera) a la última. */
+function VerOrdenes({ ordenes }: { ordenes: FilaOrden[] }) {
+  const [abierto, setAbierto] = useState(false);
+  if (ordenes.length === 0) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <button
+        onClick={() => setAbierto((v) => !v)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        {abierto ? 'Ocultar' : 'Ver'} {ordenes.length === 1 ? 'su orden' : `sus ${ordenes.length} órdenes`}
+        <ChevronDown size={14} style={{ transform: abierto ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+      </button>
+      {abierto && ordenes.map((o) => <Orden key={o.id} o={o} />)}
     </div>
   );
 }

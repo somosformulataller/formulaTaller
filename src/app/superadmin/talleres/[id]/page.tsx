@@ -201,7 +201,8 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
         <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Este taller no tiene órdenes.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {orders.map((o) => (
+          {/* Vienen de la más nueva a la más vieja: #1 es la primera que creó. */}
+          {orders.map((o, i) => (
             <Link
               key={o.id}
               href={`/superadmin/talleres/${params.id}/ordenes/${o.id}`}
@@ -210,6 +211,9 @@ export default async function SuperadminWorkshopPage({ params }: Props) {
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,158,11,0.15)', color: 'var(--color-brand-400)', flexShrink: 0 }}>
+                    #{orderTotal - i} de {orderTotal}
+                  </span>
                   <span style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {o.client_first_name} {o.client_last_name}
                   </span>

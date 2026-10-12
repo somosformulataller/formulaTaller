@@ -47,6 +47,16 @@ export default async function SuperadminOrderPage({ params }: Props) {
   // Fotos del bucket privado: firmar sus URLs antes de renderizarlas.
   await signStageAttachments(service, (order as unknown as { stages?: OrderStage[] }).stages);
 
+  // Qué número de orden es dentro del taller (#1 = la primera) y cuántas lleva.
+  const [{ count: antes }, { count: total }] = await Promise.all([
+    service
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('workshop_id', params.id)
+      .lte('created_at', order.created_at),
+    service.from('orders').select('id', { count: 'exact', head: true }).eq('workshop_id', params.id),
+  ]);
+
   const clientName = `${order.client_first_name} ${order.client_last_name}`;
   const trackingUrl = `${SITE_URL}/tracking/${order.public_token}`;
   const stages = (order.stages ?? []).slice().sort((a, b) => a.position - b.position);
@@ -73,7 +83,12 @@ export default async function SuperadminOrderPage({ params }: Props) {
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 800 }}>{clientName}</h1>
             <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 2 }}>
-              Orden #{order.id.slice(0, 8).toUpperCase()}
+              {antes && total ? (
+                <b style={{ color: 'var(--color-brand-400)' }}>
+                  Orden #{antes} de {total} del taller ·{' '}
+                </b>
+              ) : null}
+              #{order.id.slice(0, 8).toUpperCase()}
             </p>
           </div>
           <Badge status={order.status} />

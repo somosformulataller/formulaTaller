@@ -88,10 +88,23 @@ export default async function MetricasPage() {
     }
   }
 
+  // Número de cada orden dentro de su taller: #1 es la primera que creó.
+  const numero = new Map<string, number>();
+  const contador = new Map<string, number>();
+  for (let i = ordenes.length - 1; i >= 0; i--) {
+    const o = ordenes[i];
+    const n = (contador.get(o.workshop_id) ?? 0) + 1;
+    contador.set(o.workshop_id, n);
+    numero.set(o.id, n);
+  }
+
   const fila = (o: Orden): FilaOrden => {
     const t = tallerPorId.get(o.workshop_id)!;
     return {
       id: o.id,
+      workshop_id: o.workshop_id,
+      numero: numero.get(o.id)!,
+      total: porTaller.get(o.workshop_id)!.total,
       created_at: o.created_at,
       cliente: `${o.client_first_name ?? ''} ${o.client_last_name ?? ''}`.trim(),
       carro: (o.car_model ?? '').trim(),
@@ -118,6 +131,13 @@ export default async function MetricasPage() {
   };
 
   const ultimas = ordenes.slice(0, 100).map(fila);
+
+  // Todas las órdenes de cada taller, de la #1 a la última, para desplegarlas.
+  const historial: Record<string, FilaOrden[]> = {};
+  for (let i = ordenes.length - 1; i >= 0; i--) {
+    const o = ordenes[i];
+    (historial[o.workshop_id] ??= []).push(fila(o));
+  }
 
   const primeras = Array.from(porTaller.keys())
     .map(tallerFila)
@@ -155,5 +175,5 @@ export default async function MetricasPage() {
     return { dia: k, ordenes: s.ordenes, activos: s.activos.size, nuevos: s.nuevos };
   });
 
-  return <MetricasClient dias={dias} ultimas={ultimas} primeras={primeras} inactivos={inactivos} inactivoDias={INACTIVO_DIAS} />;
+  return <MetricasClient dias={dias} ultimas={ultimas} historial={historial} primeras={primeras} inactivos={inactivos} inactivoDias={INACTIVO_DIAS} />;
 }
