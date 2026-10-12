@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MessageCircle, ClipboardList, Sparkles, Clock, RefreshCw, ChevronDown, ExternalLink } from 'lucide-react';
 import { openWhatsApp } from '@/lib/utils';
 import { waNumber } from '@/lib/whatsapp';
+import OrdenarChips from '@/components/superadmin/OrdenarChips';
 
 export interface Dia {
   dia: string; // 2026-10-12
@@ -40,6 +41,19 @@ export interface FilaTaller {
 }
 
 const RANGOS = [7, 15, 30] as const;
+
+type OrdenLista = 'recientes' | 'mas' | 'menos';
+const ORDENES_TALLER = [
+  { key: 'recientes', label: 'Más recientes' },
+  { key: 'mas', label: 'Más órdenes' },
+  { key: 'menos', label: 'Menos órdenes' },
+] as const;
+
+/** La lista ya viene de la más reciente a la más vieja; el sort es estable. */
+function ordenar<T>(lista: T[], orden: OrdenLista, total: (x: T) => number): T[] {
+  if (orden === 'recientes') return lista;
+  return [...lista].sort((a, b) => (orden === 'mas' ? total(b) - total(a) : total(a) - total(b)));
+}
 const POR_PAGINA = 20;
 /** Al volver a la pestaña solo se recalcula si los datos tienen más de 5 min. */
 const VIEJO_MS = 5 * 60 * 1000;
@@ -84,6 +98,10 @@ export default function MetricasClient({
   const [rango, setRango] = useState<(typeof RANGOS)[number]>(7);
   const [tab, setTab] = useState<'ultimas' | 'primeras' | 'inactivos'>('ultimas');
   const [visibles, setVisibles] = useState(POR_PAGINA);
+  const [orden, setOrden] = useState<OrdenLista>('recientes');
+  const listaUltimas = ordenar(ultimas, orden, (o) => o.total);
+  const listaPrimeras = ordenar(primeras, orden, (f) => f.total);
+  const listaInactivos = ordenar(inactivos, orden, (f) => f.total);
   const serie = dias.slice(-rango);
   const router = useRouter();
 
@@ -218,9 +236,20 @@ export default function MetricasClient({
           `Talleres que crearon al menos una orden y llevan ${inactivoDias} días o más sin crear otra. Los que nunca crearon una no salen aquí.`}
       </p>
 
+      <div style={{ marginBottom: 12 }}>
+        <OrdenarChips
+          opciones={ORDENES_TALLER}
+          valor={orden}
+          onChange={(k) => {
+            setOrden(k);
+            setVisibles(POR_PAGINA);
+          }}
+        />
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {tab === 'ultimas' &&
-          ultimas.slice(0, visibles).map((o) => (
+          listaUltimas.slice(0, visibles).map((o) => (
             <div key={o.id} className="card">
               <Encabezado taller={o.taller} dueno={o.dueno} whatsapp={o.whatsapp} />
               <Orden o={o} />
@@ -237,7 +266,7 @@ export default function MetricasClient({
           ))}
 
         {tab === 'primeras' &&
-          primeras.slice(0, visibles).map((f) => (
+          listaPrimeras.slice(0, visibles).map((f) => (
             <div key={f.id} className="card">
               <Encabezado taller={f.taller} dueno={f.dueno} whatsapp={f.whatsapp} />
               <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 3 }}>
@@ -258,7 +287,7 @@ export default function MetricasClient({
           ))}
 
         {tab === 'inactivos' &&
-          inactivos.slice(0, visibles).map((f) => {
+          listaInactivos.slice(0, visibles).map((f) => {
             const n = diasDesde(f.ultima);
             return (
               <div key={f.id} className="card">
@@ -418,10 +447,13 @@ function Orden({ o }: { o: FilaOrden }) {
   );
 }
 
-/** Despliega todas las órdenes del taller, de la #1 (la primera) a la última. */
+/** Despliega todas las órdenes del taller, de la más reciente o de la más antigua. */
 function VerOrdenes({ ordenes }: { ordenes: FilaOrden[] }) {
   const [abierto, setAbierto] = useState(false);
+  const [antiguas, setAntiguas] = useState(false);
   if (ordenes.length === 0) return null;
+  // ordenes viene de la #1 (la más antigua) a la última.
+  const lista = antiguas ? ordenes : [...ordenes].reverse();
   return (
     <div style={{ marginTop: 8 }}>
       <button
@@ -442,7 +474,20 @@ function VerOrdenes({ ordenes }: { ordenes: FilaOrden[] }) {
         {abierto ? 'Ocultar' : 'Ver'} {ordenes.length === 1 ? 'su orden' : `sus ${ordenes.length} órdenes`}
         <ChevronDown size={14} style={{ transform: abierto ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
       </button>
-      {abierto && ordenes.map((o) => <Orden key={o.id} o={o} />)}
+      {abierto && ordenes.length > 1 && (
+        <div style={{ marginTop: 8 }}>
+          <OrdenarChips
+            pequeno
+            opciones={[
+              { key: 'recientes', label: 'Más recientes' },
+              { key: 'antiguas', label: 'Más antiguas' },
+            ]}
+            valor={antiguas ? 'antiguas' : 'recientes'}
+            onChange={(k) => setAntiguas(k === 'antiguas')}
+          />
+        </div>
+      )}
+      {abierto && lista.map((o) => <Orden key={o.id} o={o} />)}
     </div>
   );
 }

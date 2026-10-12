@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import OrdenarChips from '@/components/superadmin/OrdenarChips';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -46,6 +47,7 @@ export default function SuperadminClient({
   const [rows, setRows] = useState<WorkshopAdminRow[]>(initialRows);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [orden, setOrden] = useState<'recientes' | 'mas' | 'menos'>('recientes');
   // Qué fichas de registro están abiertas. Cerradas por defecto: la lista sirve
   // para barrer muchos talleres de un vistazo, y la ficha es para mirar uno.
   const [fichaAbierta, setFichaAbierta] = useState<Record<string, boolean>>({});
@@ -92,14 +94,20 @@ export default function SuperadminClient({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.slug.toLowerCase().includes(q) ||
-        (r.owner_name ?? '').toLowerCase().includes(q)
+    const lista = !q
+      ? rows
+      : rows.filter(
+          (r) =>
+            r.name.toLowerCase().includes(q) ||
+            r.slug.toLowerCase().includes(q) ||
+            (r.owner_name ?? '').toLowerCase().includes(q)
+        );
+    // rows viene del registro más reciente al más viejo; el sort es estable.
+    if (orden === 'recientes') return lista;
+    return [...lista].sort((a, b) =>
+      orden === 'mas' ? b.order_count - a.order_count : a.order_count - b.order_count
     );
-  }, [rows, search]);
+  }, [rows, search, orden]);
 
   async function savePhones() {
     const cleaned = phoneDraft.map((p) => p.value.trim()).filter((p) => p.length > 0);
@@ -386,6 +394,18 @@ export default function SuperadminClient({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ paddingLeft: 36 }}
+        />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <OrdenarChips
+          opciones={[
+            { key: 'recientes', label: 'Más recientes' },
+            { key: 'mas', label: 'Más órdenes' },
+            { key: 'menos', label: 'Menos órdenes' },
+          ]}
+          valor={orden}
+          onChange={setOrden}
         />
       </div>
 
