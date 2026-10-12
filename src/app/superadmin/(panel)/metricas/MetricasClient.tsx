@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, ClipboardList, Sparkles, Clock, RefreshCw, ChevronDown, ExternalLink } from 'lucide-react';
+import { MessageCircle, ClipboardList, Sparkles, Clock, RefreshCw } from 'lucide-react';
 import { openWhatsApp } from '@/lib/utils';
 import { waNumber } from '@/lib/whatsapp';
 import OrdenarChips from '@/components/superadmin/OrdenarChips';
+import { Orden, VerOrdenes, fechaHora, type OrdenResumen } from '@/components/superadmin/VerOrdenes';
 
 export interface Dia {
   dia: string; // 2026-10-12
@@ -14,16 +15,7 @@ export interface Dia {
   nuevos: number;
 }
 
-export interface FilaOrden {
-  id: string;
-  workshop_id: string;
-  /** #1 es la primera orden que creó el taller. */
-  numero: number;
-  total: number;
-  created_at: string;
-  cliente: string;
-  carro: string;
-  status: string;
+export interface FilaOrden extends OrdenResumen {
   taller: string;
   dueno: string | null;
   whatsapp: string | null;
@@ -57,22 +49,6 @@ function ordenar<T>(lista: T[], orden: OrdenLista, total: (x: T) => number): T[]
 const POR_PAGINA = 20;
 /** Al volver a la pestaña solo se recalcula si los datos tienen más de 5 min. */
 const VIEJO_MS = 5 * 60 * 1000;
-
-const ESTADO: Record<string, string> = {
-  sin_mecanico: 'Sin mecánico',
-  con_mecanico: 'En el taller',
-  lista: 'Lista',
-};
-
-function fechaHora(iso: string): string {
-  return new Intl.DateTimeFormat('es-VE', {
-    timeZone: 'America/Caracas',
-    day: '2-digit',
-    month: '2-digit',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(iso));
-}
 
 function diasDesde(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000));
@@ -398,97 +374,6 @@ function Encabezado({ taller, dueno, whatsapp }: { taller: string; dueno: string
         {whatsapp ?? 'Sin teléfono'}
       </p>
     </>
-  );
-}
-
-function Orden({ o }: { o: FilaOrden }) {
-  return (
-    <div
-      style={{
-        marginTop: 8,
-        background: 'var(--color-surface-2)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        padding: '8px 10px',
-        fontSize: 13,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span
-          style={{
-            fontSize: 11.5,
-            fontWeight: 800,
-            padding: '2px 7px',
-            borderRadius: 999,
-            background: 'rgba(245,158,11,0.15)',
-            color: 'var(--color-brand-400)',
-          }}
-        >
-          #{o.numero} de {o.total}
-        </span>
-        <span style={{ fontWeight: 600 }}>
-          {o.carro || 'Sin modelo'} · {o.cliente || 'Sin nombre'}
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
-        <span>
-          {fechaHora(o.created_at)} · {ESTADO[o.status] ?? o.status}
-        </span>
-        <a
-          href={`/superadmin/talleres/${o.workshop_id}/ordenes/${o.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--color-brand-400)', fontWeight: 600 }}
-        >
-          Ver orden <ExternalLink size={12} />
-        </a>
-      </div>
-    </div>
-  );
-}
-
-/** Despliega todas las órdenes del taller, de la más reciente o de la más antigua. */
-function VerOrdenes({ ordenes }: { ordenes: FilaOrden[] }) {
-  const [abierto, setAbierto] = useState(false);
-  const [antiguas, setAntiguas] = useState(false);
-  if (ordenes.length === 0) return null;
-  // ordenes viene de la #1 (la más antigua) a la última.
-  const lista = antiguas ? ordenes : [...ordenes].reverse();
-  return (
-    <div style={{ marginTop: 8 }}>
-      <button
-        onClick={() => setAbierto((v) => !v)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          background: 'none',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer',
-          fontSize: 12.5,
-          fontWeight: 700,
-          color: 'var(--color-text-secondary)',
-        }}
-      >
-        {abierto ? 'Ocultar' : 'Ver'} {ordenes.length === 1 ? 'su orden' : `sus ${ordenes.length} órdenes`}
-        <ChevronDown size={14} style={{ transform: abierto ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
-      </button>
-      {abierto && ordenes.length > 1 && (
-        <div style={{ marginTop: 8 }}>
-          <OrdenarChips
-            pequeno
-            opciones={[
-              { key: 'recientes', label: 'Más recientes' },
-              { key: 'antiguas', label: 'Más antiguas' },
-            ]}
-            valor={antiguas ? 'antiguas' : 'recientes'}
-            onChange={(k) => setAntiguas(k === 'antiguas')}
-          />
-        </div>
-      )}
-      {abierto && lista.map((o) => <Orden key={o.id} o={o} />)}
-    </div>
   );
 }
 

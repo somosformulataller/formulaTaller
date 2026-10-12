@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { getPlatformAdmin, fetchAllAuthAccounts } from '@/lib/api-auth';
 import type { WorkshopAdminRow } from '@/lib/types';
 import LoadError from '@/components/ui/LoadError';
+import { historialPorTaller } from '@/lib/superadmin-historial';
 import SuperadminClient from './SuperadminClient';
 
 // Datos siempre frescos.
@@ -110,7 +111,10 @@ export default async function SuperadminDashboardPage() {
 
   // La cuenta de acceso del dueño (vive en auth.users; se lee con la admin API,
   // recorriendo todas las páginas para no perder dueños tras los primeros 1000).
-  const cuentaById = await fetchAllAuthAccounts(service);
+  const [cuentaById, historial] = await Promise.all([
+    fetchAllAuthAccounts(service),
+    historialPorTaller(service),
+  ]);
 
   const rows: WorkshopAdminRow[] = workshops.map((w) => ({
     id: w.id,
@@ -138,6 +142,7 @@ export default async function SuperadminDashboardPage() {
   return (
     <SuperadminClient
       rows={rows}
+      historial={historial}
       adminEmail={admin.email}
       supportPhones={supportPhones}
     />

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import OrdenarChips from '@/components/superadmin/OrdenarChips';
+import { VerOrdenes, type OrdenResumen } from '@/components/superadmin/VerOrdenes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -33,12 +34,15 @@ const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'https://formulataller.com';
 
 interface SuperadminClientProps {
   rows: WorkshopAdminRow[];
+  /** Órdenes de cada taller, de la #1 a la última. */
+  historial: Record<string, OrdenResumen[]>;
   adminEmail: string | null;
   supportPhones: string[];
 }
 
 export default function SuperadminClient({
   rows: initialRows,
+  historial,
   adminEmail,
   supportPhones,
 }: SuperadminClientProps) {
@@ -478,6 +482,8 @@ export default function SuperadminClient({
                   </div>
                 </div>
 
+                <VerOrdenes ordenes={historial[row.id] ?? []} />
+
                 <Link
                   href={`/superadmin/talleres/${row.id}`}
                   style={{
@@ -491,7 +497,7 @@ export default function SuperadminClient({
                     textDecoration: 'none',
                   }}
                 >
-                  Ver detalle (órdenes y mecánicos) →
+                  Ver detalle del taller (mecánicos y órdenes) →
                 </Link>
 
                 {/* Ficha de registro: todo lo que el taller puso al darse de
