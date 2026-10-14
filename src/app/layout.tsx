@@ -12,8 +12,11 @@ export const metadata: Metadata = {
     title: 'Formula Taller',
   },
   icons: {
-    icon: '/icons/icon-192.png',
-    apple: '/icons/icon-192.png',
+    icon: [
+      { url: '/icons/favicon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
   },
   keywords: ['taller', 'mecánico', 'órdenes', 'vehículos'],
   robots: 'noindex',
