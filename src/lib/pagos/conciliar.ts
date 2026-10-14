@@ -95,11 +95,13 @@ export async function conciliar(op: OpcionesPasada): Promise<InformePasada> {
     aprobadas: 0,
     detalle: [],
   }));
-  // El diario guarda las pasadas del cron y del superadmin, y las del taller
-  // solo si entraron al banco o aprobaron algo (si no, serían cientos de filas).
+  // El diario guarda TODAS las pasadas del cron (aunque no haya pendientes: es
+  // lo que dice en el panel que el cron está vivo; ~1.440 filas al día, se
+  // purgan a los 7 días) y las del superadmin. Las del taller, solo si entraron
+  // al banco o aprobaron algo (si no, serían cientos de filas).
   const vale =
     op.origen !== 'taller' || informe.aprobadas > 0 || (informe.latido && !['no_hizo_falta', 'turno_ocupado'].includes(informe.latido));
-  if (vale && (informe.pendientes > 0 || op.origen !== 'cron' || !informe.ok)) {
+  if (vale) {
     try {
       const service = createServiceClient();
       await service.from('pagos_pasadas').insert({
