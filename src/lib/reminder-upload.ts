@@ -42,7 +42,7 @@ export async function subirArchivoRecordatorio(input: File, kind: 'audio' | 'ima
  */
 export async function transcribir(
   nota: string | File,
-  modo: 'recordatorio' | 'condiciones' | 'falla' = 'recordatorio'
+  modo: 'recordatorio' | 'condiciones' | 'falla' | 'pregunta' = 'recordatorio'
 ): Promise<{ texto: string; titulo: string }> {
   let body: BodyInit;
   const headers: HeadersInit = {};

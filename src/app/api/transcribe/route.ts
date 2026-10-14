@@ -43,6 +43,13 @@ const PROMPTS = {
     'puntuación correcta. Descarta todo lo que no sea lo que presenta el vehículo (comida, conversaciones con otras ' +
     'personas, precios, saludos, muletillas, temas personales). ' +
     COMUN,
+  pregunta:
+    'Esta nota de voz la grabó el administrador de un taller mecánico para hacerle una pregunta o un pedido a un ' +
+    'asistente que consulta los datos del taller (órdenes, clientes, vehículos, presupuestos, recordatorios, saldo). ' +
+    'Escucha la nota en español y escribe SOLO esa pregunta o pedido, tal como lo diría la persona, claro y breve, ' +
+    'con puntuación correcta (con ¿? si es pregunta). Conserva nombres, placas, fechas y montos exactamente como se ' +
+    'dijeron. Descarta todo lo demás (saludos, muletillas, conversaciones con otras personas, temas personales). ' +
+    COMUN,
 } as const;
 type Modo = keyof typeof PROMPTS;
 // En el recordatorio, además del texto, la IA sugiere el título.
@@ -91,7 +98,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'La nota de voz es demasiado larga. Graba una más corta.' }, { status: 400 });
     }
     const m = form?.get('modo');
-    if (m === 'condiciones' || m === 'falla' || m === 'recordatorio') modo = m;
+    if (m === 'condiciones' || m === 'falla' || m === 'recordatorio' || m === 'pregunta') modo = m;
     blob = audio;
     nombre = audio instanceof File ? audio.name : 'nota.webm';
   } else {

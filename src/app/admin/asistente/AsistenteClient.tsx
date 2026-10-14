@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, Sparkles, Trash2 } from 'lucide-react';
+import { Loader2, Mic, Send, Sparkles, Trash2 } from 'lucide-react';
+import VoiceRecorder from '@/components/orders/VoiceRecorder';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import { formatPrecioUsd, formatUsd } from '@/lib/budget';
+import { transcribir } from '@/lib/reminder-upload';
 
 type Turno = { role: 'user' | 'assistant'; content: string };
 
@@ -25,6 +27,8 @@ export default function AsistenteClient() {
   const [texto, setTexto] = useState('');
   const [pensando, setPensando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [grabando, setGrabando] = useState(false);
+  const [transcribiendo, setTranscribiendo] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
   const saldo = useSaldo();
 
@@ -45,6 +49,26 @@ export default function AsistenteClient() {
     }
     finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turnos, pensando]);
+
+  // La nota de voz se pasa a texto y queda en el cuadro para revisarla antes
+  // de enviarla; el audio no se guarda. Una segunda nota se suma a lo escrito.
+  async function alGrabar(file: File) {
+    setGrabando(false);
+    setError(null);
+    setTranscribiendo(true);
+    try {
+      const { texto: dicho } = await transcribir(file, 'pregunta');
+      if (!dicho) {
+        setError('No se entendió ninguna pregunta en la nota. Vuelve a grabar o escríbela.');
+        return;
+      }
+      setTexto((prev) => (prev.trim() ? `${prev.trim()} ${dicho}` : dicho));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo pasar la nota a texto.');
+    } finally {
+      setTranscribiendo(false);
+    }
+  }
 
   async function enviar(pregunta: string) {
     const q = pregunta.trim();
@@ -199,6 +223,12 @@ export default function AsistenteClient() {
           </div>
         )}
         {error && <p style={{ fontSize: 13, color: 'var(--color-danger)' }}>{error}</p>}
+        {transcribiendo && (
+          <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text-secondary)' }}>
+            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+            Pasando la nota de voz a texto…
+          </p>
+        )}
         {saldo && (
           <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)' }}>
             Cada pregunta cuesta {formatPrecioUsd(saldo.precios.preguntaIa)} · Tu saldo: {formatUsd(saldo.saldo)}
@@ -206,6 +236,22 @@ export default function AsistenteClient() {
         )}
         <div ref={finRef} />
       </div>
+
+      {grabando && (
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 'calc(var(--bottom-nav-height) + 70px)',
+            marginBottom: 8,
+            border: '1px solid var(--color-border)',
+            borderRadius: 14,
+            padding: '4px 12px',
+            background: 'var(--color-bg)',
+          }}
+        >
+          <VoiceRecorder onRecorded={alGrabar} onCancel={() => setGrabando(false)} entregarAlDetener grabarAlAbrir />
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
@@ -227,8 +273,9 @@ export default function AsistenteClient() {
           className="form-input"
           rows={1}
           maxLength={2000}
-          placeholder="Escribe tu pregunta…"
+          placeholder="Escribe o graba tu pregunta…"
           value={texto}
+          disabled={transcribiendo}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -238,6 +285,32 @@ export default function AsistenteClient() {
           }}
           style={{ flex: 1, resize: 'none', minHeight: 42, maxHeight: 120 }}
         />
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setGrabando(true);
+          }}
+          disabled={pensando || grabando || transcribiendo}
+          aria-label="Grabar pregunta por voz"
+          title="Grabar pregunta por voz"
+          style={{
+            width: 44,
+            height: 42,
+            flexShrink: 0,
+            borderRadius: 10,
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-2)',
+            color: 'var(--color-brand-400)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: pensando || grabando || transcribiendo ? 'default' : 'pointer',
+            opacity: pensando || grabando || transcribiendo ? 0.5 : 1,
+          }}
+        >
+          <Mic size={20} />
+        </button>
         <button
           type="submit"
           disabled={pensando || !texto.trim()}
