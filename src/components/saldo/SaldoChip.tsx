@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Wallet } from 'lucide-react';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
-import { formatPrecioUsd } from '@/lib/budget';
+import { formatUsd } from '@/lib/budget';
 
 /** El saldo del taller, centrado debajo del encabezado. Lleva a la pantalla de saldo. */
 export default function SaldoChip() {
@@ -13,7 +13,7 @@ export default function SaldoChip() {
   return (
     <Link
       href="/admin/saldo"
-      aria-label={`Saldo: ${formatPrecioUsd(saldo.saldo)}`}
+      aria-label={`Saldo: ${formatUsd(saldo.saldo)}`}
       title="Saldo"
       style={{
         display: 'inline-flex',
@@ -32,7 +32,7 @@ export default function SaldoChip() {
     >
       <Wallet size={15} />
       <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>Saldo</span>
-      {formatPrecioUsd(saldo.saldo)}
+      {formatUsd(saldo.saldo)}
     </Link>
   );
 }

@@ -515,7 +515,7 @@ function TarjetaPago({
           </p>
         )}
         <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-          Saldo actual del taller: {formatPrecioUsd(Number(p.workshop?.balance_usd ?? 0))}
+          Saldo actual del taller: {formatUsd(Number(p.workshop?.balance_usd ?? 0))}
           {p.workshop?.whatsapp ? ` · ${p.workshop.whatsapp}` : ''}
         </p>
         {p.proof_url && (

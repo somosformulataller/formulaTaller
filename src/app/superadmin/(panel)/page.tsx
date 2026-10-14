@@ -4,6 +4,7 @@ import { getPlatformAdmin, fetchAllAuthAccounts } from '@/lib/api-auth';
 import type { WorkshopAdminRow } from '@/lib/types';
 import LoadError from '@/components/ui/LoadError';
 import { historialPorTaller } from '@/lib/superadmin-historial';
+import { usoPorTaller } from '@/lib/superadmin-uso';
 import SuperadminClient from './SuperadminClient';
 
 // Datos siempre frescos.
@@ -139,10 +140,14 @@ export default async function SuperadminDashboardPage() {
     has_logo: !!w.logo_url,
   }));
 
+  // Primera y última orden, funcionalidades usadas y flujo real o débil.
+  const uso = await usoPorTaller(service, historial, rows);
+
   return (
     <SuperadminClient
       rows={rows}
       historial={historial}
+      uso={uso}
       adminEmail={admin.email}
       supportPhones={supportPhones}
     />

@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import type { WorkshopAdminRow } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
-import { formatPrecioUsd } from '@/lib/budget';
+import { formatUsd } from '@/lib/budget';
+import { FUNCIONALIDADES, type UsoTaller } from '@/lib/uso-funcionalidades';
 import PhoneInput from '@/components/ui/PhoneInput';
 import {
   Building2,
@@ -36,6 +37,7 @@ interface SuperadminClientProps {
   rows: WorkshopAdminRow[];
   /** Órdenes de cada taller, de la #1 a la última. */
   historial: Record<string, OrdenResumen[]>;
+  uso: Record<string, UsoTaller>;
   adminEmail: string | null;
   supportPhones: string[];
 }
@@ -43,6 +45,7 @@ interface SuperadminClientProps {
 export default function SuperadminClient({
   rows: initialRows,
   historial,
+  uso,
   adminEmail,
   supportPhones,
 }: SuperadminClientProps) {
@@ -295,7 +298,7 @@ export default function SuperadminClient({
         style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}
       >
         <MetricCard icon={<Building2 size={18} />} label="Talleres" value={metrics.total} />
-        <MetricCard icon={<Wallet size={18} />} label="Saldo en talleres" value={formatPrecioUsd(metrics.saldo)} />
+        <MetricCard icon={<Wallet size={18} />} label="Saldo en talleres" value={formatUsd(metrics.saldo)} />
         <MetricCard icon={<ClipboardList size={18} />} label="Órdenes" value={metrics.orders} />
       </div>
 
@@ -443,6 +446,7 @@ export default function SuperadminClient({
                       >
                         {row.name}
                       </span>
+                      {uso[row.id] && <EtiquetaFlujo flujo={uso[row.id].flujo} />}
                       {row.is_test && (
                         <span
                           style={{
@@ -462,9 +466,10 @@ export default function SuperadminClient({
                     </div>
                     <p style={{ color: 'var(--color-text-muted)', fontSize: 12, marginTop: 3 }}>
                       {row.owner_name ? `${row.owner_name} · ` : ''}
-                      {row.order_count} órdenes · saldo {formatPrecioUsd(row.balance_usd)}{' '}
+                      {row.order_count} órdenes · saldo {formatUsd(row.balance_usd)}{' '}
                       · {formatDate(row.created_at)}
                     </p>
+                    {uso[row.id] && <ResumenUso uso={uso[row.id]} />}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
@@ -614,7 +619,7 @@ export default function SuperadminClient({
                               : `${row.mechanic_count} (sin contar al dueño)`
                           }
                         />
-                        <Dato etiqueta="Saldo" valor={formatPrecioUsd(row.balance_usd)} />
+                        <Dato etiqueta="Saldo" valor={formatUsd(row.balance_usd)} />
                         {row.is_test && <Dato etiqueta="Marcado como" valor="Taller de prueba" />}
                       </Bloque>
                     </div>
@@ -634,7 +639,7 @@ export default function SuperadminClient({
                   }}
                 >
                   <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 600 }}>
-                    Saldo {formatPrecioUsd(row.balance_usd)} · Ajustar:
+                    Saldo {formatUsd(row.balance_usd)} · Ajustar:
                   </span>
                   <input
                     className="form-input"
@@ -967,6 +972,119 @@ function Dato({
         >
           {copiado ? <Check size={13} /> : <Copy size={13} />}
         </button>
+      )}
+    </div>
+  );
+}
+
+/** «Flujo real» (verde) o «Flujo débil» (naranja), junto al nombre del taller. */
+function EtiquetaFlujo({ flujo }: { flujo: UsoTaller['flujo'] }) {
+  const real = flujo === 'real';
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 800,
+        color: real ? '#34d399' : '#fb923c',
+        background: real ? 'rgba(16,185,129,0.12)' : 'rgba(251,146,60,0.12)',
+        border: `1px solid ${real ? 'rgba(16,185,129,0.4)' : 'rgba(251,146,60,0.4)'}`,
+        borderRadius: 999,
+        padding: '2px 8px',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {real ? 'FLUJO REAL' : 'FLUJO DÉBIL'}
+    </span>
+  );
+}
+
+function diasDesde(iso: string): string {
+  const d = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+  return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`;
+}
+
+/**
+ * Primera y última orden, cuántas funcionalidades usó de las que hay (con la
+ * barra) y, al desplegar, cuáles usó y cuáles no, más por qué el flujo es débil.
+ */
+function ResumenUso({ uso }: { uso: UsoTaller }) {
+  const [abierto, setAbierto] = useState(false);
+  const usadas = new Set<string>(uso.usadas);
+  const fecha = (iso: string) =>
+    new Intl.DateTimeFormat('es-VE', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Caracas' }).format(new Date(iso));
+  const color = uso.porcentaje >= 50 ? '#34d399' : uso.porcentaje >= 25 ? '#fbbf24' : '#fb923c';
+  return (
+    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+        {uso.primera_orden && uso.ultima_orden ? (
+          <>
+            Primera orden: <b>{fecha(uso.primera_orden)}</b> · Última orden: <b>{fecha(uso.ultima_orden)}</b> (
+            {diasDesde(uso.ultima_orden)})
+          </>
+        ) : (
+          'Todavía no ha creado órdenes'
+        )}
+      </p>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          color: 'var(--color-text-secondary)',
+          fontSize: 12,
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ width: 90, height: 6, borderRadius: 999, background: 'var(--color-surface-3)', overflow: 'hidden', flexShrink: 0 }}>
+          <span style={{ display: 'block', width: `${uso.porcentaje}%`, height: '100%', background: color }} />
+        </span>
+        <span>
+          Usó <b style={{ color }}>{uso.usadas.length} de {FUNCIONALIDADES.length}</b> funcionalidades ({uso.porcentaje} %)
+          {' '}
+          <span style={{ color: 'var(--color-brand-400)', fontWeight: 700 }}>{abierto ? 'ocultar' : 'ver cuáles'}</span>
+        </span>
+      </button>
+      {abierto && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {FUNCIONALIDADES.map((f) => {
+              const si = usadas.has(f.clave);
+              return (
+                <span
+                  key={f.clave}
+                  style={{
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    border: `1px solid ${si ? 'rgba(16,185,129,0.4)' : 'var(--color-border)'}`,
+                    background: si ? 'rgba(16,185,129,0.1)' : 'transparent',
+                    color: si ? '#34d399' : 'var(--color-text-muted)',
+                    textDecoration: si ? 'none' : 'line-through',
+                  }}
+                >
+                  {si ? '✓ ' : ''}
+                  {f.texto}
+                </span>
+              );
+            })}
+          </div>
+          {uso.flujo === 'debil' && uso.motivos.length > 0 && (
+            <p style={{ fontSize: 11.5, color: '#fb923c' }}>Flujo débil: {uso.motivos.join(' · ')}.</p>
+          )}
+          {uso.flujo === 'real' && (
+            <p style={{ fontSize: 11.5, color: '#34d399' }}>
+              Flujo real: 3 o más órdenes, en días distintos, y alguna avanzó o se terminó.
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

@@ -128,7 +128,7 @@ export default function SaldoClient() {
           </div>
           <div>
             <p style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600 }}>Tu saldo</p>
-            <p style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>{formatPrecioUsd(saldo.saldo)}</p>
+            <p style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>{formatUsd(saldo.saldo)}</p>
           </div>
         </div>
         <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>

@@ -461,7 +461,7 @@ export default function OrderForm({
       </div>
       {!isEdit && saldo && (
         <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: -8 }}>
-          Crear la orden descuenta {formatPrecioUsd(saldo.precios.orden)} de tu saldo ({formatPrecioUsd(saldo.saldo)}).
+          Crear la orden descuenta {formatPrecioUsd(saldo.precios.orden)} de tu saldo ({formatUsd(saldo.saldo)}).
         </p>
       )}
 
