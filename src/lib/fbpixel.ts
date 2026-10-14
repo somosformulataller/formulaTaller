@@ -54,36 +54,69 @@ export function trackFbEvent(name: string, custom: Record<string, unknown> = {})
   }
 }
 
-// Eventos ya disparados en ESTA carga de página (en memoria). Se reinicia al
-// recargar la página (F5), a diferencia de localStorage que persiste para
-// siempre.
-const firedThisLoad = new Set<string>();
+// Candado de 24 h por usuario (este navegador): cada evento se cuenta una sola
+// vez y no vuelve a contarse hasta que pasen 24 horas, aunque haga clic otra
+// vez, recargue la página o vuelva otro día antes de tiempo. La hora del
+// último disparo de cada evento se guarda en localStorage. Si el navegador no
+// deja guardar (modo privado), al menos no se repite en esta carga de página.
+const VENTANA_MS = 24 * 60 * 60 * 1000;
+const CLAVE = 'ft-fb-eventos';
+const enMemoria = new Map<string, number>();
+
+function leerCandados(): Record<string, number> {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLAVE) || '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+function yaContado(name: string): boolean {
+  const ultimo = leerCandados()[name] ?? enMemoria.get(name);
+  return typeof ultimo === 'number' && Date.now() - ultimo < VENTANA_MS;
+}
+
+function marcarContado(name: string): void {
+  const ahora = Date.now();
+  enMemoria.set(name, ahora);
+  try {
+    const candados = leerCandados();
+    candados[name] = ahora;
+    // Se limpian los vencidos para que no crezca.
+    for (const k of Object.keys(candados)) {
+      if (ahora - candados[k] >= VENTANA_MS) delete candados[k];
+    }
+    localStorage.setItem(CLAVE, JSON.stringify(candados));
+  } catch {
+    /* sin almacenamiento: queda el candado en memoria */
+  }
+}
 
 /**
- * Igual que trackFbEvent, pero dispara el evento **una sola vez por carga de
- * página**: si en la misma vista se hace clic varias veces (o doble-clic), se
- * cuenta una sola vez y no infla el conteo. Al **recargar** la página el
- * candado se reinicia, así que se puede volver a disparar (útil para verificar
- * en el Meta Pixel Helper). Meta, además, reporta los **usuarios únicos**.
+ * Igual que trackFbEvent, pero cada evento se cuenta **una sola vez cada 24
+ * horas por usuario** (navegador). Si hace clic de nuevo antes de que pasen
+ * 24 h, no se envía nada; pasadas las 24 h, el siguiente clic vuelve a contar.
  */
 export function trackFbEventOnce(name: string, custom: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
-  if (firedThisLoad.has(name)) return; // ya disparado en esta carga de página
-  firedThisLoad.add(name);
+  if (yaContado(name)) return;
+  marcarContado(name);
   trackFbEvent(name, custom);
 }
 
 // Evento "paraguas": se dispara con CUALQUIERA de los 3 botones de conversión
 // (ClickIniciarSesion, ClickCrearTaller o ClickRegistrarTaller) — basta con
-// uno solo, no hace falta completar los 3. Llamar a
-// trackInteraccionFormulaTaller() junto a cada uno de los 3 eventos; el
-// candado de trackFbEventOnce evita que se dispare más de una vez por carga
-// de página aunque se llame varias veces (una por cada botón que se toque).
+// uno solo. Tiene su propio candado de 24 h, así que aunque toque los 3
+// botones cuenta una sola vez al día.
 export function trackInteraccionFormulaTaller(): void {
   if (typeof window === 'undefined') return;
-  if (firedThisLoad.has('interaccionFormulaTaller')) return;
+  if (yaContado('interaccionFormulaTaller')) return;
+  // Se marca ya (no al salir el evento) para que dos clics seguidos no lo
+  // programen dos veces.
+  marcarContado('interaccionFormulaTaller');
   // Pequeño desfase: si sale en el mismo instante que el evento específico
   // del mismo clic, el Pixel Helper solo alcanza a mostrar uno de los dos en
   // su panel (aunque ambos llegan a Meta).
-  setTimeout(() => trackFbEventOnce('interaccionFormulaTaller'), 250);
+  setTimeout(() => trackFbEvent('interaccionFormulaTaller'), 250);
 }
