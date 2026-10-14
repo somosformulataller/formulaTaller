@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { LogOut, Sparkles, Wrench } from 'lucide-react';
+import { LogOut, PlayCircle, Sparkles, Wrench } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
 import NotificationBell from '@/components/layout/NotificationBell';
 import { createClient } from '@/lib/supabase/client';
 import { usePathname, useRouter } from 'next/navigation';
@@ -16,6 +18,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const [verTutorial, setVerTutorial] = useState(false);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -37,17 +40,20 @@ export default function TopBar({ profile, title }: TopBarProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 16px',
+        padding: '0 12px',
+        gap: 8,
         zIndex: 50,
         paddingTop: 'env(safe-area-inset-top)',
       }}
     >
-      {/* Logo + Title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* Logo + Title. El nombre del taller se recorta con «…» para que los
+          botones de la derecha quepan siempre en una sola línea. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
         <div
           style={{
             width: 34,
             height: 34,
+            flexShrink: 0,
             background: 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
             borderRadius: 9,
             display: 'flex',
@@ -57,8 +63,17 @@ export default function TopBar({ profile, title }: TopBarProps) {
         >
           <Wrench size={18} color="#0D0F1A" strokeWidth={2.5} />
         </div>
-        <div>
-          <p style={{ fontSize: 14, fontWeight: 700, lineHeight: 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {title || 'Formula Taller'}
           </p>
           <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1, marginTop: 2 }}>
@@ -67,15 +82,35 @@ export default function TopBar({ profile, title }: TopBarProps) {
         </div>
       </div>
 
-      {/* Asistente, campana y Salir.
-          Antes había aquí el tutorial y un círculo con las iniciales del
-          taller. Se quitaron los dos a propósito: en un teléfono no cabían
-          junto a "Presupuestos", que es un acceso de uso diario, y las
-          iniciales no hacían nada (el nombre del taller ya está a la
-          izquierda). El tutorial sigue en /video. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Tutorial, asistente, campana y Salir: siempre en una línea (no se
+          encogen; lo que cede es el nombre del taller). «Tutorial» va en letra
+          pequeña para que quepa en un teléfono de 360 px. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {profile.role === 'admin' && (
           <>
+            <button
+              type="button"
+              onClick={() => setVerTutorial(true)}
+              title="Ver el video tutorial"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'rgba(245,158,11,0.12)',
+                border: '1px solid rgba(245,158,11,0.35)',
+                borderRadius: 8,
+                padding: '6px 7px',
+                color: 'var(--color-brand-400)',
+                fontSize: 11,
+                fontWeight: 700,
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              <PlayCircle size={14} />
+              Tutorial
+            </button>
             <Link
               href="/admin/asistente"
               aria-label="Asistente"
@@ -105,7 +140,7 @@ export default function TopBar({ profile, title }: TopBarProps) {
             background: 'var(--color-surface-2)',
             border: '1px solid var(--color-border)',
             borderRadius: 8,
-            padding: '6px 10px',
+            padding: '6px 8px',
             color: 'var(--color-text-secondary)',
             cursor: 'pointer',
             display: 'flex',
@@ -126,6 +161,26 @@ export default function TopBar({ profile, title }: TopBarProps) {
           <span className="tb-label">Salir</span>
         </button>
       </div>
+
+      {/* El video se abre aquí mismo (ventana emergente) cargando /video, que
+          lo toma de platform_settings. Solo se monta al abrir, para no
+          descargar el video a quien no lo pide. */}
+      {verTutorial && (
+        <Modal isOpen onClose={() => setVerTutorial(false)} title="Tutorial">
+          <iframe
+            src="/video"
+            title="Video tutorial de Formula Taller"
+            allow="autoplay; fullscreen; picture-in-picture"
+            style={{
+              width: '100%',
+              height: '65dvh',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--border-radius-sm)',
+              background: '#000',
+            }}
+          />
+        </Modal>
+      )}
     </header>
   );
 }
