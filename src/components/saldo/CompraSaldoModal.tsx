@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Check, Clock, Copy, ImagePlus, Loader2, X } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, ImagePlus, Loader2, ScanText, X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { formatUsd } from '@/lib/budget';
 import { compressImage } from '@/lib/image';
 import TasaDelDia from '@/components/saldo/TasaDelDia';
+import { useSaldo } from '@/components/saldo/SaldoProvider';
 
 const MONTOS = [5, 10, 20];
 const MIN_USD = 1;
@@ -23,9 +24,23 @@ interface Compra {
   id: string;
   amount_usd: number;
   amount_ves: number | null;
+  credited_usd?: number | null;
   status: 'pendiente' | 'aprobado' | 'rechazado';
+  note?: string | null;
+  revision?: string | null;
+  en_revision_manual?: boolean;
   created_at: string;
 }
+
+/** Lo que leyó el OCR de la captura. */
+type LecturaCaptura =
+  | { estado: 'leyendo' }
+  | { estado: 'leido'; referencia: string; monto: number | null }
+  | { estado: 'ilegible' | 'error' | 'sin_ocr' };
+
+/** Cada cuánto y durante cuánto se busca el pago en el banco con el modal abierto. */
+const VERIFICAR_CADA_MS = 6_000;
+const VERIFICAR_HASTA_MS = 4 * 60_000;
 
 /** Avisa a la pantalla de saldo que hay una compra nueva para recargar la lista. */
 export const EVENTO_COMPRA = 'saldo:compra';
@@ -36,11 +51,16 @@ function formatBs(n: number): string {
 
 /**
  * Comprar saldo por Pago Móvil: el taller elige el monto, ve cuánto es en Bs
- * a tasa BCV, paga desde su banco y sube la captura con la referencia. El
- * pago queda en revisión hasta que lo aprobamos en el superadmin.
+ * a tasa BCV, paga desde su banco y sube la captura. La referencia la lee el
+ * OCR de la captura; el servidor busca el pago en el banco y, si cuadra, suma
+ * el saldo solo en 1–2 minutos. Lo que no cuadra lo revisamos a mano.
  */
 export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
-  const [fase, setFase] = useState<'cargando' | 'form' | 'enviando' | 'enviado' | 'pendiente'>('cargando');
+  const ctxSaldo = useSaldo();
+  const [fase, setFase] = useState<'cargando' | 'form' | 'enviando' | 'enviado' | 'pendiente' | 'aprobado'>('cargando');
+  const [lectura, setLectura] = useState<LecturaCaptura | null>(null);
+  // true mientras el servidor busca el pago en el banco
+  const [verificando, setVerificando] = useState(false);
   const [pagoMovil, setPagoMovil] = useState<PagoMovil | null>(null);
   const [tasa, setTasa] = useState<number | null>(null);
   const [pendiente, setPendiente] = useState<Compra | null>(null);
@@ -78,6 +98,49 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
     if (vista) URL.revokeObjectURL(vista);
   }, [vista]);
 
+  // Con el pago enviado (o uno pendiente de antes), se le pide al servidor que
+  // lo busque en el banco hasta que se acredite o pase a revisión manual.
+  const pendienteId = pendiente?.status === 'pendiente' ? pendiente.id : null;
+  useEffect(() => {
+    if (!pendienteId || (fase !== 'enviado' && fase !== 'pendiente')) return;
+    let vivo = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const hasta = Date.now() + VERIFICAR_HASTA_MS;
+    async function verificar() {
+      setVerificando(true);
+      try {
+        const r = await fetch('/api/saldo/compras/verificar', { method: 'POST' });
+        const d = await r.json().catch(() => null);
+        if (!vivo) return;
+        if (typeof d?.saldo === 'number') ctxSaldo?.setSaldo(d.saldo);
+        const c = d?.compra as Compra | null;
+        if (c && c.id === pendienteId) {
+          setPendiente(c);
+          if (c.status === 'aprobado') {
+            setFase('aprobado');
+            setVerificando(false);
+            window.dispatchEvent(new Event(EVENTO_COMPRA));
+            return;
+          }
+          if (c.status === 'rechazado' || c.en_revision_manual) {
+            setVerificando(false);
+            window.dispatchEvent(new Event(EVENTO_COMPRA));
+            return;
+          }
+        }
+      } catch {}
+      if (!vivo) return;
+      if (Date.now() < hasta) timer = setTimeout(verificar, VERIFICAR_CADA_MS);
+      else setVerificando(false);
+    }
+    verificar();
+    return () => {
+      vivo = false;
+      if (timer) clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendienteId, fase]);
+
   const usd = Math.round(Number(monto.replace(',', '.')) * 100) / 100;
   const montoValido = Number.isFinite(usd) && usd >= MIN_USD && usd <= MAX_USD;
   const bs = tasa && montoValido ? Math.round(usd * tasa * 100) / 100 : null;
@@ -102,17 +165,35 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
     const comprimida = await compressImage(f);
     setArchivo(comprimida);
     setVista(URL.createObjectURL(comprimida));
+    // El OCR lee la referencia y el monto para que el taller no los teclee.
+    setLectura({ estado: 'leyendo' });
+    try {
+      const fd = new FormData();
+      fd.append('file', comprimida, comprimida.name || 'comprobante.jpg');
+      const r = await fetch('/api/saldo/comprobante', { method: 'POST', body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (d.estado === 'leido') {
+        setLectura({ estado: 'leido', referencia: String(d.referencia), monto: typeof d.monto === 'number' ? d.monto : null });
+        setReferencia(String(d.referencia));
+        setFaltaRef(false);
+      } else {
+        setLectura({ estado: d.estado === 'ilegible' ? 'ilegible' : d.estado === 'sin_ocr' ? 'sin_ocr' : 'error' });
+      }
+    } catch {
+      setLectura({ estado: 'error' });
+    }
   }
 
   async function enviar() {
     setError(null);
     if (!montoValido) return setError(`El monto debe estar entre $${MIN_USD} y $${MAX_USD}.`);
-    const sinRef = referencia.replace(/\D/g, '').length < 4;
+    // Si el OCR leyó la captura, la referencia ya está; si no, hay que escribirla.
+    const sinRef = lectura?.estado !== 'leido' && referencia.replace(/\D/g, '').length < 6;
     setFaltaRef(sinRef);
     setFaltaCaptura(!archivo);
-    if (sinRef && !archivo) return setError('Falta el número de referencia y la captura del pago.');
-    if (sinRef) return setError('Falta el número de referencia del pago.');
     if (!archivo) return setError('Falta la captura del pago. Súbela para poder enviarlo.');
+    if (lectura?.estado === 'leyendo') return setError('Espera un momento: estamos leyendo la captura.');
+    if (sinRef) return setError('No pudimos leer la referencia: escríbela completa (mínimo 6 dígitos).');
 
     setFase('enviando');
     const form = new FormData();
@@ -164,13 +245,55 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
           <p style={{ fontSize: 16, fontWeight: 700 }}>
             {fase === 'enviado' ? '¡Recibimos tu pago!' : 'Tienes un pago en revisión'}
           </p>
-          <p style={{ fontSize: 13.5, color: 'var(--color-text-secondary)' }}>
-            Estamos revisando tu pago de <b>{formatUsd(Number(pendiente.amount_usd))}</b>
-            {pendiente.amount_ves ? ` (${formatBs(Number(pendiente.amount_ves))})` : ''}. Cuando lo aprobemos, el
-            saldo se suma solo y te avisamos en la campana 🔔.
-          </p>
+          {pendiente.en_revision_manual || pendiente.revision ? (
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-secondary)' }}>
+              Tu pago de <b>{formatUsd(Number(pendiente.amount_usd))}</b>
+              {pendiente.amount_ves ? ` (${formatBs(Number(pendiente.amount_ves))})` : ''} necesita una revisión de
+              nuestro equipo. Cuando lo aprobemos, el saldo se suma solo y te avisamos en la campana 🔔.
+            </p>
+          ) : (
+            <p style={{ fontSize: 13.5, color: 'var(--color-text-secondary)' }}>
+              Estamos verificando tu pago de <b>{formatUsd(Number(pendiente.amount_usd))}</b>
+              {pendiente.amount_ves ? ` (${formatBs(Number(pendiente.amount_ves))})` : ''} con el banco. Suele tardar
+              1–2 minutos: el saldo se suma solo y te avisamos en la campana 🔔.
+            </p>
+          )}
+          {verificando && !pendiente.en_revision_manual && (
+            <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text-muted)' }}>
+              <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Buscando tu pago en el banco…
+            </p>
+          )}
           <Button type="button" variant="primary" fullWidth onClick={onClose}>
             Entendido
+          </Button>
+        </div>
+      )}
+
+      {fase === 'aprobado' && pendiente && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: 'rgba(16,185,129,0.12)',
+              color: '#34d399',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CheckCircle2 size={28} />
+          </div>
+          <p style={{ fontSize: 16, fontWeight: 700 }}>¡Pago verificado!</p>
+          <p style={{ fontSize: 13.5, color: 'var(--color-text-secondary)' }}>
+            Se sumaron <b>{formatUsd(Number(pendiente.credited_usd ?? pendiente.amount_usd))}</b> a tu saldo.
+            {pendiente.credited_usd != null && Number(pendiente.credited_usd) !== Number(pendiente.amount_usd)
+              ? ' Es lo que pagaste según el banco.'
+              : ''}
+          </p>
+          <Button type="button" variant="primary" fullWidth onClick={onClose}>
+            Listo
           </Button>
         </div>
       )}
@@ -280,22 +403,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
 
           {/* 3. Comprobante */}
           <div className="form-field">
-            <label className="form-label">3. Envía el comprobante</label>
-            <input
-              className="form-input"
-              inputMode="numeric"
-              placeholder="Número de referencia"
-              maxLength={30}
-              value={referencia}
-              onChange={(e) => {
-                setReferencia(e.target.value.replace(/[^\d]/g, ''));
-                setFaltaRef(false);
-              }}
-              style={faltaRef ? { borderColor: 'var(--color-danger)' } : undefined}
-            />
-            {faltaRef && (
-              <p style={{ color: 'var(--color-danger)', fontSize: 12.5, marginTop: 4 }}>Escribe el número de referencia.</p>
-            )}
+            <label className="form-label">3. Sube la captura del pago</label>
             <input ref={input} type="file" accept="image/*" hidden onChange={elegir} />
             {vista ? (
               <div style={{ position: 'relative', width: 96, marginTop: 10 }}>
@@ -311,6 +419,8 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
                   onClick={() => {
                     setArchivo(null);
                     setVista(null);
+                    setLectura(null);
+                    setReferencia('');
                   }}
                   style={{
                     position: 'absolute',
@@ -361,6 +471,47 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
                 Falta la captura del pago. Es obligatoria para revisarlo.
               </p>
             )}
+
+            {lectura?.estado === 'leyendo' && (
+              <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--color-text-muted)', marginTop: 8 }}>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Leyendo la captura…
+              </p>
+            )}
+            {lectura?.estado === 'leido' && (
+              <div style={{ marginTop: 8, fontSize: 12.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#34d399' }}>
+                  <ScanText size={14} /> Referencia <b>{lectura.referencia}</b>
+                  {lectura.monto !== null ? <> · {formatBs(lectura.monto)}</> : null}
+                </p>
+                {lectura.monto !== null && bs !== null && Math.abs(lectura.monto - bs) > Math.max(0.5, bs * 0.005) && (
+                  <p style={{ color: '#fbbf24' }}>
+                    La captura dice {formatBs(lectura.monto)} y elegiste {formatBs(bs)}. Si pagaste otro monto, te
+                    sumamos lo que pagaste.
+                  </p>
+                )}
+              </div>
+            )}
+            {lectura && lectura.estado !== 'leyendo' && lectura.estado !== 'leido' && (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ fontSize: 12.5, color: '#fbbf24', marginBottom: 6 }}>
+                  {lectura.estado === 'ilegible'
+                    ? 'No pudimos leer la referencia de la captura. Escríbela completa o sube una captura más clara.'
+                    : 'Escribe el número de referencia del pago.'}
+                </p>
+                <input
+                  className="form-input"
+                  inputMode="numeric"
+                  placeholder="Número de referencia"
+                  maxLength={30}
+                  value={referencia}
+                  onChange={(e) => {
+                    setReferencia(e.target.value.replace(/[^\d]/g, ''));
+                    setFaltaRef(false);
+                  }}
+                  style={faltaRef ? { borderColor: 'var(--color-danger)' } : undefined}
+                />
+              </div>
+            )}
           </div>
 
           {error && <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>{error}</p>}
@@ -376,7 +527,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
             Enviar pago
           </Button>
           <p style={{ fontSize: 11.5, color: 'var(--color-text-muted)', textAlign: 'center', marginTop: -6 }}>
-            Revisamos cada pago a mano. Cuando lo aprobemos, el saldo se suma solo.
+            Verificamos tu pago con el banco y el saldo se suma solo en 1–2 minutos.
           </p>
         </div>
       )}

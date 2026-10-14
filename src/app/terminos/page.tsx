@@ -28,8 +28,9 @@ export default function TerminosPage() {
       <p>
         La app funciona con saldo prepagado: cada taller recibe un saldo de bienvenida y, cuando
         se agota, compra más saldo por Pago Móvil. Crear una orden y cada pregunta al asistente
-        descuentan el precio vigente, que se muestra dentro de la app. Los pagos se revisan y se
-        acreditan manualmente. Las condiciones y precios podrán actualizarse avisando con
+        descuentan el precio vigente, que se muestra dentro de la app. Los pagos se verifican con el
+        banco y se acredita el monto efectivamente pagado; los que no se puedan verificar solos los
+        revisa nuestro equipo. Las condiciones y precios podrán actualizarse avisando con
         antelación razonable.
       </p>
 

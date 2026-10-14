@@ -57,6 +57,11 @@ export async function middleware(request: NextRequest) {
     return continuar(request);
   }
 
+  // Cron de la validación de pagos (cron-job.org): sin sesión, lo protege CRON_SECRET.
+  if (pathname.startsWith('/api/cron')) {
+    return continuar(request);
+  }
+
   // Superadmin API: the route handlers enforce platform-admin auth themselves
   // (getPlatformAdmin). Don't run the workshop/profile logic here, and never
   // redirect an API request.

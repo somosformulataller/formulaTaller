@@ -12,9 +12,11 @@ interface Compra {
   id: string;
   amount_usd: number;
   amount_ves: number | null;
+  credited_usd: number | null;
   reference: string;
   status: 'pendiente' | 'aprobado' | 'rechazado';
   note: string | null;
+  revision: string | null;
   created_at: string;
 }
 
@@ -37,7 +39,7 @@ const NOMBRE_MOVIMIENTO: Record<Movimiento['kind'], string> = {
 };
 
 const ESTADO: Record<Compra['status'], { texto: string; color: string }> = {
-  pendiente: { texto: 'En revisión', color: '#fbbf24' },
+  pendiente: { texto: 'Verificando', color: '#fbbf24' },
   aprobado: { texto: 'Aprobado', color: '#34d399' },
   rechazado: { texto: 'Rechazado', color: '#f87171' },
 };
@@ -72,8 +74,34 @@ export default function SaldoClient() {
     return () => window.removeEventListener(EVENTO_COMPRA, cargar);
   }, [cargar]);
 
-  if (!saldo) return null;
+  // Con un pago pendiente, se le pide al servidor que lo busque en el banco
+  // cada 15 s (máx. 10 min con la pantalla abierta). Si lo encuentra, lo
+  // acredita y la lista se recarga sola.
   const pendiente = (compras ?? []).find((c) => c.status === 'pendiente');
+  const pendienteId = pendiente?.id;
+  useEffect(() => {
+    if (!pendienteId) return;
+    let vivo = true;
+    let vueltas = 0;
+    async function verificar() {
+      try {
+        const r = await fetch('/api/saldo/compras/verificar', { method: 'POST' });
+        const d = await r.json().catch(() => null);
+        if (vivo && d?.compra && d.compra.status !== 'pendiente') cargar();
+      } catch {}
+    }
+    verificar();
+    const id = setInterval(() => {
+      if (++vueltas > 40) return clearInterval(id);
+      verificar();
+    }, 15_000);
+    return () => {
+      vivo = false;
+      clearInterval(id);
+    };
+  }, [pendienteId, cargar]);
+
+  if (!saldo) return null;
   const listaMov = verTodo ? movimientos : movimientos.slice(0, 15);
 
   return (
@@ -118,7 +146,9 @@ export default function SaldoClient() {
               color: '#fbbf24',
             }}
           >
-            Tienes un pago de {formatUsd(Number(pendiente.amount_usd))} en revisión. Cuando lo aprobemos, se suma solo.
+            {pendiente.revision
+              ? `Tu pago de ${formatUsd(Number(pendiente.amount_usd))} necesita una revisión de nuestro equipo. Cuando lo aprobemos, se suma solo.`
+              : `Estamos verificando tu pago de ${formatUsd(Number(pendiente.amount_usd))} con el banco. Suele tardar 1–2 minutos y se suma solo.`}
           </p>
         )}
         <Button type="button" variant="primary" fullWidth onClick={saldo.abrirCompra}>
@@ -148,7 +178,9 @@ export default function SaldoClient() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                  <b style={{ fontSize: 14 }}>{formatUsd(Number(c.amount_usd))}</b>
+                  <b style={{ fontSize: 14 }}>
+                    {formatUsd(Number(c.status === 'aprobado' && c.credited_usd !== null ? c.credited_usd : c.amount_usd))}
+                  </b>
                   <span style={{ fontSize: 12, fontWeight: 700, color: ESTADO[c.status].color }}>
                     {ESTADO[c.status].texto}
                   </span>
@@ -156,6 +188,11 @@ export default function SaldoClient() {
                 <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
                   Ref. {c.reference} · {formatDate(c.created_at)}
                 </p>
+                {c.status === 'aprobado' && c.credited_usd !== null && Number(c.credited_usd) !== Number(c.amount_usd) && (
+                  <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                    Elegiste {formatUsd(Number(c.amount_usd))}; se sumó lo que pagaste.
+                  </p>
+                )}
                 {c.status === 'rechazado' && c.note && (
                   <p style={{ fontSize: 12, color: '#f87171', marginTop: 4 }}>Motivo: {c.note}</p>
                 )}

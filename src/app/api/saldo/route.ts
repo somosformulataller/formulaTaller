@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       .maybeSingle(),
     service
       .from('balance_purchases')
-      .select('id, amount_usd, amount_ves, exchange_rate, reference, status, note, created_at, reviewed_at')
+      .select('id, amount_usd, amount_ves, credited_usd, exchange_rate, reference, status, note, revision, created_at, reviewed_at')
       .eq('workshop_id', caller.workshopId)
       .order('created_at', { ascending: false })
       .limit(20),

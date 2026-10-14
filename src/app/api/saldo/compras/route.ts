@@ -10,15 +10,19 @@ import {
   carpetaComprobantes,
   centavos,
 } from '@/lib/saldo';
+import { leerComprobanteCacheado, ocrConfigurado, type DatosOcr } from '@/lib/pagos/ocr';
+import { MAX_AUTO_USD, cola6 } from '@/lib/pagos/conciliar';
 
 export const dynamic = 'force-dynamic';
 
 const YA_HAY_PENDIENTE = 'Ya tienes un pago en revisión. Espera a que lo aprobemos para enviar otro.';
 
 // POST /api/saldo/compras — FormData { amount_usd, reference, file }
-// El taller avisa que pagó por Pago Móvil. La compra queda PENDIENTE hasta que
-// la plataforma la revisa a mano en el superadmin: aquí no se valida nada
-// contra el banco. El monto en Bs y la tasa se calculan en el servidor.
+// El taller avisa que pagó por Pago Móvil. El OCR lee la referencia y el monto
+// de la captura; la compra queda PENDIENTE y la conciliación la busca en el
+// banco (la pantalla del taller llama a /verificar y el cron cada minuto). Lo
+// que no cuadra pasa a revisión manual en el superadmin. El monto en Bs y la
+// tasa se calculan en el servidor.
 export async function POST(req: Request) {
   const { caller, error: e } = await soloAdmin();
   if (e) return e;
@@ -34,11 +38,6 @@ export async function POST(req: Request) {
     );
   }
 
-  const referencia = String(form.get('reference') ?? '').trim().slice(0, 40);
-  if (referencia.replace(/\D/g, '').length < 4) {
-    return NextResponse.json({ error: 'Escribe el número de referencia del pago.' }, { status: 400 });
-  }
-
   const file = form.get('file');
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: 'Sube la captura del comprobante.' }, { status: 400 });
@@ -48,6 +47,23 @@ export async function POST(req: Request) {
   }
   if (file.size > COMPROBANTE_MAX_BYTES) {
     return NextResponse.json({ error: 'La imagen es muy pesada (máximo 4 MB).' }, { status: 400 });
+  }
+
+  // La referencia que vale es la que lee el OCR; la escrita solo se usa si la
+  // captura no se pudo leer.
+  const bytes = await file.arrayBuffer();
+  let ocr: DatosOcr | null = null;
+  if (ocrConfigurado()) {
+    const lectura = await leerComprobanteCacheado(caller.workshopId, bytes, file.name);
+    if (lectura.estado === 'leido') ocr = lectura.datos;
+  }
+  const escrita = String(form.get('reference') ?? '').replace(/\D/g, '').slice(0, 30);
+  const referencia = ocr ? ocr.full_reference || ocr.reference : escrita;
+  if (referencia.length < 6) {
+    return NextResponse.json(
+      { error: 'No pudimos leer la referencia de la captura. Escribe el número de referencia completo.' },
+      { status: 400 }
+    );
   }
 
   const service = createServiceClient();
@@ -60,15 +76,15 @@ export async function POST(req: Request) {
     .eq('status', 'pendiente');
   if ((pendientes ?? 0) > 0) return NextResponse.json({ error: YA_HAY_PENDIENTE }, { status: 409 });
 
-  // Referencia repetida: no se bloquea, se avisa a quien revisa.
-  const cola = referencia.replace(/\D/g, '').slice(-6);
+  // Referencia repetida: no se bloquea, pero la decide una persona (aprobarla
+  // sola podría tomar el pago de otra compra).
   const { data: repetidas } = await service
     .from('balance_purchases')
     .select('id')
-    .eq('reference_tail', cola)
+    .eq('reference_tail', cola6(referencia))
     .neq('status', 'rechazado')
     .limit(1);
-  const nota = (repetidas ?? []).length > 0 ? '⚠ Referencia repetida: ya hay otro pago con esos 6 dígitos.' : null;
+  const repetida = (repetidas ?? []).length > 0;
 
   const tasa = await fetchExchangeRateSafe();
   const montoBs = tasa ? centavos(monto * tasa.rate) : null;
@@ -77,12 +93,13 @@ export async function POST(req: Request) {
   const path = `${carpetaComprobantes(caller.workshopId)}${crypto.randomUUID()}.${ext}`;
   const { error: errSubida } = await service.storage
     .from(STAGE_FILES_BUCKET)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, bytes, { contentType: file.type, upsert: false });
   if (errSubida) {
     console.error('[saldo] comprobante', errSubida.message);
     return NextResponse.json({ error: 'No se pudo subir el comprobante. Inténtalo de nuevo.' }, { status: 502 });
   }
 
+  const revision = repetida ? 'referencia_repetida' : monto > MAX_AUTO_USD ? 'monto_alto' : null;
   const { data, error } = await service
     .from('balance_purchases')
     .insert({
@@ -92,7 +109,20 @@ export async function POST(req: Request) {
       exchange_rate: tasa?.rate ?? null,
       reference: referencia,
       proof_path: path,
-      note: nota,
+      note: repetida ? '⚠ Referencia repetida: ya hay otro pago con esos 6 dígitos.' : null,
+      revision,
+      bank_note: repetida
+        ? 'Ya hay otra compra con esos 6 dígitos de referencia. Verificar en el banco antes de aprobar.'
+        : revision === 'monto_alto'
+          ? `Compra de $${monto.toFixed(2)}: por encima de $${MAX_AUTO_USD} se aprueba a mano.`
+          : ocr
+            ? null
+            : `No se pudo leer la captura: la referencia la escribió el taller (${escrita}).`,
+      ocr_reference: ocr?.reference ?? null,
+      ocr_amount: ocr?.amount ?? null,
+      ocr_bank: ocr?.bank ?? null,
+      ocr_raw: ocr?.raw ?? null,
+      ocr_at: ocrConfigurado() ? new Date().toISOString() : null,
       created_by: caller.userId,
     })
     .select('id, amount_usd, amount_ves, exchange_rate, reference, status, note, created_at, reviewed_at')
