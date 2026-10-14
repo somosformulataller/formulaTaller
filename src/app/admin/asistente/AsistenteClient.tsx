@@ -30,6 +30,7 @@ export default function AsistenteClient() {
   const [grabando, setGrabando] = useState(false);
   const [transcribiendo, setTranscribiendo] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
+  const cuadroRef = useRef<HTMLTextAreaElement>(null);
   const saldo = useSaldo();
 
   useEffect(() => {
@@ -49,6 +50,15 @@ export default function AsistenteClient() {
     }
     finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turnos, pensando]);
+
+  // El cuadro crece con el texto (hasta un tope) para leer la pregunta
+  // completa, sobre todo la que llega de una nota de voz.
+  useEffect(() => {
+    const el = cuadroRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight + 2, 160)}px`;
+  }, [texto]);
 
   // La nota de voz se pasa a texto y queda en el cuadro para revisarla antes
   // de enviarla; el audio no se guarda. Una segunda nota se suma a lo escrito.
@@ -270,8 +280,9 @@ export default function AsistenteClient() {
         }}
       >
         <textarea
+          ref={cuadroRef}
           className="form-input"
-          rows={1}
+          rows={2}
           maxLength={2000}
           placeholder="Escribe o graba tu pregunta…"
           value={texto}
@@ -283,7 +294,7 @@ export default function AsistenteClient() {
               enviar(texto);
             }
           }}
-          style={{ flex: 1, resize: 'none', minHeight: 42, maxHeight: 120 }}
+          style={{ flex: 1, resize: 'none', minHeight: 64, maxHeight: 160, lineHeight: 1.4 }}
         />
         <button
           type="button"
