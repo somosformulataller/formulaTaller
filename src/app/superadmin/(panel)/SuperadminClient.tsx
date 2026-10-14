@@ -54,7 +54,7 @@ export default function SuperadminClient({
   const [rows, setRows] = useState<WorkshopAdminRow[]>(initialRows);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [orden, setOrden] = useState<'recientes' | 'mas' | 'menos'>('recientes');
+  const [orden, setOrden] = useState<'recientes' | 'mas' | 'menos' | 'real' | 'debil'>('recientes');
   // Qué fichas de registro están abiertas. Cerradas por defecto: la lista sirve
   // para barrer muchos talleres de un vistazo, y la ficha es para mirar uno.
   const [fichaAbierta, setFichaAbierta] = useState<Record<string, boolean>>({});
@@ -111,10 +111,19 @@ export default function SuperadminClient({
         );
     // rows viene del registro más reciente al más viejo; el sort es estable.
     if (orden === 'recientes') return lista;
+    if (orden === 'real' || orden === 'debil') {
+      // Primero el flujo (real arriba o débil arriba), luego el % de uso y, a
+      // igual uso, las órdenes. Lo de «débil» es exactamente lo contrario.
+      const puntaje = (r: WorkshopAdminRow) => {
+        const u = uso[r.id];
+        return (u?.flujo === 'real' ? 1_000_000 : 0) + (u?.porcentaje ?? 0) * 1_000 + Math.min(r.order_count, 999);
+      };
+      return [...lista].sort((a, b) => (orden === 'real' ? puntaje(b) - puntaje(a) : puntaje(a) - puntaje(b)));
+    }
     return [...lista].sort((a, b) =>
       orden === 'mas' ? b.order_count - a.order_count : a.order_count - b.order_count
     );
-  }, [rows, search, orden]);
+  }, [rows, search, orden, uso]);
 
   async function savePhones() {
     const cleaned = phoneDraft.map((p) => p.value.trim()).filter((p) => p.length > 0);
@@ -410,6 +419,8 @@ export default function SuperadminClient({
             { key: 'recientes', label: 'Más recientes' },
             { key: 'mas', label: 'Más órdenes' },
             { key: 'menos', label: 'Menos órdenes' },
+            { key: 'real', label: 'Flujo real y más uso' },
+            { key: 'debil', label: 'Flujo débil y menos uso' },
           ]}
           valor={orden}
           onChange={setOrden}
