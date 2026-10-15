@@ -193,7 +193,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
     setFaltaCaptura(!archivo);
     if (!archivo) return setError('Falta la captura del pago. Súbela para poder enviarlo.');
     if (lectura?.estado === 'leyendo') return setError('Espera un momento: estamos leyendo la captura.');
-    if (sinRef) return setError('No pudimos leer la referencia: escríbela completa (mínimo 6 dígitos).');
+    if (sinRef) return setError('Escribe los últimos 6 dígitos de la referencia.');
 
     setFase('enviando');
     const form = new FormData();
@@ -403,7 +403,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
 
           {/* 3. Comprobante */}
           <div className="form-field">
-            <label className="form-label">3. Sube la captura del pago</label>
+            <label className="form-label">3. Sube la captura del pago (obligatoria)</label>
             <input ref={input} type="file" accept="image/*" hidden onChange={elegir} />
             {vista ? (
               <div style={{ position: 'relative', width: 96, marginTop: 10 }}>
@@ -495,13 +495,17 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
               <div style={{ marginTop: 8 }}>
                 <p style={{ fontSize: 12.5, color: '#fbbf24', marginBottom: 6 }}>
                   {lectura.estado === 'ilegible'
-                    ? 'No pudimos leer la referencia de la captura. Escríbela completa o sube una captura más clara.'
+                    ? 'No pudimos leer la referencia de la captura. Escríbela tú o sube una captura más clara.'
                     : 'Escribe el número de referencia del pago.'}
                 </p>
+                <label className="form-label" htmlFor="referencia-pago" style={{ fontSize: 12.5 }}>
+                  Coloca los últimos 6 dígitos de la referencia
+                </label>
                 <input
                   className="form-input"
                   inputMode="numeric"
-                  placeholder="Número de referencia"
+                  id="referencia-pago"
+                  placeholder="Ej.: 123456"
                   maxLength={30}
                   value={referencia}
                   onChange={(e) => {
@@ -515,13 +519,19 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {error && <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>{error}</p>}
+          {!archivo && !faltanDatos && (
+            <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)', textAlign: 'center' }}>
+              Sube la captura del pago para poder enviarlo.
+            </p>
+          )}
 
           <Button
             type="button"
             variant="primary"
             fullWidth
             loading={fase === 'enviando'}
-            disabled={faltanDatos}
+            // Sin la captura no se puede enviar el pago.
+            disabled={faltanDatos || !archivo || lectura?.estado === 'leyendo'}
             onClick={enviar}
           >
             Enviar pago
