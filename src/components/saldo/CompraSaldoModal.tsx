@@ -186,8 +186,6 @@ export default function CompraSaldoModal({ onClose, montoInicial }: { onClose: (
   }
 
   async function enviar() {
-    // Evento de Meta: cuenta CADA vez (sin el candado de 24 h de otros eventos).
-    trackFbEvent('comprarSaldo', { paso: 'enviar_pago', ...(Number.isFinite(usd) ? { value: usd, currency: 'USD' } : {}) });
     setError(null);
     if (!montoValido) return setError(`El monto debe estar entre $${MIN_USD} y $${MAX_USD}.`);
     // Si el OCR leyó la captura, la referencia ya está; si no, hay que escribirla.
@@ -212,6 +210,9 @@ export default function CompraSaldoModal({ onClose, montoInicial }: { onClose: (
       }
       setPendiente(data as Compra);
       setFase('enviado');
+      // Evento de Meta: solo cuando el pago quedó enviado a la validación
+      // automática, y cada vez (sin el candado de 24 h de otros eventos).
+      trackFbEvent('comprarSaldo', { value: usd, currency: 'USD' });
       window.dispatchEvent(new Event(EVENTO_COMPRA));
     } catch {
       setFase('form');
@@ -448,10 +449,7 @@ export default function CompraSaldoModal({ onClose, montoInicial }: { onClose: (
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  trackFbEvent('comprarSaldo', { paso: 'subir_captura', ...(Number.isFinite(usd) ? { value: usd, currency: 'USD' } : {}) });
-                  input.current?.click();
-                }}
+                onClick={() => input.current?.click()}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
