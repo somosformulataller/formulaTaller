@@ -8,6 +8,7 @@ import { formatUsd } from '@/lib/budget';
 import { compressImage } from '@/lib/image';
 import TasaDelDia from '@/components/saldo/TasaDelDia';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
+import { trackFbEvent } from '@/lib/fbpixel';
 
 const MONTOS = [5, 10, 20];
 const MIN_USD = 1;
@@ -185,6 +186,8 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
   }
 
   async function enviar() {
+    // Evento de Meta: cuenta CADA vez (sin el candado de 24 h de otros eventos).
+    trackFbEvent('comprarSaldo', { paso: 'enviar_pago', ...(Number.isFinite(usd) ? { value: usd, currency: 'USD' } : {}) });
     setError(null);
     if (!montoValido) return setError(`El monto debe estar entre $${MIN_USD} y $${MAX_USD}.`);
     // Si el OCR leyó la captura, la referencia ya está; si no, hay que escribirla.
@@ -445,7 +448,10 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
             ) : (
               <button
                 type="button"
-                onClick={() => input.current?.click()}
+                onClick={() => {
+                  trackFbEvent('comprarSaldo', { paso: 'subir_captura', ...(Number.isFinite(usd) ? { value: usd, currency: 'USD' } : {}) });
+                  input.current?.click();
+                }}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
