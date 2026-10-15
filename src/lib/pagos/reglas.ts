@@ -77,6 +77,12 @@ export type Emparejamiento =
  * lados (referencia + monto del comprobante) y se acredita lo pagado,
  * convertido a la tasa con la que se compró. Pagar de más o de menos no traba
  * la recarga: el taller recibe exactamente lo que pagó.
+ *
+ * Desde el 15-oct-2026, por decisión de negocio, también se acredita lo pagado
+ * cuando el monto no cuadra con nada (ni lo elegido ni la captura), siempre que
+ * haya UN solo pago con esa referencia. Si la compra trae la referencia
+ * completa, esa referencia completa tiene que coincidir con la del banco (no
+ * basta la cola de 6), porque la cuenta la comparte La Mejor Llave.
  */
 export function emparejar(c: CompraPendiente, movs: Movimiento[], tomados: Set<number> = new Set()): Emparejamiento {
   const cola = cola6(c.reference);
@@ -117,26 +123,14 @@ export function emparejar(c: CompraPendiente, movs: Movimiento[], tomados: Set<n
 
   // Pagó otro monto, pero es el que dice su comprobante.
   const comoLaCaptura = libres.filter((m) => cuadra(m, leido));
-  if (comoLaCaptura.length === 1) {
-    const m = comoLaCaptura[0];
-    const tasa = Number(c.exchange_rate ?? 0);
-    if (!(tasa > 0)) {
-      return { estado: 'revision', revision: 'sin_tasa', movimiento: m, detalle: `Pagó ${bs(m.monto)} y no hay tasa con qué convertirlo.` };
-    }
-    const acreditar = centavos(m.monto / tasa);
-    if (acreditar < 0.01) {
-      return { estado: 'revision', revision: 'monto_distinto', movimiento: m, detalle: `Pagó ${bs(m.monto)}.` };
-    }
-    const verbo = esperado !== null && m.monto < esperado ? 'menos' : 'más';
-    return {
-      estado: 'ok',
-      movimiento: m,
-      acreditar,
-      detalle: `Pagó ${verbo} de lo elegido: ${bs(m.monto)} en vez de ${esperado !== null ? bs(esperado) : '—'}. Se acreditó lo pagado.`,
-    };
-  }
+  if (comoLaCaptura.length === 1) return loPagado(c, comoLaCaptura[0], esperado);
 
-  // Ni lo elegido ni lo del comprobante: que lo mire una persona.
+  // El monto no cuadra con nada: igual se acredita lo pagado si la referencia
+  // identifica un solo pago.
+  const mismaRef = libres.filter((m) => mismaReferencia(c.reference, m.referencia));
+  if (mismaRef.length === 1) return loPagado(c, mismaRef[0], esperado);
+
+  // Varios pagos con esa referencia y ninguno cuadra: que lo mire una persona.
   const m = libres.reduce((a, b) =>
     esperado !== null && Math.abs(b.monto - esperado) < Math.abs(a.monto - esperado) ? b : a
   );
@@ -146,6 +140,34 @@ export function emparejar(c: CompraPendiente, movs: Movimiento[], tomados: Set<n
     movimiento: m,
     detalle:
       `En el banco hay ${bs(m.monto)}; la compra era de ${esperado !== null ? bs(esperado) : '—'}` +
-      (leido !== null ? ` y la captura dice ${bs(leido)}.` : ' y no se pudo leer el monto de la captura.'),
+      (leido !== null ? ` y la captura dice ${bs(leido)}.` : ' y no se pudo leer el monto de la captura.') +
+      (libres.length > 1 ? ` Hay ${libres.length} pagos con esa referencia.` : ' La referencia completa no coincide con la del banco.'),
+  };
+}
+
+/** Las dos referencias coinciden en todos los dígitos que tienen ambas (como mínimo los 6 últimos). */
+export function mismaReferencia(compra: string, banco: string): boolean {
+  const a = String(compra).replace(/\D/g, '');
+  const b = String(banco).replace(/\D/g, '');
+  const n = Math.min(a.length, b.length);
+  return n >= 6 && a.slice(-n) === b.slice(-n);
+}
+
+/** Acredita lo que de verdad llegó al banco, convertido a la tasa de la compra. */
+function loPagado(c: CompraPendiente, m: Movimiento, esperado: number | null): Emparejamiento {
+  const tasa = Number(c.exchange_rate ?? 0);
+  if (!(tasa > 0)) {
+    return { estado: 'revision', revision: 'sin_tasa', movimiento: m, detalle: `Pagó ${bs(m.monto)} y no hay tasa con qué convertirlo.` };
+  }
+  const acreditar = centavos(m.monto / tasa);
+  if (acreditar < 0.01) {
+    return { estado: 'revision', revision: 'monto_distinto', movimiento: m, detalle: `Pagó ${bs(m.monto)}.` };
+  }
+  const verbo = esperado !== null && m.monto < esperado ? 'menos' : 'más';
+  return {
+    estado: 'ok',
+    movimiento: m,
+    acreditar,
+    detalle: `Pagó ${verbo} de lo elegido: ${bs(m.monto)} en vez de ${esperado !== null ? bs(esperado) : '—'}. Se acreditó lo pagado.`,
   };
 }
