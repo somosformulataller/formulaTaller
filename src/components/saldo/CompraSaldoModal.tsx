@@ -56,7 +56,7 @@ function formatBs(n: number): string {
  * OCR de la captura; el servidor busca el pago en el banco y, si cuadra, suma
  * el saldo solo en 1–2 minutos. Lo que no cuadra lo revisamos a mano.
  */
-export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
+export default function CompraSaldoModal({ onClose, montoInicial }: { onClose: () => void; montoInicial?: number }) {
   const ctxSaldo = useSaldo();
   const [fase, setFase] = useState<'cargando' | 'form' | 'enviando' | 'enviado' | 'pendiente' | 'aprobado'>('cargando');
   const [lectura, setLectura] = useState<LecturaCaptura | null>(null);
@@ -66,7 +66,7 @@ export default function CompraSaldoModal({ onClose }: { onClose: () => void }) {
   const [tasa, setTasa] = useState<number | null>(null);
   const [pendiente, setPendiente] = useState<Compra | null>(null);
 
-  const [monto, setMonto] = useState('10');
+  const [monto, setMonto] = useState(String(montoInicial ?? 10));
   const [referencia, setReferencia] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [vista, setVista] = useState<string | null>(null);

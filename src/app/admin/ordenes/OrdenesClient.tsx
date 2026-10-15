@@ -37,7 +37,7 @@ export default function OrdenesClient({
     // Saldo prepagado (0025): sin saldo para la orden, el aviso trae el botón
     // para comprar. El servidor vuelve a comprobarlo al crearla.
     if (saldo && !saldo.alcanza(saldo.precios.orden)) {
-      saldo.avisarSinSaldo('No tienes saldo suficiente para crear una orden. Compra saldo para seguir usando la app.');
+      saldo.avisarSinSaldo('No tienes saldo para crear la orden. Debes recargar saldo para seguir creando órdenes.');
     } else {
       setShowCreate(true);
     }

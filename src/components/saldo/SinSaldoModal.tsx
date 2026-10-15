@@ -45,7 +45,7 @@ export default function SinSaldoModal({
             Ahora no
           </Button>
           <Button type="button" variant="primary" fullWidth onClick={onComprar}>
-            Comprar saldo
+            Recargar saldo
           </Button>
         </div>
       </div>

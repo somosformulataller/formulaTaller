@@ -29,7 +29,7 @@ export const COMPRA_MAX_USD = 1000;
 export const COMPROBANTE_MAX_BYTES = 4 * 1024 * 1024;
 
 export const MENSAJE_SIN_SALDO: Record<MotivoCobro, string> = {
-  orden: 'No tienes saldo suficiente para crear la orden. Compra saldo para seguir usando la app.',
+  orden: 'No tienes saldo para crear la orden. Debes recargar saldo para seguir creando órdenes.',
   pregunta_ia: 'No tienes saldo suficiente para preguntarle al asistente. Compra saldo para seguir usándolo.',
 };
 

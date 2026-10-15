@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import CompraSaldoModal from '@/components/saldo/CompraSaldoModal';
 import SinSaldoModal from '@/components/saldo/SinSaldoModal';
+import RecargaInicialModal, { RECARGA_INICIAL_USD } from '@/components/saldo/RecargaInicialModal';
 
 export interface PreciosSaldo {
   orden: number;
@@ -32,15 +33,27 @@ export function useSaldo(): SaldoCtx | null {
 export default function SaldoProvider({
   saldoInicial,
   precios,
+  nuncaRecargo = false,
   children,
 }: {
   saldoInicial: number;
   precios: PreciosSaldo;
+  /** El taller nunca ha recargado: al entrar sale el video con «Recargar saldo». */
+  nuncaRecargo?: boolean;
   children: React.ReactNode;
 }) {
   const [saldo, setSaldo] = useState(saldoInicial);
   const [comprando, setComprando] = useState(false);
+  const [montoCompra, setMontoCompra] = useState<number | undefined>(undefined);
   const [sinSaldo, setSinSaldo] = useState<string | null>(null);
+  const [recargaInicial, setRecargaInicial] = useState(nuncaRecargo);
+
+  // Solo en local: ?probarRecarga=1 muestra el modal aunque el taller ya haya recargado.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' && new URLSearchParams(window.location.search).has('probarRecarga')) {
+      setRecargaInicial(true);
+    }
+  }, []);
 
   const refrescar = useCallback(async () => {
     try {
@@ -56,7 +69,10 @@ export default function SaldoProvider({
     precios,
     setSaldo,
     refrescar,
-    abrirCompra: () => setComprando(true),
+    abrirCompra: () => {
+      setMontoCompra(undefined);
+      setComprando(true);
+    },
     avisarSinSaldo: (m) => setSinSaldo(m ?? ''),
     // Un milésimo de margen para que 0,035 × n no falle por redondeo.
     alcanza: (monto) => saldo + 0.0001 >= monto,
@@ -71,12 +87,23 @@ export default function SaldoProvider({
           saldo={saldo}
           onComprar={() => {
             setSinSaldo(null);
+            setMontoCompra(undefined);
             setComprando(true);
           }}
           onClose={() => setSinSaldo(null)}
         />
       )}
-      {comprando && <CompraSaldoModal onClose={() => setComprando(false)} />}
+      {recargaInicial && (
+        <RecargaInicialModal
+          onRecargar={() => {
+            setRecargaInicial(false);
+            setMontoCompra(RECARGA_INICIAL_USD);
+            setComprando(true);
+          }}
+          onClose={() => setRecargaInicial(false)}
+        />
+      )}
+      {comprando && <CompraSaldoModal montoInicial={montoCompra} onClose={() => setComprando(false)} />}
     </Ctx.Provider>
   );
 }

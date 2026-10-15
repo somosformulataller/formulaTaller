@@ -19,9 +19,15 @@ export default async function AdminLayout({
   if (!caller) redirect('/login');
 
   const supabase = await createClient();
-  const [{ data: profileData }, { data: ajustes }] = await Promise.all([
+  const [{ data: profileData }, { data: ajustes }, { count: recargas }] = await Promise.all([
     supabase.from('profiles').select('*, workshop:workshops(name, balance_usd)').eq('id', caller.userId).single(),
     supabase.from('platform_settings').select('price_order_usd, price_ai_question_usd').eq('id', 1).maybeSingle(),
+    // ¿Ha recargado alguna vez? (por Pago Móvil o acreditada a mano)
+    supabase
+      .from('balance_movements')
+      .select('id', { count: 'exact', head: true })
+      .eq('workshop_id', caller.workshopId)
+      .eq('kind', 'recarga'),
   ]);
 
   const fila = profileData as unknown as
@@ -42,6 +48,7 @@ export default async function AdminLayout({
         orden: Number(precios?.price_order_usd ?? 0.2),
         preguntaIa: Number(precios?.price_ai_question_usd ?? 0.035),
       }}
+      nuncaRecargo={recargas === 0}
     >
       <TopBar profile={profile as Profile} title={workshopName} />
       <main className="page-container">

@@ -11,9 +11,11 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  /** Para títulos largos (p. ej. más pequeño). */
+  titleStyle?: React.CSSProperties;
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, titleStyle }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   // Portal target is only available after mount (avoids SSR mismatch).
   const [mounted, setMounted] = useState(false);
@@ -55,8 +57,8 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
     >
       <div className="modal-content">
         <div className="modal-header">
-          <h2 className="modal-title">{title}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar">
+          <h2 className="modal-title" style={titleStyle}>{title}</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar" style={{ flexShrink: 0 }}>
             <X size={18} />
           </Button>
         </div>
