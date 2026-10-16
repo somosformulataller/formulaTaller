@@ -6,7 +6,8 @@ import type { BudgetItem, BudgetDecision } from '@/lib/types';
 import { formatUsd, parseAmount, DECISION_COLORS } from '@/lib/budget';
 
 // ============================================================================
-// Lista de presupuesto — cada ítem con su repuesto/servicio y su mano de obra
+// Lista de presupuesto — cada ítem con su repuesto/servicio y, si se quiere,
+// su mano de obra; más una mano de obra general por todos los servicios (0027)
 // ============================================================================
 //
 // Funciona de dos maneras, con la misma pinta para el usuario:
@@ -29,6 +30,8 @@ export interface Renglon {
   amount: string;
   /** Costo de la mano de obra, también en texto crudo (0023). */
   labor: string;
+  /** Se abrió el campo de mano de obra de este ítem (es opcional). */
+  conMano?: boolean;
   /** Lo que decidió el cliente en su enlace (solo en vivo). */
   decision?: BudgetDecision;
   /** El taller cambió el monto después de que el cliente decidiera. */
@@ -67,6 +70,7 @@ function desdeItem(i: BudgetItem): Renglon {
     description: i.description,
     amount: String(Number(i.amount)),
     labor: Number(i.labor_amount) ? String(Number(i.labor_amount)) : '',
+    conMano: Number(i.labor_amount) > 0,
     decision: i.client_decision,
     revisado: Boolean(i.revised_at) && i.client_decision === 'pendiente',
   };
@@ -84,6 +88,13 @@ interface Props {
   iniciales?: BudgetItem[];
   /** Avisa los renglones al padre (en vivo), p. ej. para armar el WhatsApp. */
   onFilasChange?: (filas: Renglon[]) => void;
+  /** Mano de obra general ya leída (en vivo); sin ella se pide al servidor. */
+  manoGeneralInicial?: number;
+  /** Avisa la mano de obra general al padre (p. ej. para el WhatsApp). */
+  onManoGeneralChange?: (monto: number) => void;
+  /** Borrador: la mano de obra general en texto crudo, controlada por el padre. */
+  manoGeneralBorrador?: string;
+  onManoGeneralBorradorChange?: (v: string) => void;
 }
 
 export default function BudgetList({
@@ -93,6 +104,10 @@ export default function BudgetList({
   onTotalChange,
   iniciales,
   onFilasChange,
+  manoGeneralInicial,
+  onManoGeneralChange,
+  manoGeneralBorrador,
+  onManoGeneralBorradorChange,
 }: Props) {
   const enVivo = Boolean(orderId);
   const [filas, setFilas] = useState<Renglon[]>(
@@ -104,6 +119,11 @@ export default function BudgetList({
   const [error, setError] = useState<string | null>(null);
   const ultimoRef = useRef<HTMLInputElement | null>(null);
   const enfocarUltimo = useRef(false);
+  // Mano de obra general (0027), en texto crudo mientras se teclea.
+  const [general, setGeneral] = useState<string>(
+    enVivo ? (manoGeneralInicial ? String(manoGeneralInicial) : '') : manoGeneralBorrador ?? ''
+  );
+  const generalGuardada = useRef<number>(manoGeneralInicial ?? 0);
 
   // Mantener sincronizado el borrador que controla el padre.
   const aplicar = useCallback(
@@ -139,18 +159,48 @@ export default function BudgetList({
     };
   }, [orderId]);
 
-  const total = totalDe(filas);
+  // En vivo y sin el dato de la página: se pide la mano de obra general.
+  useEffect(() => {
+    if (!orderId || manoGeneralInicial !== undefined) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}/mano-de-obra`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const { labor_general_usd } = (await res.json()) as { labor_general_usd: number };
+        if (!vivo) return;
+        generalGuardada.current = Number(labor_general_usd) || 0;
+        setGeneral(labor_general_usd ? String(labor_general_usd) : '');
+      } catch {
+        /* sin el dato: el campo queda vacío */
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [orderId, manoGeneralInicial]);
+
+  const manoGeneral = centavos(general) / 100;
+  const total = (Math.round(totalDe(filas) * 100) + centavos(general)) / 100;
   const repuestos = repuestosDe(filas);
   const manoDeObra = manoDeObraDe(filas);
+  const hayAprobados = filas.some((f) => f.decision === 'aprobado');
+  // La general no se aprueba aparte: cuenta en lo aprobado si aprobó algo.
   const aprobado =
-    filas
+    (filas
       .filter((f) => f.decision === 'aprobado')
-      .reduce((acc, f) => acc + centavos(f.amount) + centavos(f.labor), 0) / 100;
+      .reduce((acc, f) => acc + centavos(f.amount) + centavos(f.labor), 0) +
+      (hayAprobados ? centavos(general) : 0)) /
+    100;
   const hayDecisiones = filas.some((f) => f.decision && f.decision !== 'pendiente');
 
   useEffect(() => {
     onTotalChange?.(total);
   }, [total, onTotalChange]);
+
+  useEffect(() => {
+    onManoGeneralChange?.(manoGeneral);
+  }, [manoGeneral, onManoGeneralChange]);
 
   useEffect(() => {
     if (enVivo) onFilasChange?.(filas);
@@ -171,6 +221,32 @@ export default function BudgetList({
 
   function editar(key: string, campo: 'description' | 'amount' | 'labor', valor: string) {
     aplicar((prev) => prev.map((f) => (f.key === key ? { ...f, [campo]: valor } : f)));
+  }
+
+  function abrirMano(key: string) {
+    aplicar((prev) => prev.map((f) => (f.key === key ? { ...f, conMano: true } : f)));
+  }
+
+  function editarGeneral(v: string) {
+    setGeneral(v);
+    if (!enVivo) onManoGeneralBorradorChange?.(v);
+  }
+
+  // En vivo: la mano de obra general se guarda al salir del campo.
+  async function guardarGeneral() {
+    if (!enVivo) return;
+    const monto = parseAmount(general) ?? 0;
+    if (monto === generalGuardada.current) return;
+    setError(null);
+    await conGuardado(async () => {
+      const res = await fetch(`/api/orders/${orderId}/mano-de-obra`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labor_general_usd: monto }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'No se pudo guardar');
+      generalGuardada.current = monto;
+    });
   }
 
   async function conGuardado<T>(fn: () => Promise<T>): Promise<T | null> {
@@ -207,7 +283,11 @@ export default function BudgetList({
         });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'No se pudo guardar');
         const guardado: BudgetItem = await res.json();
-        aplicar((prev) => prev.map((f) => (f.key === key ? { ...desdeItem(guardado), key } : f)));
+        aplicar((prev) =>
+          prev.map((f) =>
+            f.key === key ? { ...desdeItem(guardado), key, conMano: f.conMano || Number(guardado.labor_amount) > 0 } : f
+          )
+        );
       });
       return;
     }
@@ -221,7 +301,11 @@ export default function BudgetList({
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'No se pudo guardar');
       const [creado]: BudgetItem[] = await res.json();
       if (!creado) return;
-      aplicar((prev) => prev.map((f) => (f.key === key ? desdeItem(creado) : f)));
+      aplicar((prev) =>
+        prev.map((f) =>
+          f.key === key ? { ...desdeItem(creado), conMano: f.conMano || Number(creado.labor_amount) > 0 } : f
+        )
+      );
     });
   }
 
@@ -316,19 +400,44 @@ export default function BudgetList({
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'end' }}>
             <CampoMonto
               etiqueta="Repuesto o servicio"
               valor={f.amount}
               onChange={(v) => editar(f.key, 'amount', v)}
               onBlur={() => alSalir(f.key)}
             />
-            <CampoMonto
-              etiqueta="Mano de obra"
-              valor={f.labor}
-              onChange={(v) => editar(f.key, 'labor', v)}
-              onBlur={() => alSalir(f.key)}
-            />
+            {/* La mano de obra de cada ítem es opcional: se abre si se quiere. */}
+            {f.conMano || f.labor ? (
+              <CampoMonto
+                etiqueta="Mano de obra (opcional)"
+                valor={f.labor}
+                onChange={(v) => editar(f.key, 'labor', v)}
+                onBlur={() => alSalir(f.key)}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => abrirMano(f.key)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  height: 42,
+                  background: 'none',
+                  border: '1px dashed var(--color-border)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={13} />
+                Mano de obra
+              </button>
+            )}
           </div>
 
           <div
@@ -373,6 +482,22 @@ export default function BudgetList({
         Agregar ítem
       </button>
 
+      <div
+        style={{
+          padding: 10,
+          background: 'var(--color-surface-2)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 10,
+        }}
+      >
+        <CampoMonto
+          etiqueta="Mano de obra general (por todos los servicios)"
+          valor={general}
+          onChange={editarGeneral}
+          onBlur={guardarGeneral}
+        />
+      </div>
+
       {error && <p style={{ color: 'var(--color-danger)', fontSize: 12 }}>{error}</p>}
 
       <div
@@ -388,7 +513,8 @@ export default function BudgetList({
         }}
       >
         <FilaTotal etiqueta="Repuestos y servicios" valor={repuestos} />
-        <FilaTotal etiqueta="Mano de obra" valor={manoDeObra} />
+        {manoDeObra > 0 && <FilaTotal etiqueta="Mano de obra de los ítems" valor={manoDeObra} />}
+        <FilaTotal etiqueta="Mano de obra general" valor={manoGeneral} />
         {hayDecisiones && (
           <FilaTotal etiqueta="Aprobado por el cliente" valor={aprobado} color={DECISION_COLORS.aprobado} />
         )}

@@ -9,6 +9,7 @@ import {
   sumarRepuestos,
   sumarManoDeObra,
   subtotalItem,
+  totalConGeneral,
   DECISION_COLORS,
 } from '@/lib/budget';
 
@@ -17,14 +18,20 @@ import {
  * servicio, la mano de obra y su subtotal, con dos botones: aprobar (✓) y
  * rechazar (✗). Puede cambiar de idea mientras el carro no esté listo; cada
  * decisión le llega al taller como notificación.
+ *
+ * La mano de obra general (0027) va aparte: no se aprueba ni se rechaza, se
+ * suma al total y cuenta en lo aprobado en cuanto aprueba algún servicio.
  */
 export default function TrackingBudget({
   token,
   initialItems,
   cerrado,
+  manoGeneral = 0,
 }: {
   token: string;
   initialItems: BudgetItem[];
+  /** Mano de obra general de la orden, por todos los servicios. */
+  manoGeneral?: number;
   /** Vehículo listo: se ve el presupuesto pero ya no se decide. */
   cerrado: boolean;
 }) {
@@ -164,6 +171,30 @@ export default function TrackingBudget({
         })}
       </div>
 
+      {manoGeneral > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            marginTop: 8,
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-surface-2)',
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 14, fontWeight: 600 }}>Mano de obra</p>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+              Por todos los servicios
+            </p>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>{formatUsd(manoGeneral)}</span>
+        </div>
+      )}
+
       {!cerrado && pendientes.length > 0 && (
         <button
           type="button"
@@ -206,8 +237,8 @@ export default function TrackingBudget({
         }}
       >
         <Fila etiqueta="Repuestos y servicios" valor={sumarRepuestos(items)} />
-        <Fila etiqueta="Mano de obra" valor={sumarManoDeObra(items)} />
-        <Fila etiqueta="Total" valor={sumarTotal(items)} fuerte />
+        <Fila etiqueta="Mano de obra" valor={(Math.round(sumarManoDeObra(items) * 100) + Math.round(manoGeneral * 100)) / 100} />
+        <Fila etiqueta="Total" valor={totalConGeneral(items, manoGeneral)} fuerte />
         {aprobados.length > 0 && (
           <div
             style={{
@@ -219,7 +250,7 @@ export default function TrackingBudget({
             }}
           >
             <span style={{ fontWeight: 700 }}>Total aprobado</span>
-            <span style={{ fontSize: 20, fontWeight: 800 }}>{formatUsd(sumarTotal(aprobados))}</span>
+            <span style={{ fontSize: 20, fontWeight: 800 }}>{formatUsd(totalConGeneral(aprobados, manoGeneral))}</span>
           </div>
         )}
       </div>

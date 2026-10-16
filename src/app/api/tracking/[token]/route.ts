@@ -29,6 +29,7 @@ export async function GET(_: Request, { params }: Params) {
       created_at,
       updated_at,
       show_workshop_as_mechanic,
+      labor_general_usd,
       ${MECHANICS_EMBED},
       workshop:workshops(name),
       stages:order_stages(id, name, position, status, completed_at),

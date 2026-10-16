@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, MessageCircle, Receipt } from 'lucide-react';
 import BudgetList, { type Renglon } from '@/components/orders/BudgetList';
-import { buildBudgetMessage, formatUsd, parseAmount, sumarTotal } from '@/lib/budget';
+import { buildBudgetMessage, formatUsd, parseAmount, totalConGeneral } from '@/lib/budget';
 import { openWhatsApp } from '@/lib/utils';
 import type { BudgetItem } from '@/lib/types';
 
@@ -41,9 +41,31 @@ export default function BudgetCard({
   const [items, setItems] = useState<BudgetItem[] | undefined>(itemsIniciales);
   // Lo que se está viendo en la lista (con lo recién editado), para el WhatsApp.
   const [filas, setFilas] = useState<Renglon[] | null>(null);
-  const [total, setTotal] = useState<number | null>(
-    itemsIniciales ? sumarTotal(itemsIniciales) : null
-  );
+  // Mano de obra general de la orden (0027): se pide aparte.
+  const [manoGeneral, setManoGeneral] = useState<number | undefined>(undefined);
+  const [total, setTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${orderId}/mano-de-obra`, { cache: 'no-store' });
+        const mano = res.ok ? Number(((await res.json()) as { labor_general_usd: number }).labor_general_usd) || 0 : 0;
+        if (vivo) setManoGeneral(mano);
+      } catch {
+        if (vivo) setManoGeneral(0);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [orderId]);
+
+  // Total de la cabecera mientras la lista no esté montada.
+  useEffect(() => {
+    if (montada || !items || manoGeneral === undefined) return;
+    setTotal(totalConGeneral(items, manoGeneral));
+  }, [items, manoGeneral, montada]);
 
   // Sin ítems de la página, se piden una sola vez (el total es lo que se
   // viene a ver) y la lista los reutiliza al desplegar.
@@ -57,7 +79,6 @@ export default function BudgetCard({
         const data: BudgetItem[] = await res.json();
         if (!vivo) return;
         setItems(data);
-        setTotal(sumarTotal(data));
       } catch {
         /* sin total; se ve al desplegar */
       }
@@ -109,9 +130,16 @@ export default function BudgetCard({
         </span>
       </button>
 
-      {montada && (
+      {montada && manoGeneral !== undefined && (
         <div style={{ marginTop: 14, display: abierto ? undefined : 'none' }}>
-          <BudgetList orderId={orderId} iniciales={items} onTotalChange={setTotal} onFilasChange={setFilas} />
+          <BudgetList
+            orderId={orderId}
+            iniciales={items}
+            manoGeneralInicial={manoGeneral}
+            onManoGeneralChange={setManoGeneral}
+            onTotalChange={setTotal}
+            onFilasChange={setFilas}
+          />
         </div>
       )}
 
@@ -135,7 +163,15 @@ export default function BudgetCard({
                   }));
               openWhatsApp(
                 cliente.whatsapp,
-                buildBudgetMessage(cliente.firstName, cliente.carModel, lista, cliente.publicToken, SITE_URL, cliente.workshopName)
+                buildBudgetMessage(
+                  cliente.firstName,
+                  cliente.carModel,
+                  lista,
+                  cliente.publicToken,
+                  SITE_URL,
+                  cliente.workshopName,
+                  manoGeneral ?? 0
+                )
               );
             }}
             title="Enviar el presupuesto al cliente por WhatsApp"

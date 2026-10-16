@@ -1,6 +1,6 @@
 import 'server-only';
 import { createServiceClient } from '@/lib/supabase/server';
-import { sumarTotal, sumarRepuestos, sumarManoDeObra } from '@/lib/budget';
+import { sumarTotal, sumarRepuestos, sumarManoDeObra, totalConGeneral } from '@/lib/budget';
 import { hoyVE } from '@/lib/recordatorios';
 import { ORDER_STATUS_LABELS } from '@/lib/utils';
 import type { OrderStatus } from '@/lib/types';
@@ -46,7 +46,7 @@ Tu trabajo es responder preguntas sobre SUS datos: órdenes, clientes, vehículo
 
 Tono: educado, cordial y breve, en español de Venezuela. Tutea al administrador. Usa listas cortas cuando ayuden. Montos en dólares con formato $1.234,50. Fechas como «lun 5 oct».
 
-Cómo se llaman las cosas en la app: orden (el trabajo de un vehículo), etapa (cada paso del servicio), presupuesto (ítems con costo de repuesto o servicio y costo de mano de obra), recordatorio (aviso para un cliente con fecha), cliente, mecánico. Estados de una orden: «Sin mecánico asignado», «En progreso» y «Vehículo listo».
+Cómo se llaman las cosas en la app: orden (el trabajo de un vehículo), etapa (cada paso del servicio), presupuesto (ítems con costo de repuesto o servicio y, si se quiere, mano de obra de cada ítem; más una mano de obra general de la orden por todos los servicios), recordatorio (aviso para un cliente con fecha), cliente, mecánico. Estados de una orden: «Sin mecánico asignado», «En progreso» y «Vehículo listo».
 
 Límites que debes respetar siempre:
 - Solo hablas de los datos de este taller. No existen otros talleres para ti.
@@ -160,11 +160,13 @@ const inicioDia = (d: string) => `${d}T00:00:00-04:00`;
 
 type Item = { description: string; amount: number; labor_amount: number; client_decision: string };
 
-function resumenItems(items: Item[]) {
+/** Con la mano de obra general de la(s) orden(es) (0027), si se pasa. */
+function resumenItems(items: Item[], manoGeneral = 0) {
   return {
     repuestos: sumarRepuestos(items),
-    mano_de_obra: sumarManoDeObra(items),
-    total: sumarTotal(items),
+    mano_de_obra_por_item: sumarManoDeObra(items),
+    mano_de_obra_general: manoGeneral,
+    total: totalConGeneral(items, manoGeneral),
   };
 }
 
@@ -189,7 +191,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
       let q = service
         .from('orders')
         .select(
-          'id, client_first_name, client_last_name, car_model, status, created_at, budget:order_budget_items(description, amount, labor_amount, client_decision)'
+          'id, client_first_name, client_last_name, car_model, status, created_at, labor_general_usd, budget:order_budget_items(description, amount, labor_amount, client_decision)'
         )
         .eq('workshop_id', wid);
       const est = e.estado;
@@ -207,6 +209,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
         car_model: string;
         status: OrderStatus;
         created_at: string;
+        labor_general_usd: number | null;
         budget: Item[] | null;
       };
       let filas = (data ?? []) as unknown as F[];
@@ -225,7 +228,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
           vehiculo: o.car_model,
           estado: ORDER_STATUS_LABELS[o.status],
           creada: o.created_at.slice(0, 10),
-          presupuesto_total: sumarTotal(o.budget ?? []),
+          presupuesto_total: totalConGeneral(o.budget ?? [], o.labor_general_usd),
         })),
       };
     }
@@ -237,7 +240,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
         .from('orders')
         .select(
           `id, client_first_name, client_last_name, client_whatsapp, car_model, status, notes, created_at,
-           vehicle_conditions, vehicle_notes, mileage, fuel_level, show_workshop_as_mechanic,
+           vehicle_conditions, vehicle_notes, mileage, fuel_level, show_workshop_as_mechanic, labor_general_usd,
            mechanics:profiles!order_mechanics(full_name),
            stages:order_stages(name, position, status, completed_at),
            budget:order_budget_items(description, amount, labor_amount, client_decision, position)`
@@ -258,6 +261,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
         vehicle_notes: string | null;
         mileage: number | null;
         fuel_level: string | null;
+        labor_general_usd: number | null;
         mechanics: { full_name: string }[] | null;
         stages: { name: string; position: number; status: string; completed_at: string | null }[] | null;
         budget: (Item & { position: number })[] | null;
@@ -282,8 +286,11 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
             mano_de_obra: Number(i.labor_amount),
             decision_cliente: i.client_decision,
           })),
-          ...resumenItems(items),
-          aprobado: sumarTotal(items.filter((i) => i.client_decision === 'aprobado')),
+          ...resumenItems(items, Number(o.labor_general_usd) || 0),
+          // La general cuenta en lo aprobado si el cliente aprobó algo.
+          aprobado: items.some((i) => i.client_decision === 'aprobado')
+            ? totalConGeneral(items.filter((i) => i.client_decision === 'aprobado'), o.labor_general_usd)
+            : 0,
         },
         condiciones_previas: o.vehicle_notes,
         condiciones_marcadas: o.vehicle_conditions,
@@ -344,7 +351,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
       const [{ data: ords }, { data: recs }] = await Promise.all([
         service
           .from('orders')
-          .select('id, car_model, status, created_at, mileage, notes, budget:order_budget_items(description, amount, labor_amount, client_decision)')
+          .select('id, car_model, status, created_at, mileage, notes, labor_general_usd, budget:order_budget_items(description, amount, labor_amount, client_decision)')
           .eq('workshop_id', wid)
           .eq('client_id', id)
           .order('created_at', { ascending: false })
@@ -368,6 +375,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
           created_at: string;
           mileage: number | null;
           notes: string | null;
+          labor_general_usd: number | null;
           budget: Item[] | null;
         }[]).map((o) => ({
           orden_id: o.id,
@@ -377,7 +385,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
           kilometraje: o.mileage,
           notas: o.notes,
           trabajos: (o.budget ?? []).map((i) => i.description),
-          presupuesto_total: sumarTotal(o.budget ?? []),
+          presupuesto_total: totalConGeneral(o.budget ?? [], o.labor_general_usd),
         })),
         recordatorios: ((recs ?? []) as unknown as {
           title: string;
@@ -436,7 +444,7 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
     case 'resumen_presupuestos': {
       let q = service
         .from('orders')
-        .select('id, created_at, budget:order_budget_items(description, amount, labor_amount, client_decision)')
+        .select('id, created_at, labor_general_usd, budget:order_budget_items(description, amount, labor_amount, client_decision)')
         .eq('workshop_id', wid);
       const d = fecha(e.desde);
       const h = fecha(e.hasta);
@@ -444,13 +452,14 @@ async function despachar(service: Service, wid: string, nombre: string, e: Entra
       if (h) q = q.lte('created_at', finDia(h));
       const { data, error } = await q.limit(5000);
       if (error) throw new Error(error.message);
-      const ordenes = (data ?? []) as unknown as { budget: Item[] | null }[];
+      const ordenes = (data ?? []) as unknown as { labor_general_usd: number | null; budget: Item[] | null }[];
       const items = ordenes.flatMap((o) => o.budget ?? []);
+      const manoGeneral = ordenes.reduce((acc, o) => acc + Math.round(Number(o.labor_general_usd || 0) * 100), 0) / 100;
       return {
         ordenes: ordenes.length,
-        ordenes_con_presupuesto: ordenes.filter((o) => (o.budget ?? []).length > 0).length,
+        ordenes_con_presupuesto: ordenes.filter((o) => (o.budget ?? []).length > 0 || Number(o.labor_general_usd) > 0).length,
         items: items.length,
-        ...resumenItems(items),
+        ...resumenItems(items, manoGeneral),
         aprobado_por_clientes: sumarTotal(items.filter((i) => i.client_decision === 'aprobado')),
         rechazado_por_clientes: sumarTotal(items.filter((i) => i.client_decision === 'rechazado')),
         pendiente_de_respuesta: sumarTotal(items.filter((i) => i.client_decision === 'pendiente')),

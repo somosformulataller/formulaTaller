@@ -133,6 +133,8 @@ export interface Order {
   fuel_level: FuelLevel | null;
   /** Condiciones previas dictadas por voz y redactadas (0024). */
   vehicle_notes: string | null;
+  /** Mano de obra general del presupuesto, por todos los servicios (0027). */
+  labor_general_usd?: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;

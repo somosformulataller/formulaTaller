@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { soloAdmin } from '@/lib/admin-taller';
-import { sumarTotal } from '@/lib/budget';
+import { totalConGeneral } from '@/lib/budget';
 import type { OrderStatus } from '@/lib/types';
 
 type Params = { params: { id: string } };
@@ -24,7 +24,7 @@ export async function GET(_: Request, { params }: Params) {
   const { data: ords, error } = await service
     .from('orders')
     .select(
-      'id, car_model, status, created_at, notes, mileage, budget:order_budget_items(amount, labor_amount, client_decision)'
+      'id, car_model, status, created_at, notes, mileage, labor_general_usd, budget:order_budget_items(amount, labor_amount, client_decision)'
     )
     .eq('workshop_id', caller.workshopId)
     .eq('client_id', params.id)
@@ -39,11 +39,12 @@ export async function GET(_: Request, { params }: Params) {
     created_at: string;
     notes: string | null;
     mileage: number | null;
+    labor_general_usd: number | null;
     budget: Array<{ amount: number; labor_amount: number; client_decision: string }> | null;
   };
-  const orders = ((ords ?? []) as unknown as Fila[]).map(({ budget, ...o }) => ({
+  const orders = ((ords ?? []) as unknown as Fila[]).map(({ budget, labor_general_usd, ...o }) => ({
     ...o,
-    budget_total: sumarTotal(budget ?? []),
+    budget_total: totalConGeneral(budget ?? [], labor_general_usd),
     budget_items: (budget ?? []).length,
   }));
 

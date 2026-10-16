@@ -218,8 +218,9 @@ export default function TrackingClient({ order, budget = [], mecanicos = [] }: T
       />
 
       {/* Presupuesto — el cliente aprueba o rechaza cada ítem (0023). */}
-      {budget.length > 0 && (
+      {(budget.length > 0 || Number(order.labor_general_usd) > 0) && (
         <TrackingBudget
+          manoGeneral={Number(order.labor_general_usd) || 0}
           token={order.public_token}
           initialItems={budget}
           cerrado={order.status === 'lista'}

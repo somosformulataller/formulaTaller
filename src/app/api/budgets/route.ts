@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
-import { sumarTotal, sumarRepuestos, sumarManoDeObra } from '@/lib/budget';
+import { sumarRepuestos, totalConGeneral, manoDeObraConGeneral } from '@/lib/budget';
 import { idsDeMisOrdenes } from '@/lib/mecanicos-orden';
 import type { BudgetSummary, OrderStatus } from '@/lib/types';
 
@@ -52,12 +52,13 @@ export async function GET() {
       car_model: string;
       status: OrderStatus;
       created_at: string;
+      labor_general_usd: number | null;
     };
 
     const ordenes = await traerTodo<FilaOrden>((desde, hasta) => {
       let q = service
         .from('orders')
-        .select('id, client_first_name, client_last_name, car_model, status, created_at')
+        .select('id, client_first_name, client_last_name, car_model, status, created_at, labor_general_usd')
         .eq('workshop_id', caller.workshopId as string);
       // El mecánico solo ve el presupuesto de SUS órdenes (0019). Sin esto,
       // la pantalla de Presupuestos sería la puerta trasera para ver todos
@@ -109,9 +110,9 @@ export async function GET() {
         status: o.status,
         created_at: o.created_at,
         item_count: suyos.length,
-        total: sumarTotal(suyos),
+        total: totalConGeneral(suyos, o.labor_general_usd),
         parts_total: sumarRepuestos(suyos),
-        labor_total: sumarManoDeObra(suyos),
+        labor_total: manoDeObraConGeneral(suyos, o.labor_general_usd),
         pending_count: suyos.filter((i) => i.client_decision === 'pendiente').length,
         approved_count: suyos.filter((i) => i.client_decision === 'aprobado').length,
         rejected_count: suyos.filter((i) => i.client_decision === 'rechazado').length,

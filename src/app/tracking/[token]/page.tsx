@@ -60,6 +60,7 @@ export default async function TrackingPage({ params }: Props) {
       created_at,
       updated_at,
       show_workshop_as_mechanic,
+      labor_general_usd,
       ${MECHANICS_EMBED},
       workshop:workshops(name, logo_url),
       stages:order_stages(id, name, description, position, status, completed_at, attachments:stage_attachments(id, path, url, name, mime, created_at)),

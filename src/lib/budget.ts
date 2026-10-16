@@ -53,6 +53,25 @@ export function sumarManoDeObra(items: Array<{ labor_amount?: number | null }>):
   return items.reduce((acc, i) => acc + centavosDe(i.labor_amount), 0) / 100;
 }
 
+/**
+ * Total del presupuesto con la mano de obra general de la orden (0027):
+ * los ítems (repuesto + mano de obra de cada uno) más la general.
+ */
+export function totalConGeneral(
+  items: Array<Pick<BudgetItem, 'amount'> & { labor_amount?: number | null }>,
+  manoGeneral: number | string | null | undefined
+): number {
+  return (Math.round(sumarTotal(items) * 100) + centavosDe(manoGeneral)) / 100;
+}
+
+/** Mano de obra de los ítems más la general de la orden (0027). */
+export function manoDeObraConGeneral(
+  items: Array<{ labor_amount?: number | null }>,
+  manoGeneral: number | string | null | undefined
+): number {
+  return (Math.round(sumarManoDeObra(items) * 100) + centavosDe(manoGeneral)) / 100;
+}
+
 /** Repuesto + mano de obra de un ítem. */
 export function subtotalItem(i: { amount: number | null; labor_amount?: number | null }): number {
   return (centavosDe(i.amount) + centavosDe(i.labor_amount)) / 100;
@@ -97,8 +116,9 @@ export function formatUsd(n: number): string {
 
 /**
  * Mensaje de WhatsApp con el presupuesto para el cliente: cada ítem con su
- * subtotal (repuesto o servicio + mano de obra), el total y el enlace de
- * seguimiento, donde puede aprobar o rechazar cada uno.
+ * subtotal (repuesto o servicio + mano de obra), la mano de obra general si
+ * la hay, el total y el enlace de seguimiento, donde puede aprobar o rechazar
+ * cada uno.
  */
 export function buildBudgetMessage(
   clientFirstName: string,
@@ -106,10 +126,13 @@ export function buildBudgetMessage(
   items: Array<{ description: string; amount: number; labor: number }>,
   token: string,
   siteUrl: string,
-  workshopName?: string
+  workshopName?: string,
+  manoGeneral = 0
 ): string {
   const lineas = items.map((i) => `• ${i.description || 'Servicio'}: ${formatUsd(i.amount + i.labor)}`);
-  const total = items.reduce((acc, i) => acc + Math.round((i.amount + i.labor) * 100), 0) / 100;
+  if (manoGeneral > 0) lineas.push(`• Mano de obra: ${formatUsd(manoGeneral)}`);
+  const total =
+    (items.reduce((acc, i) => acc + Math.round((i.amount + i.labor) * 100), 0) + Math.round(manoGeneral * 100)) / 100;
   // Tono cercano, como si lo escribiera el mecánico o el dueño del taller.
   const carro = carModel?.trim() ? `tu ${carModel.trim()}` : 'tu carro';
   const encabezado = `${saludoTaller(clientFirstName, workshopName)} ¿Cómo estás? Ya revisamos ${carro} y te paso el presupuesto de lo que necesita:`;

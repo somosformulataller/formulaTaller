@@ -15,7 +15,7 @@ import MechanicForm from '@/components/mechanics/MechanicForm';
 import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
 import CampoNotaDeVoz from '@/components/orders/CampoNotaDeVoz';
 import { uploadStageAttachment } from '@/lib/attachments';
-import { formatPrecioUsd, formatUsd, parseAmount, sumarTotal } from '@/lib/budget';
+import { formatPrecioUsd, formatUsd, parseAmount, totalConGeneral } from '@/lib/budget';
 import {
   User,
   Car,
@@ -100,6 +100,8 @@ export default function OrderForm({
   // en memoria y se manda entero apenas hay order_id. Al EDITAR no hace falta:
   // la lista se guarda sola contra la orden (ver BudgetList).
   const [budget, setBudget] = useState<Renglon[]>([]);
+  // Mano de obra general del borrador (0027), en texto crudo.
+  const [manoGeneral, setManoGeneral] = useState('');
   const [budgetTotal, setBudgetTotal] = useState(0);
   // Condiciones previas del vehículo dictadas por voz (0024): van en la misma
   // petición que la orden.
@@ -120,11 +122,15 @@ export default function OrderForm({
     let vivo = true;
     (async () => {
       try {
-        const res = await fetch(`/api/orders/${order.id}/budget`, { cache: 'no-store' });
+        const [res, resMano] = await Promise.all([
+          fetch(`/api/orders/${order.id}/budget`, { cache: 'no-store' }),
+          fetch(`/api/orders/${order.id}/mano-de-obra`, { cache: 'no-store' }),
+        ]);
         if (!res.ok) return;
         const items: Array<{ amount: number; labor_amount: number }> = await res.json();
+        const mano = resMano.ok ? ((await resMano.json()) as { labor_general_usd: number }).labor_general_usd : 0;
         if (!vivo) return;
-        setBudgetTotal(sumarTotal(items));
+        setBudgetTotal(totalConGeneral(items, mano));
       } catch {
         /* sin total en el botón; la lista se abre igual */
       }
@@ -219,6 +225,20 @@ export default function OrderForm({
           labor_amount: parseAmount(r.labor) ?? 0,
         }))
         .filter((r) => r.description !== '');
+      const mano = parseAmount(manoGeneral) ?? 0;
+      if (mano > 0) {
+        setPhase('budget');
+        try {
+          const r = await fetch(`/api/orders/${saved.id}/mano-de-obra`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ labor_general_usd: mano }),
+          });
+          if (!r.ok) alert('La orden se creó, pero no se pudo guardar la mano de obra general.');
+        } catch {
+          alert('La orden se creó, pero no se pudo guardar la mano de obra general.');
+        }
+      }
       if (items.length > 0) {
         setPhase('budget');
         try {
@@ -277,7 +297,9 @@ export default function OrderForm({
     : 'Crear orden';
 
   // Al crear, el total sale del borrador; al editar, de lo guardado.
-  const totalPresupuesto = isEdit ? budgetTotal : totalDe(budget);
+  const totalPresupuesto = isEdit
+    ? budgetTotal
+    : (Math.round(totalDe(budget) * 100) + Math.round((parseAmount(manoGeneral) ?? 0) * 100)) / 100;
   const itemsPresupuesto = isEdit
     ? null
     : budget.filter((r) => r.description.trim() !== '').length;
@@ -479,6 +501,8 @@ export default function OrderForm({
             orderId={isEdit ? order.id : null}
             borrador={isEdit ? undefined : budget}
             onBorradorChange={isEdit ? undefined : setBudget}
+            manoGeneralBorrador={isEdit ? undefined : manoGeneral}
+            onManoGeneralBorradorChange={isEdit ? undefined : setManoGeneral}
             onTotalChange={setBudgetTotal}
           />
           <div style={{ marginTop: 16 }}>
