@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import FacebookPixel from '@/components/FacebookPixel';
+import AvisoActualizacion from '@/components/pwa/AvisoActualizacion';
 
 export const metadata: Metadata = {
   title: 'Formula Taller',
@@ -65,6 +66,7 @@ export default function RootLayout({
             cubren a todos los visitantes con JavaScript. */}
         <FacebookPixel />
         {children}
+        <AvisoActualizacion />
         {/* Service Worker: register in production only. In development we
             actively unregister it and clear its caches, since a cache-first SW
             breaks hot-reload by serving stale /_next/ chunks. */}

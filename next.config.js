@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Versión con la que se compiló el navegador; /api/version da la desplegada.
+  env: { NEXT_PUBLIC_APP_VERSION: process.env.VERCEL_GIT_COMMIT_SHA || 'dev' },
   experimental: {
     // Volver a una pestaña visitada hace menos de 30 s es instantáneo: se
     // reutiliza lo que ya se cargó. Crear, editar o borrar sigue refrescando

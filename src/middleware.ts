@@ -57,6 +57,11 @@ export async function middleware(request: NextRequest) {
     return continuar(request);
   }
 
+  // Versión desplegada: pública, la consulta el aviso de actualización.
+  if (pathname === '/api/version') {
+    return continuar(request);
+  }
+
   // Cron de la validación de pagos (cron-job.org): sin sesión, lo protege CRON_SECRET.
   if (pathname.startsWith('/api/cron')) {
     return continuar(request);
