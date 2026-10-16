@@ -11,6 +11,8 @@ type Service = ReturnType<typeof createServiceClient>;
 export interface Precios {
   orden: number;
   preguntaIa: number;
+  /** Presupuesto suelto, enviado antes de crear la orden (0028). */
+  presupuesto: number;
 }
 
 export interface PagoMovil {
@@ -20,7 +22,7 @@ export interface PagoMovil {
   holder: string | null;
 }
 
-export type MotivoCobro = 'orden' | 'pregunta_ia';
+export type MotivoCobro = 'orden' | 'pregunta_ia' | 'presupuesto';
 
 /** Compra mínima y máxima en USD. */
 export const COMPRA_MIN_USD = 1;
@@ -31,6 +33,7 @@ export const COMPROBANTE_MAX_BYTES = 4 * 1024 * 1024;
 export const MENSAJE_SIN_SALDO: Record<MotivoCobro, string> = {
   orden: 'No tienes saldo para crear la orden. Debes recargar saldo para seguir creando órdenes.',
   pregunta_ia: 'No tienes saldo suficiente para preguntarle al asistente. Compra saldo para seguir usándolo.',
+  presupuesto: 'No tienes saldo para guardar el presupuesto. Debes recargar saldo para seguir enviando presupuestos.',
 };
 
 /** Carpeta del bucket privado donde viven los comprobantes de un taller. */
@@ -41,13 +44,18 @@ export function carpetaComprobantes(workshopId: string): string {
 export async function leerPrecios(service: Service): Promise<Precios> {
   const { data } = await service
     .from('platform_settings')
-    .select('price_order_usd, price_ai_question_usd')
+    .select('*')
     .eq('id', 1)
     .maybeSingle();
-  const d = data as unknown as { price_order_usd: number | string; price_ai_question_usd: number | string } | null;
+  const d = data as unknown as {
+    price_order_usd: number | string;
+    price_ai_question_usd: number | string;
+    price_quote_usd?: number | string;
+  } | null;
   return {
     orden: Number(d?.price_order_usd ?? 0.2),
     preguntaIa: Number(d?.price_ai_question_usd ?? 0.035),
+    presupuesto: Number(d?.price_quote_usd ?? 0.15),
   };
 }
 

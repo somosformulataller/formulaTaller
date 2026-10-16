@@ -15,7 +15,7 @@ export default async function PagosPage() {
   const { data } = await service
     .from('platform_settings')
     .select(
-      'price_order_usd, price_ai_question_usd, welcome_balance_usd, pago_movil_bank, pago_movil_phone, pago_movil_document, pago_movil_holder'
+      'price_order_usd, price_ai_question_usd, price_quote_usd, welcome_balance_usd, pago_movil_bank, pago_movil_phone, pago_movil_document, pago_movil_holder'
     )
     .eq('id', 1)
     .maybeSingle();
@@ -24,6 +24,7 @@ export default async function PagosPage() {
   const ajustes: AjustesCobro = {
     price_order_usd: Number(d.price_order_usd ?? 0.2),
     price_ai_question_usd: Number(d.price_ai_question_usd ?? 0.035),
+    price_quote_usd: Number(d.price_quote_usd ?? 0.15),
     welcome_balance_usd: Number(d.welcome_balance_usd ?? 3),
     pago_movil_bank: (d.pago_movil_bank as string | null) ?? '',
     pago_movil_phone: (d.pago_movil_phone as string | null) ?? '',

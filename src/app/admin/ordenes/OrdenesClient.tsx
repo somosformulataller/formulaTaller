@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Profile, Mechanic } from '@/lib/types';
 import type { Conteos, FiltroEstado, PaginaOrdenes } from '@/lib/ordenes-lista';
 import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
@@ -10,13 +11,15 @@ import OrderForm from '@/components/orders/OrderForm';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import { Plus, ClipboardList, Search } from 'lucide-react';
+import { Plus, ClipboardList, Search, Send } from 'lucide-react';
 
 interface OrdenesClientProps {
   /** Primera página de órdenes y conteos por estado, leídos por el servidor. */
   inicial: PaginaOrdenes;
   conteos: Conteos;
   mechanics: Profile[];
+  /** ?presupuesto=<id>: abre «Nueva orden» con ese presupuesto suelto (0028). */
+  presupuestoId?: string;
 }
 
 type FilterStatus = FiltroEstado;
@@ -25,12 +28,13 @@ export default function OrdenesClient({
   inicial,
   conteos: conteosIniciales,
   mechanics: initialMechanics,
+  presupuestoId,
 }: OrdenesClientProps) {
   const saldo = useSaldo();
   const lista = useOrdenesPaginadas(inicial, conteosIniciales);
   const { visibles: filtered, conteos, filter, setFilter } = lista;
   const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(Boolean(presupuestoId));
   const { search, setSearch } = lista;
 
   function handleNew() {
@@ -74,14 +78,23 @@ export default function OrdenesClient({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10,
           marginBottom: 16,
         }}
       >
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Todas las órdenes</h1>
-        <Button variant="primary" size="sm" onClick={handleNew}>
-          <Plus size={15} />
-          Nueva
-        </Button>
+{/* Los dos botones en su propia fila: en el teléfono no caben junto al título. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
+          <Link href="/admin/presupuestos/enviar" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+            <Send size={14} />
+            Enviar presupuesto
+          </Link>
+          <Button variant="primary" size="sm" onClick={handleNew}>
+            <Plus size={15} />
+            Nueva
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -194,6 +207,7 @@ export default function OrdenesClient({
           onCancel={() => setShowCreate(false)}
           canCreateMechanic
           onMechanicCreated={handleMechanicCreated}
+          presupuestoId={presupuestoId}
         />
       </Modal>
 

@@ -15,6 +15,7 @@ import Select from '@/components/ui/Select';
 import StageTimeline from '@/components/orders/StageTimeline';
 import InitialAttachments from '@/components/orders/InitialAttachments';
 import BudgetCard from '@/components/orders/BudgetCard';
+import VincularPresupuesto from '@/components/presupuestos/VincularPresupuesto';
 import BudgetResponses from '@/components/orders/BudgetResponses';
 import VehicleConditionsCard from '@/components/orders/VehicleConditionsCard';
 import ClientReminders from '@/components/reminders/ClientReminders';
@@ -335,6 +336,7 @@ export default function OrderDetailClient({
       {/* Lo que el cliente aprobó o rechazó desde su enlace */}
       <BudgetResponses orderId={order.id} />
       {/* Presupuesto: repuestos y servicios cobrados */}
+      <VincularPresupuesto orderId={order.id} />
       <BudgetCard
         orderId={order.id}
         itemsIniciales={budgetItems}

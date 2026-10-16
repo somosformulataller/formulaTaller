@@ -12,7 +12,9 @@ import MechanicSelect from '@/components/orders/MechanicSelect';
 import CasillaComoTaller from '@/components/orders/CasillaComoTaller';
 import { cambioDeAsignacion, idsAsignados } from '@/lib/asignacion';
 import MechanicForm from '@/components/mechanics/MechanicForm';
-import BudgetList, { totalDe, type Renglon } from '@/components/orders/BudgetList';
+import BudgetList, { nuevoRenglon, totalDe, type Renglon } from '@/components/orders/BudgetList';
+import ElegirPresupuesto from '@/components/presupuestos/ElegirPresupuesto';
+import type { Quote } from '@/lib/presupuestos';
 import CampoNotaDeVoz from '@/components/orders/CampoNotaDeVoz';
 import { uploadStageAttachment } from '@/lib/attachments';
 import { formatPrecioUsd, formatUsd, parseAmount, totalConGeneral } from '@/lib/budget';
@@ -26,6 +28,7 @@ import {
   Video as VideoIcon,
   FileText,
   Wrench,
+  FileInput,
 } from 'lucide-react';
 
 interface OrderFormProps {
@@ -46,6 +49,8 @@ interface OrderFormProps {
    * vería un error al guardar un cambio que ni siquiera pidió.
    */
   canAssign?: boolean;
+  /** Al crear: presupuesto suelto (0028) que se carga de entrada. */
+  presupuestoId?: string;
 }
 
 const EMPTY: CreateOrderPayload = {
@@ -71,6 +76,7 @@ export default function OrderForm({
   workshopName,
   onMechanicCreated,
   canAssign = true,
+  presupuestoId,
 }: OrderFormProps) {
   const isEdit = !!order;
   // Lista local de mecánicos: al crear uno nuevo desde aquí, se agrega y se selecciona.
@@ -106,6 +112,47 @@ export default function OrderForm({
   // Condiciones previas del vehículo dictadas por voz (0024): van en la misma
   // petición que la orden.
   const [vehicleNotes, setVehicleNotes] = useState(order?.vehicle_notes ?? '');
+  // Presupuesto suelto del que sale la orden (0028): llena cliente, vehículo
+  // y presupuesto; lo demás lo completa el administrador.
+  const [desdePresupuesto, setDesdePresupuesto] = useState<Quote | null>(null);
+  const [elegirPresupuesto, setElegirPresupuesto] = useState(false);
+  // PhoneInput lee su valor solo al montarse: se remonta al cargar uno.
+  const [telKey, setTelKey] = useState(0);
+
+  function usarPresupuesto(q: Quote) {
+    setForm((prev) => ({
+      ...prev,
+      client_first_name: q.client_first_name,
+      client_last_name: q.client_last_name,
+      client_whatsapp: q.client_whatsapp,
+      car_model: q.car_model || prev.car_model,
+    }));
+    setBudget(
+      q.items.map((i) => ({
+        ...nuevoRenglon(i.description, String(i.amount), Number(i.labor_amount) ? String(i.labor_amount) : ''),
+        conMano: Number(i.labor_amount) > 0,
+      }))
+    );
+    setManoGeneral(Number(q.labor_general_usd) ? String(q.labor_general_usd) : '');
+    setDesdePresupuesto(q);
+    setElegirPresupuesto(false);
+    setTelKey((k) => k + 1);
+  }
+
+  useEffect(() => {
+    if (!presupuestoId || order) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/quotes/${presupuestoId}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const q: Quote = await res.json();
+        if (!q.order_id) usarPresupuesto(q);
+      } catch {
+        /* se puede elegir a mano */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presupuestoId]);
 
   // Release image preview URLs when the form unmounts.
   useEffect(() => {
@@ -195,6 +242,7 @@ export default function OrderForm({
           : { mechanic_ids: undefined, show_workshop_as_mechanic: undefined }),
         notes: form.notes || null,
         vehicle_notes: vehicleNotes.trim() || null,
+        ...(!isEdit && desdePresupuesto ? { quote_id: desdePresupuesto.id } : {}),
       }),
     });
 
@@ -306,6 +354,68 @@ export default function OrderForm({
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {!isEdit && (
+        <div>
+          {desdePresupuesto ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid var(--color-brand-400)',
+                background: 'rgba(245,158,11,0.10)',
+              }}
+            >
+              <FileInput size={17} style={{ color: 'var(--color-brand-400)', flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
+                Desde el presupuesto de{' '}
+                <b>{`${desdePresupuesto.client_first_name} ${desdePresupuesto.client_last_name}`.trim()}</b>. Completa lo
+                demás.
+              </span>
+              <button
+                type="button"
+                onClick={() => setDesdePresupuesto(null)}
+                disabled={loading}
+                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', fontSize: 12, cursor: 'pointer' }}
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setElegirPresupuesto((v) => !v)}
+              disabled={loading}
+              aria-expanded={elegirPresupuesto}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '11px 12px',
+                borderRadius: 10,
+                border: '1px dashed var(--color-brand-400)',
+                background: 'transparent',
+                color: 'var(--color-brand-400)',
+                fontSize: 13.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <FileInput size={16} />
+              Crear orden a partir de presupuesto
+            </button>
+          )}
+          {elegirPresupuesto && !desdePresupuesto && (
+            <div style={{ marginTop: 10 }}>
+              <ElegirPresupuesto onElegir={usarPresupuesto} />
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <Input
@@ -326,6 +436,7 @@ export default function OrderForm({
       </div>
 
       <PhoneInput
+        key={telKey}
         label="WhatsApp"
         value={form.client_whatsapp}
         onChange={(v) => set('client_whatsapp', v)}

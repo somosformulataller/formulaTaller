@@ -9,6 +9,7 @@ import TasaDelDia from '@/components/saldo/TasaDelDia';
 export interface AjustesCobro {
   price_order_usd: number;
   price_ai_question_usd: number;
+  price_quote_usd: number;
   welcome_balance_usd: number;
   pago_movil_bank: string;
   pago_movil_phone: string;
@@ -674,7 +675,7 @@ function ConfigCobro({ inicial }: { inicial: AjustesCobro }) {
     }
   }
 
-  const numero = (k: 'price_order_usd' | 'price_ai_question_usd' | 'welcome_balance_usd', etiqueta: string, ayuda: string) => (
+  const numero = (k: 'price_order_usd' | 'price_ai_question_usd' | 'price_quote_usd' | 'welcome_balance_usd', etiqueta: string, ayuda: string) => (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)' }}>{etiqueta}</span>
       <input
@@ -708,6 +709,7 @@ function ConfigCobro({ inicial }: { inicial: AjustesCobro }) {
       <h2 style={{ fontSize: 15, fontWeight: 700 }}>Precios (USD)</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {numero('price_order_usd', 'Por orden', 'Se cobra al crear la orden.')}
+        {numero('price_quote_usd', 'Por presupuesto', 'Se cobra al guardar un presupuesto sin orden.')}
         {numero('price_ai_question_usd', 'Por pregunta a la IA', 'Se cobra en cada pregunta.')}
         {numero('welcome_balance_usd', 'Saldo de bienvenida', 'Lo recibe cada taller nuevo.')}
       </div>

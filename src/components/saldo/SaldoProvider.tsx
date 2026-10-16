@@ -8,6 +8,8 @@ import RecargaInicialModal, { RECARGA_INICIAL_USD } from '@/components/saldo/Rec
 export interface PreciosSaldo {
   orden: number;
   preguntaIa: number;
+  /** Presupuesto suelto (0028). */
+  presupuesto: number;
 }
 
 interface SaldoCtx {

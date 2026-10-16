@@ -21,7 +21,8 @@ export default async function AdminLayout({
   const supabase = await createClient();
   const [{ data: profileData }, { data: ajustes }, { count: recargas }] = await Promise.all([
     supabase.from('profiles').select('*, workshop:workshops(name, balance_usd)').eq('id', caller.userId).single(),
-    supabase.from('platform_settings').select('price_order_usd, price_ai_question_usd').eq('id', 1).maybeSingle(),
+    // '*': así no se rompe si la columna del presupuesto (0028) aún no existe.
+    supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle(),
     // ¿Ha recargado alguna vez? (por Pago Móvil o acreditada a mano)
     supabase
       .from('balance_movements')
@@ -39,7 +40,11 @@ export default async function AdminLayout({
   if (!profile || profile.role !== 'admin') redirect('/mecanico');
 
   const workshopName = workshop?.name;
-  const precios = ajustes as unknown as { price_order_usd: number | string; price_ai_question_usd: number | string } | null;
+  const precios = ajustes as unknown as {
+    price_order_usd: number | string;
+    price_ai_question_usd: number | string;
+    price_quote_usd?: number | string;
+  } | null;
 
   return (
     <SaldoProvider
@@ -47,6 +52,7 @@ export default async function AdminLayout({
       precios={{
         orden: Number(precios?.price_order_usd ?? 0.2),
         preguntaIa: Number(precios?.price_ai_question_usd ?? 0.035),
+        presupuesto: Number(precios?.price_quote_usd ?? 0.15),
       }}
       nuncaRecargo={recargas === 0}
     >

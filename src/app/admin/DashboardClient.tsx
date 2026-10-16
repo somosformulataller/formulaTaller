@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Profile, Mechanic } from '@/lib/types';
 import type { Conteos, FiltroEstado, PaginaOrdenes } from '@/lib/ordenes-lista';
 import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
@@ -10,7 +11,7 @@ import OrderForm from '@/components/orders/OrderForm';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle } from 'lucide-react';
+import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle, Send } from 'lucide-react';
 
 interface AdminDashboardClientProps {
   /** Primera página de órdenes y conteos por estado, leídos por el servidor. */
@@ -110,14 +111,23 @@ export default function AdminDashboardClient({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 10,
           marginBottom: 12,
         }}
       >
         <h2 style={{ fontSize: 16, fontWeight: 700 }}>Órdenes recientes</h2>
-        <Button variant="primary" size="sm" onClick={handleNew}>
-          <Plus size={15} />
-          Nueva orden
-        </Button>
+{/* Los dos botones en su propia fila: en el teléfono no caben junto al título. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
+          <Link href="/admin/presupuestos/enviar" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+            <Send size={14} />
+            Enviar presupuesto
+          </Link>
+          <Button variant="primary" size="sm" onClick={handleNew}>
+            <Plus size={15} />
+            Nueva orden
+          </Button>
+        </div>
       </div>
 
       {/* Filter tabs */}

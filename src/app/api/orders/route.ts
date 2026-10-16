@@ -6,6 +6,8 @@ import type { CreateOrderPayload } from '@/lib/types';
 import { limpiarCondiciones } from '@/lib/condiciones';
 import { paginaOrdenes, estadoValido } from '@/lib/ordenes-lista';
 import { cobrar, devolver, leerPrecios } from '@/lib/saldo';
+import { QUOTE_SELECT, vincularAOrden } from '@/lib/presupuestos-servidor';
+import type { Quote } from '@/lib/presupuestos';
 
 const ORDER_SELECT = `
   *,
@@ -131,6 +133,20 @@ export async function POST(req: Request) {
     status: 'pending',
     completed_at: null,
   });
+
+  // Creada a partir de un presupuesto suelto (0028): queda vinculado. Los
+  // ítems no se copian aquí: el formulario los trae precargados y los manda
+  // él mismo, ya con lo que el administrador haya cambiado.
+  if (body.quote_id) {
+    const { data: q } = await service
+      .from('quotes')
+      .select(QUOTE_SELECT)
+      .eq('id', body.quote_id)
+      .eq('workshop_id', caller.workshopId)
+      .is('order_id', null)
+      .maybeSingle();
+    if (q) await vincularAOrden(service, { quote: q as unknown as Quote, orderId, userId: caller.userId, copiarItems: false });
+  }
 
   // Releer la orden ya con la etapa de recepción incluida.
   const { data, error: selErr } = await service

@@ -22,7 +22,7 @@ interface Compra {
 
 interface Movimiento {
   id: string;
-  kind: 'bienvenida' | 'recarga' | 'orden' | 'pregunta_ia' | 'ajuste' | 'reverso';
+  kind: 'bienvenida' | 'recarga' | 'orden' | 'presupuesto' | 'pregunta_ia' | 'ajuste' | 'reverso';
   amount_usd: number;
   balance_after: number;
   note: string | null;
@@ -33,6 +33,7 @@ const NOMBRE_MOVIMIENTO: Record<Movimiento['kind'], string> = {
   bienvenida: 'Saldo de bienvenida',
   recarga: 'Recarga',
   orden: 'Orden creada',
+  presupuesto: 'Presupuesto enviado',
   pregunta_ia: 'Pregunta al asistente',
   ajuste: 'Ajuste',
   reverso: 'Devolución',

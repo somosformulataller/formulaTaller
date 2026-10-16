@@ -18,6 +18,7 @@ const MAX_BIENVENIDA_USD = 1000;
 const PRECIOS = {
   price_order_usd: MAX_PRECIO_USD,
   price_ai_question_usd: MAX_PRECIO_USD,
+  price_quote_usd: MAX_PRECIO_USD,
   welcome_balance_usd: MAX_BIENVENIDA_USD,
 } as const;
 const PAGO_MOVIL = ['pago_movil_bank', 'pago_movil_phone', 'pago_movil_document', 'pago_movil_holder'] as const;
@@ -146,7 +147,7 @@ export async function PATCH(req: Request) {
     .update(updates)
     .eq('id', 1)
     .select(
-      'free_order_limit, support_phones, tutorial_video_url, tutorial_message, price_order_usd, price_ai_question_usd, welcome_balance_usd, pago_movil_bank, pago_movil_phone, pago_movil_document, pago_movil_holder'
+      'free_order_limit, support_phones, tutorial_video_url, tutorial_message, price_order_usd, price_ai_question_usd, price_quote_usd, welcome_balance_usd, pago_movil_bank, pago_movil_phone, pago_movil_document, pago_movil_holder'
     )
     .single();
 

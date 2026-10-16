@@ -387,6 +387,8 @@ export interface CreateOrderPayload {
   mileage?: number | null;
   fuel_level?: FuelLevel | null;
   vehicle_notes?: string | null;
+  /** Presupuesto suelto del que sale la orden (0028): queda vinculado. */
+  quote_id?: string | null;
 }
 
 export interface UpdateOrderPayload {

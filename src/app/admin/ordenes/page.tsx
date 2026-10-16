@@ -8,7 +8,7 @@ import OrdenesClient from './OrdenesClient';
 // mecánicos disponibles para asignar), sin servir una versión cacheada.
 export const dynamic = 'force-dynamic';
 
-export default async function OrdenesAdminPage() {
+export default async function OrdenesAdminPage({ searchParams }: { searchParams: { presupuesto?: string } }) {
   const supabase = await createClient();
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
@@ -33,6 +33,7 @@ export default async function OrdenesAdminPage() {
       inicial={pagina}
       conteos={conteos}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
+      presupuestoId={searchParams.presupuesto}
     />
   );
 }

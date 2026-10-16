@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CalendarDays, ChevronDown, History, Search, Users } from 'lucide-react';
+import { Bell, CalendarClock, CalendarDays, ChevronDown, ClipboardList, Receipt, Search, Users } from 'lucide-react';
 import LoadError from '@/components/ui/LoadError';
 import ClientReminders from '@/components/reminders/ClientReminders';
 import ClientHistory from '@/components/reminders/ClientHistory';
+import { CitasDelCliente, PresupuestosDelCliente } from '@/components/presupuestos/DelCliente';
 import type { ClientRow } from '@/lib/types';
 import { formatDateShort } from '@/lib/utils';
 
@@ -16,14 +17,15 @@ function normalizar(s: string): string {
 
 /**
  * Pantalla «Clientes»: la lista de nombres con un buscador. Al tocar un
- * cliente se despliegan dos opciones, Recordatorio e Historial de órdenes.
+ * cliente se despliegan sus opciones: Ver orden (el historial), Ver cita,
+ * Presupuesto (0028) y Recordatorio.
  */
 export default function ClientesClient({ workshopName }: { workshopName: string }) {
   const [filas, setFilas] = useState<ClientRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [abierto, setAbierto] = useState<string | null>(null);
-  const [seccion, setSeccion] = useState<'recordatorio' | 'historial' | null>(null);
+  const [seccion, setSeccion] = useState<'recordatorio' | 'historial' | 'cita' | 'presupuesto' | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -68,7 +70,7 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Clientes</h1>
           <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            Toca un cliente para agregarle un recordatorio o ver sus órdenes.
+            Toca un cliente para ver sus órdenes, citas y presupuestos.
           </p>
         </div>
         <Link
@@ -121,7 +123,7 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
       {filas && filas.length === 0 && (
         <div className="empty-state">
           <Users size={40} />
-          <p>Todavía no hay clientes. Aparecen solos al crear órdenes.</p>
+          <p>Todavía no hay clientes. Aparecen solos al crear órdenes o presupuestos.</p>
         </div>
       )}
 
@@ -227,16 +229,28 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
                 <div style={{ marginTop: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <OpcionBoton
+                      activo={seccion === 'historial'}
+                      onClick={() => setSeccion(seccion === 'historial' ? null : 'historial')}
+                      icono={<ClipboardList size={16} />}
+                      texto="Ver orden"
+                    />
+                    <OpcionBoton
+                      activo={seccion === 'cita'}
+                      onClick={() => setSeccion(seccion === 'cita' ? null : 'cita')}
+                      icono={<CalendarClock size={16} />}
+                      texto="Ver cita"
+                    />
+                    <OpcionBoton
+                      activo={seccion === 'presupuesto'}
+                      onClick={() => setSeccion(seccion === 'presupuesto' ? null : 'presupuesto')}
+                      icono={<Receipt size={16} />}
+                      texto="Presupuesto"
+                    />
+                    <OpcionBoton
                       activo={seccion === 'recordatorio'}
                       onClick={() => setSeccion(seccion === 'recordatorio' ? null : 'recordatorio')}
                       icono={<Bell size={16} />}
                       texto="Recordatorio"
-                    />
-                    <OpcionBoton
-                      activo={seccion === 'historial'}
-                      onClick={() => setSeccion(seccion === 'historial' ? null : 'historial')}
-                      icono={<History size={16} />}
-                      texto="Historial de órdenes"
                     />
                   </div>
                   {seccion === 'recordatorio' && (
@@ -247,6 +261,16 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
                   {seccion === 'historial' && (
                     <div style={{ marginTop: 12 }}>
                       <ClientHistory clientId={c.id} />
+                    </div>
+                  )}
+                  {seccion === 'cita' && (
+                    <div style={{ marginTop: 12 }}>
+                      <CitasDelCliente clientId={c.id} workshopName={workshopName} />
+                    </div>
+                  )}
+                  {seccion === 'presupuesto' && (
+                    <div style={{ marginTop: 12 }}>
+                      <PresupuestosDelCliente clientId={c.id} />
                     </div>
                   )}
                 </div>
