@@ -13,6 +13,9 @@ export interface Workshop {
   slug: string;
   whatsapp: string | null;
   logo_url: string | null;
+  /** Colores de la marca, sacados del logo (0031). null = los de Formula Taller. */
+  brand_color: string | null;
+  brand_color_2: string | null;
   // Override del límite gratuito para este taller; null = usar el global.
   order_limit: number | null;
   is_subscribed: boolean;
@@ -81,7 +84,7 @@ export interface SalesClientRow {
   tag_ids: string[];
 }
 
-export type WorkshopUpdate = Partial<Pick<Workshop, 'name' | 'whatsapp'>>;
+export type WorkshopUpdate = Partial<Pick<Workshop, 'name' | 'whatsapp' | 'brand_color' | 'brand_color_2'>>;
 
 export interface Profile {
   id: string;
@@ -143,7 +146,7 @@ export interface Order {
   /** Todos los mecánicos asignados, sin jerarquía (tabla order_mechanics, 0021). */
   mechanics?: Profile[];
   stages?: OrderStage[];
-  workshop?: { name: string; logo_url?: string | null } | null;
+  workshop?: { name: string; logo_url?: string | null; brand_color?: string | null; brand_color_2?: string | null } | null;
 }
 
 export type OrderInsert = Omit<Order, 'id' | 'client_id' | 'vehicle_conditions' | 'mileage' | 'fuel_level' | 'vehicle_notes' | 'public_token' | 'created_at' | 'updated_at' | 'assigned_mechanic' | 'mechanics' | 'stages' | 'workshop'>;

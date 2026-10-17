@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, X, CheckCheck, RefreshCw } from 'lucide-react';
+import { Check, X, CheckCheck, RefreshCw, Receipt } from 'lucide-react';
+import Desplegable, { Chip } from '@/components/tracking/Desplegable';
 import type { BudgetItem, BudgetDecision } from '@/lib/types';
 import {
   formatUsd,
@@ -61,20 +62,23 @@ export default function TrackingBudget({
     }
   }
 
+  // Abierto de entrada solo si hay algo por decidir; si no, basta el título.
+  const porDecidir = items.filter((i) => i.client_decision === 'pendiente').length;
+  const [abiertoInicial] = useState(!cerrado && porDecidir > 0);
+
   return (
-    <div className="card animate-fade-in" style={{ marginBottom: 20 }}>
-      <p
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
-          color: 'var(--color-text-muted)',
-          marginBottom: 4,
-        }}
-      >
-        Presupuesto
-      </p>
+    <Desplegable
+      titulo="Presupuesto"
+      icono={<Receipt size={17} />}
+      abiertoInicial={abiertoInicial}
+      extra={
+        porDecidir > 0 && !cerrado ? (
+          <Chip texto={`${porDecidir} por decidir`} color="#fbbf24" />
+        ) : aprobados.length > 0 ? (
+          <Chip texto={`Aprobado ${formatUsd(totalConGeneral(aprobados, manoGeneral))}`} color="#34d399" />
+        ) : null
+      }
+    >
       {!cerrado && (
         <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 10 }}>
           Toca ✓ para aprobar o ✗ para rechazar cada servicio. El taller recibe tu respuesta al instante.
@@ -254,7 +258,7 @@ export default function TrackingBudget({
           </div>
         )}
       </div>
-    </div>
+    </Desplegable>
   );
 }
 

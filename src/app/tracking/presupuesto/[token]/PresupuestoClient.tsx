@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Check, CheckCheck, ChevronLeft, ChevronRight, ClipboardList, Wrench, X } from 'lucide-react';
+import { CalendarClock, Check, CheckCheck, ChevronLeft, ChevronRight, ClipboardList, X } from 'lucide-react';
+import CabeceraTaller from '@/components/tracking/CabeceraTaller';
 import { formatUsd } from '@/lib/budget';
 import { hoyVE } from '@/lib/recordatorios';
 import { HORAS_CITA, formatCita, formatHora, horaVE, totalQuote } from '@/lib/presupuestos';
@@ -89,33 +90,13 @@ export default function PresupuestoClient({ inicial }: { inicial: PresupuestoPub
         margin: '0 auto',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            background: p.workshop.logo_url
-              ? 'var(--color-surface-2)'
-              : 'linear-gradient(135deg, var(--color-brand-500), var(--color-brand-700))',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {p.workshop.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.workshop.logo_url} alt={p.workshop.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <Wrench size={20} color="#0D0F1A" strokeWidth={2.5} />
-          )}
-        </div>
-        <div>
-          <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1 }}>{p.workshop.name}</p>
-          <p style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1, marginTop: 2 }}>Presupuesto</p>
-        </div>
-      </div>
+      <CabeceraTaller
+        nombre={p.workshop.name}
+        logoUrl={p.workshop.logo_url}
+        color={p.workshop.brand_color}
+        color2={p.workshop.brand_color_2}
+        etiqueta="Presupuesto"
+      />
 
       <div className="animate-fade-in" style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>

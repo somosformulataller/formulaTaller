@@ -19,6 +19,8 @@ import CopyLinkButton from '@/components/orders/CopyLinkButton';
 import { compressImage } from '@/lib/image';
 import { createClient } from '@/lib/supabase/client';
 import type { Workshop } from '@/lib/types';
+import { coloresDelLogo } from '@/lib/colores-logo';
+import ColoresMarca, { guardarColores, type Colores } from './ColoresMarca';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
@@ -31,6 +33,8 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
   const [name, setName] = useState(workshop.name);
   const [whatsapp, setWhatsapp] = useState(workshop.whatsapp ?? '');
   const [logoUrl, setLogoUrl] = useState(workshop.logo_url);
+  const [colores, setColores] = useState<Colores>({ c1: workshop.brand_color, c2: workshop.brand_color_2 });
+  const [avisoColores, setAvisoColores] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +139,17 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
       }
       const updated = (await res.json()) as Workshop;
       setLogoUrl(updated.logo_url);
+      // Los colores del logo nuevo pasan a ser los de la marca (0031).
+      const c = await coloresDelLogo(original);
+      if (c) {
+        try {
+          await guardarColores(workshop.id, c);
+          setColores(c);
+          setAvisoColores('Detectamos los colores de tu logo. Puedes cambiarlos si quieres.');
+        } catch {
+          /* el logo ya quedó; los colores se pueden guardar a mano */
+        }
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo subir el logo.');
@@ -208,6 +223,18 @@ export default function TallerClient({ workshop }: { workshop: Workshop }) {
           </div>
         </div>
       </div>
+
+      <ColoresMarca
+        workshopId={workshop.id}
+        nombre={name.trim() || workshop.name}
+        logoUrl={logoUrl}
+        colores={colores}
+        onColores={(c) => {
+          setColores(c);
+          setAvisoColores(null);
+        }}
+        aviso={avisoColores}
+      />
 
       {/* Personalized login link */}
       <div className="card" style={{ padding: 24, marginBottom: 16 }}>

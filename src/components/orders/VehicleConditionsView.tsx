@@ -3,6 +3,7 @@
 import { ClipboardCheck, Gauge, Fuel } from 'lucide-react';
 import type { FuelLevel, VehicleCondition } from '@/lib/types';
 import { agrupar, fuelLabel } from '@/lib/condiciones';
+import Desplegable from '@/components/tracking/Desplegable';
 
 /**
  * Cómo llegó el carro, en solo lectura: lo que marcó el taller al recibirlo,
@@ -26,8 +27,26 @@ export default function VehicleConditionsView({
   const combustible = fuelLabel(fuelLevel);
   if (conditions.length === 0 && mileage === null && !combustible && !notes) return null;
 
+  const contenido = (
+    <>
+      {notes && (
+        <p style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{notes}</p>
+      )}
+      <Datos conditions={conditions} mileage={mileage} combustible={combustible} />
+    </>
+  );
+
+  // En el enlace del cliente se abre con un toque.
+  if (variant === 'tracking') {
+    return (
+      <Desplegable titulo="Estado del vehículo al recibirlo" icono={<ClipboardCheck size={17} />}>
+        {contenido}
+      </Desplegable>
+    );
+  }
+
   return (
-    <div className="card animate-fade-in" style={{ marginBottom: variant === 'tracking' ? 16 : 16 }}>
+    <div className="card animate-fade-in" style={{ marginBottom: 16 }}>
       <p
         style={{
           display: 'flex',
@@ -42,13 +61,24 @@ export default function VehicleConditionsView({
         }}
       >
         <ClipboardCheck size={13} />
-        {variant === 'tracking' ? 'Estado del vehículo al recibirlo' : 'Condiciones previas del vehículo'}
+        Condiciones previas del vehículo
       </p>
+      {contenido}
+    </div>
+  );
+}
 
-      {notes && (
-        <p style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 10 }}>{notes}</p>
-      )}
-
+function Datos({
+  conditions,
+  mileage,
+  combustible,
+}: {
+  conditions: VehicleCondition[];
+  mileage: number | null;
+  combustible: string | null;
+}) {
+  return (
+    <>
       {(mileage !== null || combustible) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 13, marginBottom: conditions.length ? 10 : 0 }}>
           {mileage !== null && (
@@ -81,6 +111,6 @@ export default function VehicleConditionsView({
           </ul>
         </div>
       ))}
-    </div>
+    </>
   );
 }

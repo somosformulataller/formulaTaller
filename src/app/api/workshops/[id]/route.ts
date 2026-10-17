@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { getCaller } from '@/lib/api-auth';
 import type { WorkshopUpdate } from '@/lib/types';
+import { esHex } from '@/lib/colores-logo';
 
 type Params = { params: { id: string } };
 
@@ -17,6 +18,15 @@ export async function PATCH(req: Request, { params }: Params) {
   const updates: WorkshopUpdate = {};
   if (typeof body?.name === 'string' && body.name.trim()) updates.name = body.name.trim();
   if (body?.whatsapp !== undefined) updates.whatsapp = (body.whatsapp || '').trim() || null;
+  // Colores de la marca (0031): «#rrggbb» o null para volver a los de Formula Taller.
+  for (const k of ['brand_color', 'brand_color_2'] as const) {
+    const v = body?.[k];
+    if (v === null) updates[k] = null;
+    else if (v !== undefined) {
+      if (!esHex(v)) return NextResponse.json({ error: 'Color inválido.' }, { status: 400 });
+      updates[k] = v.toLowerCase();
+    }
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada que actualizar.' }, { status: 400 });

@@ -27,7 +27,7 @@ export interface PresupuestoPublico {
   client_decision: DecisionQuote;
   created_at: string;
   cita: CitaPublica | null;
-  workshop: { name: string; logo_url: string | null };
+  workshop: { name: string; logo_url: string | null; brand_color: string | null; brand_color_2: string | null };
   /** Ya pasó a una orden: el enlace del seguimiento de esa orden. */
   orderToken: string | null;
 }
@@ -50,7 +50,7 @@ export async function leerPresupuestoPublico(
   const { data } = await service
     .from('quotes')
     .select(
-      'id, workshop_id, client_id, order_id, public_token, client_first_name, client_last_name, car_model, items, labor_general_usd, client_picks_date, client_decision, created_at, workshop:workshops(name, logo_url), order:orders(public_token)'
+      'id, workshop_id, client_id, order_id, public_token, client_first_name, client_last_name, car_model, items, labor_general_usd, client_picks_date, client_decision, created_at, workshop:workshops(name, logo_url, brand_color, brand_color_2), order:orders(public_token)'
     )
     .eq('public_token', token)
     .maybeSingle();
@@ -69,7 +69,7 @@ export async function leerPresupuestoPublico(
     client_picks_date: boolean;
     client_decision: DecisionQuote;
     created_at: string;
-    workshop: { name: string; logo_url: string | null } | null;
+    workshop: { name: string; logo_url: string | null; brand_color: string | null; brand_color_2: string | null } | null;
     order: { public_token: string } | null;
   };
 
@@ -99,7 +99,12 @@ export async function leerPresupuestoPublico(
       cita: cita
         ? { day: cita.day, at_time: cita.at_time, status: cita.status, chosen_by_client: cita.chosen_by_client }
         : null,
-      workshop: { name: q.workshop?.name ?? 'Taller', logo_url: q.workshop?.logo_url ?? null },
+      workshop: {
+        name: q.workshop?.name ?? 'Taller',
+        logo_url: q.workshop?.logo_url ?? null,
+        brand_color: q.workshop?.brand_color ?? null,
+        brand_color_2: q.workshop?.brand_color_2 ?? null,
+      },
       orderToken: q.order?.public_token ?? null,
     },
     interno: {
