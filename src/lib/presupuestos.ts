@@ -15,6 +15,11 @@ export interface QuoteItem {
 
 export type TipoCita = 'cita' | 'ocupado';
 
+/** Respuesta del cliente al presupuesto (0030). */
+export type DecisionQuote = 'pendiente' | 'aprobado' | 'rechazado';
+/** Respuesta del cliente a la cita (0030). */
+export type EstadoCita = 'pendiente' | 'confirmada' | 'rechazada';
+
 export interface Cita {
   id: string;
   workshop_id: string;
@@ -27,6 +32,9 @@ export interface Cita {
   /** HH:MM, o null = sin hora (cita) / todo el día (ocupado). */
   at_time: string | null;
   note: string | null;
+  status: EstadoCita;
+  /** La eligió el cliente en el enlace del presupuesto. */
+  chosen_by_client: boolean;
   created_at: string;
   client?: { first_name: string; last_name: string; whatsapp: string } | null;
 }
@@ -44,6 +52,12 @@ export interface Quote {
   order_id: string | null;
   linked_at: string | null;
   sent_at: string | null;
+  /** Enlace público /tracking/presupuesto/<public_token> (0030). */
+  public_token: string;
+  /** El cliente elige el día y la hora de la cita en el enlace. */
+  client_picks_date: boolean;
+  client_decision: DecisionQuote;
+  decided_at: string | null;
   created_at: string;
   updated_at: string;
   /** La cita agendada con el presupuesto, si hay. */
@@ -87,10 +101,14 @@ export function totalQuote(items: QuoteItem[], manoGeneral: number): number {
   ) / 100;
 }
 
+/** Enlace público del presupuesto para el cliente. */
+export function enlacePresupuesto(siteUrl: string, token: string): string {
+  return `${siteUrl}/tracking/presupuesto/${token}`;
+}
+
 /**
- * Mensaje de WhatsApp con el presupuesto (y la cita, si hay) para el cliente.
- * No lleva enlace: el presupuesto suelto todavía no tiene seguimiento; el
- * cliente responde por el mismo chat.
+ * Mensaje de WhatsApp con el presupuesto (y la cita, si hay) para el cliente,
+ * con el enlace donde lo aprueba y elige o confirma la cita.
  */
 export function buildQuoteMessage(opts: {
   nombre: string;
@@ -98,7 +116,11 @@ export function buildQuoteMessage(opts: {
   items: QuoteItem[];
   manoGeneral: number;
   taller?: string;
-  cita?: { day: string; at_time: string | null } | null;
+  cita?: { day: string; at_time: string | null; confirmada?: boolean } | null;
+  /** Enlace público del presupuesto. */
+  enlace?: string;
+  /** El cliente elige el día de la cita en el enlace. */
+  eligeCliente?: boolean;
 }): string {
   const lineas = opts.items.map(
     (i) => `• ${i.description || 'Servicio'}: ${formatUsd((Math.round(i.amount * 100) + Math.round(i.labor_amount * 100)) / 100)}`
@@ -109,7 +131,19 @@ export function buildQuoteMessage(opts: {
   if (lineas.length > 0) {
     partes.push(lineas.join('\n'), `Total: ${formatUsd(totalQuote(opts.items, opts.manoGeneral))}`);
   }
-  if (opts.cita) partes.push(conPunto(`Tu cita quedó agendada para el ${formatCita(opts.cita.day, opts.cita.at_time)}`));
+  if (opts.cita && !opts.eligeCliente) {
+    const cuando = formatCita(opts.cita.day, opts.cita.at_time);
+    partes.push(conPunto(opts.cita.confirmada ? `Tu cita quedó agendada para el ${cuando}` : `Te propongo la cita en el taller para el ${cuando}`));
+  }
+  if (opts.enlace) {
+    const que = opts.eligeCliente
+      ? 'aprobarlo y escoger el día y la hora en que puedes traer el carro'
+      : opts.cita && !opts.cita.confirmada
+      ? 'aprobarlo y confirmar la cita'
+      : 'aprobarlo o rechazarlo';
+    partes.push(`Aquí puedes ver el detalle, ${que}:
+${opts.enlace}`);
+  }
   partes.push('Cualquier duda me escribes y te explico con gusto.');
   return partes.join('\n\n');
 }
@@ -117,4 +151,37 @@ export function buildQuoteMessage(opts: {
 /** Termina la frase en punto sin duplicarlo («9:00 a. m.» ya lo trae). */
 export function conPunto(s: string): string {
   return s.endsWith('.') ? s : `${s}.`;
+}
+
+/** Hora actual en Venezuela, «HH». */
+export function horaVE(): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Caracas', hour: '2-digit', hourCycle: 'h23' }).format(new Date());
+}
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+/** Mensaje de WhatsApp de un presupuesto ya guardado, con su enlace. */
+export function mensajeQuote(q: Quote, taller: string): string {
+  return buildQuoteMessage({
+    nombre: q.client_first_name,
+    carro: q.car_model,
+    items: q.items,
+    manoGeneral: Number(q.labor_general_usd) || 0,
+    taller,
+    cita: q.cita ? { day: q.cita.day, at_time: q.cita.at_time, confirmada: q.cita.status === 'confirmada' } : null,
+    enlace: q.public_token ? enlacePresupuesto(SITE_URL, q.public_token) : undefined,
+    eligeCliente: q.client_picks_date && !q.cita,
+  });
+}
+
+/** Lo que respondió el cliente en el enlace, para mostrarlo al taller. */
+export function respuestaCliente(q: Quote): { texto: string; color: string }[] {
+  const r: { texto: string; color: string }[] = [];
+  if (q.client_decision === 'aprobado') r.push({ texto: 'Presupuesto aprobado', color: '#34d399' });
+  else if (q.client_decision === 'rechazado') r.push({ texto: 'Presupuesto rechazado', color: '#f87171' });
+  if (q.cita?.status === 'confirmada') {
+    r.push({ texto: q.cita.chosen_by_client ? 'Cita elegida por el cliente' : 'Cita confirmada', color: '#34d399' });
+  } else if (q.cita?.status === 'rechazada') r.push({ texto: 'Cita rechazada', color: '#f87171' });
+  else if (q.client_picks_date && !q.cita) r.push({ texto: 'El cliente elige la cita', color: '#fbbf24' });
+  return r;
 }

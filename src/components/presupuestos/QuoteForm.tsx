@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Car, CalendarClock, CheckCircle2, ClipboardList, MessageCircle, User, Users } from 'lucide-react';
+import { Car, CalendarClock, CheckCircle2, ClipboardList, Copy, MessageCircle, User, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -14,7 +14,17 @@ import { useSaldo } from '@/components/saldo/SaldoProvider';
 import { formatPrecioUsd, formatUsd, parseAmount } from '@/lib/budget';
 import { hoyVE } from '@/lib/recordatorios';
 import { openWhatsApp } from '@/lib/utils';
-import { buildQuoteMessage, estaOcupado, formatCita, type Cita, type Quote } from '@/lib/presupuestos';
+import {
+  enlacePresupuesto,
+  estaOcupado,
+  formatCita,
+  mensajeQuote,
+  respuestaCliente,
+  type Cita,
+  type Quote,
+} from '@/lib/presupuestos';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export interface DatosIniciales {
   client_first_name: string;
@@ -68,6 +78,9 @@ export default function QuoteForm({
   const [manoGeneral, setManoGeneral] = useState(quote?.labor_general_usd ? String(quote.labor_general_usd) : '');
   const [dia, setDia] = useState(quote?.cita?.day ?? '');
   const [hora, setHora] = useState<string | null>(quote?.cita?.at_time ?? null);
+  // El cliente escoge el día y la hora en el enlace (0030); si no, la pone el taller.
+  const [eligeCliente, setEligeCliente] = useState(quote ? quote.client_picks_date : true);
+  const [copiado, setCopiado] = useState(false);
   const [delDia, setDelDia] = useState<Cita[]>([]);
   const [cargando, setCargando] = useState<'' | 'enviar' | 'guardar'>('');
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +144,7 @@ export default function QuoteForm({
     setError(null);
     if (!form.client_first_name.trim()) return setError('Escribe el nombre del cliente.');
     if (form.client_whatsapp.replace(/\D/g, '').length < 10) return setError('Escribe el WhatsApp del cliente.');
-    if (dia && diaOcupado) return setError('Ese día está marcado como ocupado. Elige otro.');
+    if (!eligeCliente && dia && diaOcupado) return setError('Ese día está marcado como ocupado. Elige otro.');
     const nuevo = !guardado;
     if (nuevo && saldo && !saldo.alcanza(saldo.precios.presupuesto)) {
       saldo.avisarSinSaldo('No tienes saldo para guardar el presupuesto. Debes recargar saldo para seguir enviando presupuestos.');
@@ -140,13 +153,13 @@ export default function QuoteForm({
 
     const lista = items();
     const mano = parseAmount(manoGeneral) ?? 0;
-    const cita = dia ? { day: dia, at_time: hora } : null;
+    const cita = !eligeCliente && dia ? { day: dia, at_time: hora } : null;
     setCargando(enviar ? 'enviar' : 'guardar');
     try {
       const res = await fetch(nuevo ? '/api/quotes' : `/api/quotes/${guardado!.id}`, {
         method: nuevo ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, items: lista, labor_general_usd: mano, cita, enviado: enviar }),
+        body: JSON.stringify({ ...form, items: lista, labor_general_usd: mano, cita, client_picks_date: eligeCliente, enviado: enviar }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -163,14 +176,7 @@ export default function QuoteForm({
       onGuardado?.(q);
       if (q.citaError) setError(`El presupuesto se guardó, pero la cita no: ${q.citaError}`);
 
-      const mensaje = buildQuoteMessage({
-        nombre: form.client_first_name,
-        carro: form.car_model,
-        items: lista,
-        manoGeneral: mano,
-        taller: workshopName,
-        cita: q.cita ? { day: q.cita.day, at_time: q.cita.at_time } : null,
-      });
+      const mensaje = mensajeQuote(q, workshopName);
       if (enviar) openWhatsApp(form.client_whatsapp, mensaje);
       setListo({ enviado: enviar, mensaje });
     } catch (e) {
@@ -194,6 +200,20 @@ export default function QuoteForm({
           </div>
         </div>
         {error && <p style={{ color: 'var(--color-danger)', fontSize: 13 }}>{error}</p>}
+        <Button
+          type="button"
+          variant="ghost"
+          fullWidth
+          onClick={() => {
+            navigator.clipboard
+              ?.writeText(enlacePresupuesto(SITE_URL, guardado.public_token))
+              .then(() => setCopiado(true))
+              .catch(() => {});
+          }}
+        >
+          <Copy size={16} />
+          {copiado ? 'Enlace copiado' : 'Copiar enlace del presupuesto'}
+        </Button>
         <Button
           type="button"
           variant={listo.enviado ? 'secondary' : 'primary'}
@@ -252,8 +272,22 @@ export default function QuoteForm({
     );
   }
 
+  const respuesta = guardado ? respuestaCliente(guardado) : [];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {respuesta.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {respuesta.map((r) => (
+            <span
+              key={r.texto}
+              style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, color: r.color, border: `1px solid ${r.color}` }}
+            >
+              {r.texto}
+            </span>
+          ))}
+        </div>
+      )}
       <div className={caja} style={{ display: 'flex', flexDirection: 'column', gap: enModal ? 16 : 12 }}>
         {!guardado && (
           <div>
@@ -340,6 +374,28 @@ export default function QuoteForm({
           <CalendarClock size={17} style={{ color: 'var(--color-brand-400)' }} />
           Agendar cita (opcional)
         </h2>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={eligeCliente}
+            onChange={(e) => setEligeCliente(e.target.checked)}
+            style={{ width: 18, height: 18, marginTop: 1, accentColor: 'var(--color-brand-400)', flexShrink: 0 }}
+          />
+          <span>
+            <span style={{ display: 'block', fontWeight: 700 }}>Que el cliente elija el día y la hora</span>
+            <span style={{ display: 'block', fontSize: 12.5, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+              {eligeCliente
+                ? 'En el enlace del presupuesto verá un calendario para escoger cuándo trae el carro.'
+                : 'Tú pones la cita y el cliente la acepta o la rechaza en el enlace.'}
+            </span>
+          </span>
+        </label>
+        {eligeCliente && guardado?.cita?.chosen_by_client && (
+          <p style={{ fontSize: 13 }}>
+            El cliente eligió: <strong>{formatCita(guardado.cita.day, guardado.cita.at_time)}</strong>
+          </p>
+        )}
+        {!eligeCliente && (
         <div className="form-field">
           <label className="form-label" htmlFor="cita-dia">
             Día
@@ -364,10 +420,11 @@ export default function QuoteForm({
             )}
           </div>
         </div>
-        {dia && diaOcupado && (
+        )}
+        {!eligeCliente && dia && diaOcupado && (
           <p style={{ fontSize: 13, color: 'var(--color-danger)' }}>El taller marcó este día como ocupado.</p>
         )}
-        {dia && !diaOcupado && (
+        {!eligeCliente && dia && !diaOcupado && (
           <div className="form-field">
             <label className="form-label">Hora (opcional)</label>
             <Horas dia={dia} delDia={otras} elegidas={hora ? [hora] : []} onToggle={(h) => setHora(hora === h ? null : h)} />

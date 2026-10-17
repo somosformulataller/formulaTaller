@@ -300,6 +300,8 @@ export interface Reminder {
 export interface AppNotification {
   id: string;
   order_id: string | null;
+  /** Respuesta a un presupuesto suelto (0030). */
+  quote_id: string | null;
   kind: string;
   message: string;
   read_at: string | null;

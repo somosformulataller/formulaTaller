@@ -61,12 +61,18 @@ export async function PATCH(req: Request, { params }: Params) {
   if (limpio.error !== undefined) return NextResponse.json({ error: limpio.error }, { status: 400 });
   const { datos, cita } = limpio;
 
+  // Si cambió lo que cuesta, el cliente tiene que volver a aprobarlo (0030).
+  const cambioPrecio =
+    JSON.stringify(datos.items) !== JSON.stringify(actual.items.map((i) => ({ description: i.description, amount: Number(i.amount), labor_amount: Number(i.labor_amount) }))) ||
+    datos.labor_general_usd !== actual.labor_general_usd;
+
   const clientId = await clienteDe(service, caller.workshopId, datos);
   const { error } = await service
     .from('quotes')
     .update({
       ...datos,
       client_id: clientId,
+      ...(cambioPrecio && actual.client_decision !== 'pendiente' ? { client_decision: 'pendiente', decided_at: null } : {}),
       ...(body.enviado ? { sent_at: new Date().toISOString() } : {}),
     })
     .eq('id', params.id);
@@ -78,6 +84,7 @@ export async function PATCH(req: Request, { params }: Params) {
     clientId,
     userId: caller.userId,
     cita,
+    eligeCliente: datos.client_picks_date,
   });
   const q = await leer(service, params.id, caller.workshopId);
   return NextResponse.json({ ...q, citaError: r.error ?? null });

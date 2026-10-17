@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getCaller, canManageOrder } from '@/lib/api-auth';
 import { parseAmount } from '@/lib/budget';
 import type { CreateBudgetItemPayload } from '@/lib/types';
+import { aprobadosEnPresupuesto, claveItem } from '@/lib/presupuestos-servidor';
 
 type Params = { params: { id: string } };
 
@@ -96,6 +97,9 @@ export async function POST(req: Request, { params }: Params) {
     .maybeSingle();
 
   const desde = ((ultima as unknown as { position: number } | null)?.position ?? 0) + 1;
+  // Lo que el cliente ya aprobó en el enlace del presupuesto (0030) llega aprobado.
+  const aprobados = await aprobadosEnPresupuesto(service, params.id);
+  const ahora = new Date().toISOString();
 
   const { data, error } = await service
     .from('order_budget_items')
@@ -107,6 +111,7 @@ export async function POST(req: Request, { params }: Params) {
         labor_amount: it.labor_amount,
         position: desde + i,
         created_by: caller.userId,
+        ...(aprobados.has(claveItem(it)) ? { client_decision: 'aprobado', decided_at: ahora } : {}),
       }))
     )
     .select();

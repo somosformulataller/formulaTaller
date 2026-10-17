@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { CalendarClock, Car, ClipboardList, MessageCircle, Pencil, Phone, Receipt } from 'lucide-react';
 import { formatUsd } from '@/lib/budget';
 import { formatDateShort, openWhatsApp } from '@/lib/utils';
-import { buildQuoteMessage, formatCita, totalQuote, type Quote } from '@/lib/presupuestos';
+import { formatCita, mensajeQuote, respuestaCliente, totalQuote, type Quote } from '@/lib/presupuestos';
 
 /**
  * «Presupuestos enviados» en Inicio (0028): los presupuestos sueltos del
@@ -46,17 +46,7 @@ export default function ListaPresupuestos({
   }, [version]);
 
   function enviar(q: Quote) {
-    openWhatsApp(
-      q.client_whatsapp,
-      buildQuoteMessage({
-        nombre: q.client_first_name,
-        carro: q.car_model,
-        items: q.items,
-        manoGeneral: q.labor_general_usd,
-        taller: workshopName,
-        cita: q.cita ? { day: q.cita.day, at_time: q.cita.at_time } : null,
-      })
-    );
+    openWhatsApp(q.client_whatsapp, mensajeQuote(q, workshopName));
     if (!q.sent_at) {
       setLista((p) => (p ?? []).map((x) => (x.id === q.id ? { ...x, sent_at: new Date().toISOString() } : x)));
       fetch(`/api/quotes/${q.id}`, {
@@ -135,6 +125,18 @@ export default function ListaPresupuestos({
               {q.cita && (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <CalendarClock size={14} /> Cita: {formatCita(q.cita.day, q.cita.at_time)}
+                </span>
+              )}
+              {!q.order_id && respuestaCliente(q).length > 0 && (
+                <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '2px 0' }}>
+                  {respuestaCliente(q).map((r) => (
+                    <span
+                      key={r.texto}
+                      style={{ fontSize: 11.5, fontWeight: 700, padding: '2px 9px', borderRadius: 999, color: r.color, border: `1px solid ${r.color}` }}
+                    >
+                      {r.texto}
+                    </span>
+                  ))}
                 </span>
               )}
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--color-brand-400)' }}>

@@ -76,6 +76,25 @@ export function FilaCita({
         <span style={{ display: 'block', fontSize: 14, fontWeight: 600, overflowWrap: 'anywhere' }}>
           {cuando} · {esCita ? `Cita: ${nombre || 'cliente'}` : 'Ocupado'}
         </span>
+        {esCita && cita.quote_id && (
+          <span
+            style={{
+              display: 'block',
+              fontSize: 11.5,
+              fontWeight: 700,
+              marginTop: 2,
+              color: cita.status === 'confirmada' ? '#34d399' : cita.status === 'rechazada' ? '#f87171' : '#fbbf24',
+            }}
+          >
+            {cita.status === 'confirmada'
+              ? cita.chosen_by_client
+                ? 'La eligió el cliente'
+                : 'Confirmada por el cliente'
+              : cita.status === 'rechazada'
+              ? 'Rechazada por el cliente'
+              : 'Sin confirmar por el cliente'}
+          </span>
+        )}
         {(cita.note || cita.quote_id || cita.order_id) && (
           <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
             {cita.note}

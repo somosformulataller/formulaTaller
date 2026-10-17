@@ -86,6 +86,7 @@ export async function POST(req: Request) {
     clientId,
     userId: caller.userId,
     cita,
+    eligeCliente: datos.client_picks_date,
   });
   // El presupuesto ya quedó guardado: si la cita no, se avisa sin deshacerlo.
   return NextResponse.json(

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
   let q = service
     .from('notifications')
-    .select('id, order_id, kind, message, read_at, created_at')
+    .select('id, order_id, quote_id, kind, message, read_at, created_at')
     .eq('workshop_id', caller.workshopId);
   if (orderId) q = q.eq('order_id', orderId);
   const [notifs, unread, due] = await Promise.all([

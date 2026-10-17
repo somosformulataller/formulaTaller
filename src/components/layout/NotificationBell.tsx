@@ -252,7 +252,15 @@ export default function NotificationBell({ workshopName }: { workshopName: strin
                 {notifs.map((n) => (
                   <Link
                     key={n.id}
-                    href={n.order_id ? `/admin/ordenes/${n.order_id}` : n.kind === 'saldo' ? '/admin/saldo' : '#'}
+                    href={
+                      n.order_id
+                        ? `/admin/ordenes/${n.order_id}`
+                        : n.quote_id
+                        ? `/admin/presupuestos/enviar/${n.quote_id}`
+                        : n.kind === 'saldo'
+                        ? '/admin/saldo'
+                        : '#'
+                    }
                     onClick={() => {
                       if (!n.read_at) marcarLeidas({ ids: [n.id] });
                       setAbierto(false);

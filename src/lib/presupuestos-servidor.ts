@@ -25,6 +25,8 @@ export interface DatosPresupuesto {
   car_model: string;
   items: QuoteItem[];
   labor_general_usd: number;
+  /** El cliente elige el día y la hora en el enlace (0030). */
+  client_picks_date: boolean;
 }
 
 export interface DatosCita {
@@ -62,9 +64,10 @@ export function limpiarPresupuesto(
     crudoMano === '' || crudoMano === null || crudoMano === undefined ? 0 : parseAmount(crudoMano as string | number);
   if (labor_general_usd === null || labor_general_usd > MAX_AMOUNT) return { error: 'Mano de obra general inválida.' };
 
+  const client_picks_date = body.client_picks_date === true;
   let cita: DatosCita | null = null;
   const c = body.cita as { day?: unknown; at_time?: unknown } | null | undefined;
-  if (c && c.day) {
+  if (!client_picks_date && c && c.day) {
     const day = String(c.day);
     const at_time = c.at_time ? String(c.at_time).slice(0, 5) : null;
     if (!FECHA.test(day)) return { error: 'Fecha de la cita inválida.' };
@@ -73,7 +76,7 @@ export function limpiarPresupuesto(
   }
 
   return {
-    datos: { client_first_name, client_last_name, client_whatsapp, car_model, items, labor_general_usd },
+    datos: { client_first_name, client_last_name, client_whatsapp, car_model, items, labor_general_usd, client_picks_date },
     cita,
   };
 }
@@ -123,11 +126,41 @@ export async function citasDelDia(service: Service, workshopId: string, day: str
 /**
  * Deja la cita del presupuesto como se pidió: la anterior se borra y, si hay
  * día, se crea la nueva. Falla si el taller marcó ocupado ese día u hora.
+ *
+ * Si la elige el cliente (0030), la que él ya escogió se conserva y solo se
+ * quita la que hubiera puesto el taller. Si la pone el taller y no cambió el
+ * día ni la hora, se deja como está para no perder la respuesta del cliente.
  */
 export async function guardarCitaDePresupuesto(
   service: Service,
-  opts: { workshopId: string; quoteId: string; clientId: string | null; userId: string; cita: DatosCita | null }
+  opts: {
+    workshopId: string;
+    quoteId: string;
+    clientId: string | null;
+    userId: string;
+    cita: DatosCita | null;
+    eligeCliente?: boolean;
+  }
 ): Promise<{ cita: Cita | null; error?: string }> {
+  const { data: previa } = await service
+    .from('appointments')
+    .select(CITA_SELECT)
+    .eq('quote_id', opts.quoteId)
+    .eq('kind', 'cita')
+    .maybeSingle();
+  const antes = previa ? normalizarCita(previa as unknown as Cita) : null;
+
+  if (opts.eligeCliente) {
+    if (antes && !antes.chosen_by_client) {
+      await service.from('appointments').delete().eq('id', antes.id);
+      return { cita: null };
+    }
+    return { cita: antes };
+  }
+  if (antes && opts.cita && antes.day === opts.cita.day && antes.at_time === opts.cita.at_time) {
+    return { cita: antes };
+  }
+
   if (opts.cita) {
     const delDia = await citasDelDia(service, opts.workshopId, opts.cita.day);
     if (estaOcupado(delDia, opts.cita.day, opts.cita.at_time)) {
@@ -175,6 +208,27 @@ export async function conCitas(service: Service, quotes: Quote[]): Promise<Quote
   }));
 }
 
+/** Clave para reconocer un ítem del presupuesto en la orden (mismo nombre y precio). */
+export function claveItem(i: { description: string; amount: number | string; labor_amount: number | string }): string {
+  return `${i.description.trim().toLowerCase()}|${Math.round(Number(i.amount) * 100)}|${Math.round(Number(i.labor_amount) * 100)}`;
+}
+
+/**
+ * Ítems que el cliente ya aprobó en el enlace del presupuesto suelto (0030)
+ * vinculado a esa orden: al pasar a la orden siguen aprobados si no cambió
+ * su precio.
+ */
+export async function aprobadosEnPresupuesto(service: Service, orderId: string): Promise<Set<string>> {
+  const { data } = await service
+    .from('quotes')
+    .select('items')
+    .eq('order_id', orderId)
+    .eq('client_decision', 'aprobado');
+  const claves = new Set<string>();
+  for (const q of (data ?? []) as unknown as Array<{ items: QuoteItem[] }>) for (const i of q.items ?? []) claves.add(claveItem(i));
+  return claves;
+}
+
 /**
  * Pasa el presupuesto a la orden: copia los ítems al final de los que ya
  * tenga, suma la mano de obra general y lo marca vinculado. La cita queda
@@ -195,6 +249,8 @@ export async function vincularAOrden(
         .limit(1)
         .maybeSingle();
       const desde = ((ultima as unknown as { position: number } | null)?.position ?? 0) + 1;
+      const aprobado = quote.client_decision === 'aprobado';
+      const ahora = new Date().toISOString();
       const { error } = await service.from('order_budget_items').insert(
         quote.items.map((it, i) => ({
           order_id: orderId,
@@ -203,6 +259,7 @@ export async function vincularAOrden(
           labor_amount: it.labor_amount,
           position: desde + i,
           created_by: opts.userId,
+          ...(aprobado ? { client_decision: 'aprobado', decided_at: ahora } : {}),
         }))
       );
       if (error) return error.message;
