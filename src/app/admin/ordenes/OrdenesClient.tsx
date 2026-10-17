@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import type { Profile, Mechanic } from '@/lib/types';
 import type { Conteos, FiltroEstado, PaginaOrdenes } from '@/lib/ordenes-lista';
 import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
@@ -11,6 +10,8 @@ import OrderForm from '@/components/orders/OrderForm';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import ModalPresupuesto from '@/components/presupuestos/ModalPresupuesto';
+import type { Quote } from '@/lib/presupuestos';
 import { Plus, ClipboardList, Search, Send } from 'lucide-react';
 
 interface OrdenesClientProps {
@@ -20,6 +21,7 @@ interface OrdenesClientProps {
   mechanics: Profile[];
   /** ?presupuesto=<id>: abre «Nueva orden» con ese presupuesto suelto (0028). */
   presupuestoId?: string;
+  workshopName: string;
 }
 
 type FilterStatus = FiltroEstado;
@@ -29,20 +31,25 @@ export default function OrdenesClient({
   conteos: conteosIniciales,
   mechanics: initialMechanics,
   presupuestoId,
+  workshopName,
 }: OrdenesClientProps) {
   const saldo = useSaldo();
   const lista = useOrdenesPaginadas(inicial, conteosIniciales);
   const { visibles: filtered, conteos, filter, setFilter } = lista;
   const [mechanics, setMechanics] = useState<Profile[]>(initialMechanics);
   const [showCreate, setShowCreate] = useState(Boolean(presupuestoId));
+  const [presupuestoOrden, setPresupuestoOrden] = useState<string | undefined>(presupuestoId);
+  const [enviarPresupuesto, setEnviarPresupuesto] = useState(false);
   const { search, setSearch } = lista;
 
-  function handleNew() {
+  function handleNew(desde?: Quote) {
     // Saldo prepagado (0025): sin saldo para la orden, el aviso trae el botón
     // para comprar. El servidor vuelve a comprobarlo al crearla.
     if (saldo && !saldo.alcanza(saldo.precios.orden)) {
       saldo.avisarSinSaldo('No tienes saldo para crear la orden. Debes recargar saldo para seguir creando órdenes.');
     } else {
+      setPresupuestoOrden(desde?.id);
+      setEnviarPresupuesto(false);
       setShowCreate(true);
     }
   }
@@ -86,11 +93,11 @@ export default function OrdenesClient({
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Todas las órdenes</h1>
 {/* Los dos botones en su propia fila: en el teléfono no caben junto al título. */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
-          <Link href="/admin/presupuestos/enviar" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+          <Button variant="secondary" size="sm" onClick={() => setEnviarPresupuesto(true)}>
             <Send size={14} />
             Enviar presupuesto
-          </Link>
-          <Button variant="primary" size="sm" onClick={handleNew}>
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => handleNew()}>
             <Plus size={15} />
             Nueva
           </Button>
@@ -207,9 +214,17 @@ export default function OrdenesClient({
           onCancel={() => setShowCreate(false)}
           canCreateMechanic
           onMechanicCreated={handleMechanicCreated}
-          presupuestoId={presupuestoId}
+          key={presupuestoOrden ?? 'nueva'}
+          presupuestoId={presupuestoOrden}
         />
       </Modal>
+
+      <ModalPresupuesto
+        abierto={enviarPresupuesto}
+        workshopName={workshopName}
+        onClose={() => setEnviarPresupuesto(false)}
+        onCrearOrden={handleNew}
+      />
 
     </div>
   );

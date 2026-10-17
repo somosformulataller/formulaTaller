@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { soloAdmin, traerTodo } from '@/lib/admin-taller';
 import { hoyVE } from '@/lib/recordatorios';
+import { waNumber } from '@/lib/whatsapp';
 import type { Client, ClientRow } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ export async function GET() {
       traerTodo<Client>((d, h) =>
         service
           .from('clients')
-          .select('id, workshop_id, first_name, last_name, whatsapp, notes, created_at')
+          .select('id, workshop_id, first_name, last_name, whatsapp, notes, car_model, created_at')
           .eq('workshop_id', wid)
           .order('first_name', { ascending: true })
           .range(d, h)
@@ -61,7 +62,7 @@ export async function GET() {
         ...c,
         order_count: s?.n ?? 0,
         last_order_at: s?.last ?? null,
-        last_car_model: s?.car ?? null,
+        last_car_model: s?.car ?? c.car_model ?? null,
         pending_reminders: pendientes.get(c.id) ?? 0,
       };
     });
@@ -73,4 +74,35 @@ export async function GET() {
     const msg = err instanceof Error ? err.message : 'Error al cargar los clientes';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+// POST /api/clients — { first_name, last_name, whatsapp, car_model }
+// Un cliente sin orden ni presupuesto todavía (0029).
+export async function POST(req: Request) {
+  const { caller, error: e } = await soloAdmin();
+  if (e) return e;
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 });
+  const texto = (k: string, max = 80) => String(body[k] ?? '').trim().slice(0, max);
+  const first_name = texto('first_name');
+  const last_name = texto('last_name');
+  const car_model = texto('car_model', 120) || null;
+  const whatsapp = waNumber(texto('whatsapp', 32));
+  if (!first_name) return NextResponse.json({ error: 'Escribe el nombre del cliente.' }, { status: 400 });
+  if (!whatsapp || whatsapp.length < 10) return NextResponse.json({ error: 'Escribe el WhatsApp del cliente.' }, { status: 400 });
+
+  const { data, error } = await createServiceClient()
+    .from('clients')
+    .insert({ workshop_id: caller.workshopId, first_name, last_name, whatsapp, car_model })
+    .select('id, workshop_id, first_name, last_name, whatsapp, notes, car_model, created_at')
+    .single();
+  if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json({ error: 'Ya tienes un cliente con ese WhatsApp.' }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  const c = data as unknown as Client;
+  const fila: ClientRow = { ...c, order_count: 0, last_order_at: null, last_car_model: c.car_model ?? null, pending_reminders: 0 };
+  return NextResponse.json(fila, { status: 201 });
 }

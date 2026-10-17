@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import type { Profile, Mechanic } from '@/lib/types';
 import type { Conteos, FiltroEstado, PaginaOrdenes } from '@/lib/ordenes-lista';
 import { useOrdenesPaginadas } from '@/components/orders/useOrdenesPaginadas';
@@ -11,6 +10,9 @@ import OrderForm from '@/components/orders/OrderForm';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import ModalPresupuesto from '@/components/presupuestos/ModalPresupuesto';
+import ListaPresupuestos from '@/components/presupuestos/ListaPresupuestos';
+import type { Quote } from '@/lib/presupuestos';
 import { Plus, ClipboardList, CheckCircle2, Wrench, Clock, PlayCircle, Send } from 'lucide-react';
 
 interface AdminDashboardClientProps {
@@ -18,6 +20,8 @@ interface AdminDashboardClientProps {
   inicial: PaginaOrdenes;
   conteos: Conteos;
   mechanics: Profile[];
+  /** Para el mensaje de WhatsApp de los presupuestos. */
+  workshopName: string;
 }
 
 type FilterStatus = FiltroEstado;
@@ -26,6 +30,7 @@ export default function AdminDashboardClient({
   inicial,
   conteos: conteosIniciales,
   mechanics: initialMechanics,
+  workshopName,
 }: AdminDashboardClientProps) {
   const saldo = useSaldo();
   const lista = useOrdenesPaginadas(inicial, conteosIniciales);
@@ -37,13 +42,21 @@ export default function AdminDashboardClient({
   }
   const [showCreate, setShowCreate] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  // Inicio muestra las órdenes o los presupuestos enviados (0028).
+  const [vista, setVista] = useState<'ordenes' | 'presupuestos'>('ordenes');
+  const [modalPresupuesto, setModalPresupuesto] = useState<{ quote?: Quote } | null>(null);
+  const [versionPresupuestos, setVersionPresupuestos] = useState(0);
+  // Presupuesto del que sale la orden que se está creando.
+  const [presupuestoOrden, setPresupuestoOrden] = useState<string | undefined>(undefined);
 
-  function handleNew() {
+  function handleNew(desde?: Quote) {
     // Saldo prepagado (0025): sin saldo para la orden, el aviso trae el botón
     // para comprar. El servidor vuelve a comprobarlo al crearla.
     if (saldo && !saldo.alcanza(saldo.precios.orden)) {
       saldo.avisarSinSaldo('No tienes saldo para crear la orden. Debes recargar saldo para seguir creando órdenes.');
     } else {
+      setPresupuestoOrden(desde?.id);
+      setModalPresupuesto(null);
       setShowCreate(true);
     }
   }
@@ -53,6 +66,7 @@ export default function AdminDashboardClient({
   function handleCreated(order: Parameters<typeof lista.agregar>[0]) {
     lista.agregar(order);
     setShowCreate(false);
+    if (presupuestoOrden) setVersionPresupuestos((v) => v + 1);
   }
 
   const handleDelete = lista.quitar;
@@ -116,20 +130,72 @@ export default function AdminDashboardClient({
           marginBottom: 12,
         }}
       >
-        <h2 style={{ fontSize: 16, fontWeight: 700 }}>Órdenes recientes</h2>
-{/* Los dos botones en su propia fila: en el teléfono no caben junto al título. */}
+        {/* Los dos botones en su propia fila: en el teléfono no caben junto al título. */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%' }}>
-          <Link href="/admin/presupuestos/enviar" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}>
+          <Button variant="secondary" size="sm" onClick={() => setModalPresupuesto({})}>
             <Send size={14} />
             Enviar presupuesto
-          </Link>
-          <Button variant="primary" size="sm" onClick={handleNew}>
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => handleNew()}>
             <Plus size={15} />
             Nueva orden
           </Button>
         </div>
       </div>
 
+      {/* Órdenes o presupuestos enviados */}
+      <div
+        role="tablist"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 4,
+          padding: 4,
+          marginBottom: 14,
+          borderRadius: 10,
+          background: 'var(--color-surface-2)',
+          border: '1px solid var(--color-border)',
+        }}
+      >
+        {(
+          [
+            ['ordenes', 'Órdenes'],
+            ['presupuestos', 'Presupuestos enviados'],
+          ] as const
+        ).map(([v, t]) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={vista === v}
+            onClick={() => setVista(v)}
+            style={{
+              padding: '8px 6px',
+              borderRadius: 7,
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              background: vista === v ? 'var(--color-surface)' : 'transparent',
+              color: vista === v ? 'var(--color-brand-400)' : 'var(--color-text-secondary)',
+              boxShadow: vista === v ? '0 1px 4px rgba(0,0,0,.25)' : 'none',
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {vista === 'presupuestos' ? (
+        <ListaPresupuestos
+          workshopName={workshopName}
+          version={versionPresupuestos}
+          onEditar={(q) => setModalPresupuesto({ quote: q })}
+          onCrearOrden={handleNew}
+          onNuevo={() => setModalPresupuesto({})}
+        />
+      ) : (
+      <>
       {/* Filter tabs */}
       <div
         style={{
@@ -217,6 +283,17 @@ export default function AdminDashboardClient({
         onVerMas={lista.verMas}
         onReintentar={lista.reintentar}
       />
+      </>
+      )}
+
+      <ModalPresupuesto
+        abierto={modalPresupuesto !== null}
+        quote={modalPresupuesto?.quote}
+        workshopName={workshopName}
+        onClose={() => setModalPresupuesto(null)}
+        onGuardado={() => setVersionPresupuestos((v) => v + 1)}
+        onCrearOrden={handleNew}
+      />
 
       {/* Create Modal */}
       <Modal
@@ -225,6 +302,8 @@ export default function AdminDashboardClient({
         title="Nueva orden"
       >
         <OrderForm
+          key={presupuestoOrden ?? 'nueva'}
+          presupuestoId={presupuestoOrden}
           mechanics={mechanics}
           onSuccess={handleCreated}
           onCancel={() => setShowCreate(false)}

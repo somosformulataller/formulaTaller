@@ -31,7 +31,7 @@ async function datosDelCliente(
   id: string
 ): Promise<DatosIniciales | undefined> {
   const [{ data: c }, { data: o }] = await Promise.all([
-    service.from('clients').select('first_name, last_name, whatsapp').eq('id', id).eq('workshop_id', wid).maybeSingle(),
+    service.from('clients').select('first_name, last_name, whatsapp, car_model').eq('id', id).eq('workshop_id', wid).maybeSingle(),
     service
       .from('orders')
       .select('car_model, client_whatsapp')
@@ -42,13 +42,13 @@ async function datosDelCliente(
       .maybeSingle(),
   ]);
   if (!c) return undefined;
-  const cli = c as unknown as { first_name: string; last_name: string; whatsapp: string };
+  const cli = c as unknown as { first_name: string; last_name: string; whatsapp: string; car_model: string | null };
   const ultima = o as unknown as { car_model: string; client_whatsapp: string } | null;
   return {
     client_first_name: cli.first_name,
     client_last_name: cli.last_name,
     // El de la orden trae el «+»; el del cliente son solo dígitos.
     client_whatsapp: ultima?.client_whatsapp || `+${cli.whatsapp}`,
-    car_model: ultima?.car_model ?? '',
+    car_model: ultima?.car_model ?? cli.car_model ?? '',
   };
 }

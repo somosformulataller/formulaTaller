@@ -9,7 +9,7 @@ export default async function AdminDashboardPage() {
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [pagina, conteos, mechanicsRes] = await Promise.all([
+  const [pagina, conteos, mechanicsRes, tallerRes] = await Promise.all([
     // Solo la primera página y los conteos (ver lib/ordenes-lista.ts).
     paginaOrdenes(supabase, wid),
     contarOrdenes(supabase, wid),
@@ -22,6 +22,7 @@ export default async function AdminDashboardPage() {
       .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name', { ascending: true }),
+    supabase.from('workshops').select('name').eq('id', wid).maybeSingle(),
   ]);
 
   return (
@@ -29,6 +30,7 @@ export default async function AdminDashboardPage() {
       inicial={pagina}
       conteos={conteos}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
+      workshopName={(tallerRes.data as unknown as { name: string } | null)?.name ?? 'el taller'}
     />
   );
 }

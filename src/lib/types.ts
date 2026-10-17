@@ -246,6 +246,8 @@ export interface Client {
   last_name: string;
   whatsapp: string;
   notes: string | null;
+  /** Carro guardado al agregarlo desde Clientes (0029). */
+  car_model?: string | null;
   created_at: string;
 }
 

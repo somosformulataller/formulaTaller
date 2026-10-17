@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ban, CalendarClock, MessageCircle, Search, Trash2 } from 'lucide-react';
+import { Ban, CalendarClock, MessageCircle, Trash2 } from 'lucide-react';
+import BuscarCliente from '@/components/presupuestos/BuscarCliente';
 import Button from '@/components/ui/Button';
 import { openWhatsApp, saludoTaller } from '@/lib/utils';
 import { HORAS_CITA, conPunto, estaOcupado, formatCita, formatHora, horaDe, type Cita } from '@/lib/presupuestos';
@@ -10,10 +11,6 @@ import type { ClientRow } from '@/lib/types';
 
 export const COLOR_CITA = '#a78bfa';
 export const COLOR_OCUPADO = '#f87171';
-
-function normalizar(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
 
 /** Mensaje de WhatsApp para recordarle la cita al cliente. */
 export function mensajeCita(c: Cita, taller: string): string {
@@ -206,23 +203,14 @@ export function CitaForm({
   onCreadas: (c: Cita[]) => void;
   onCancel: () => void;
 }) {
-  const [clientes, setClientes] = useState<ClientRow[] | null>(null);
-  const [busqueda, setBusqueda] = useState('');
-  const [cliente, setCliente] = useState<string | null>(clienteId ?? null);
+  const [elegido, setElegido] = useState<ClientRow | null>(null);
+  const cliente = clienteId ?? elegido?.id ?? null;
   const [fecha, setFecha] = useState(dia);
   const [hora, setHora] = useState<string | null>(null);
   const [nota, setNota] = useState('');
   const [citasFecha, setCitasFecha] = useState<Cita[]>(delDia);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (clienteId) return;
-    fetch('/api/clients', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setClientes)
-      .catch(() => setClientes([]));
-  }, [clienteId]);
 
   // Si se cambia el día, se piden sus horarios.
   useEffect(() => {
@@ -240,12 +228,6 @@ export function CitaForm({
     };
   }, [fecha, dia, delDia]);
 
-  const visibles = useMemo(() => {
-    const q = normalizar(busqueda.trim());
-    const l = clientes ?? [];
-    return (q ? l.filter((c) => normalizar(`${c.first_name} ${c.last_name} ${c.last_car_model ?? ''}`).includes(q)) : l).slice(0, 8);
-  }, [clientes, busqueda]);
-  const elegido = clientes?.find((c) => c.id === cliente);
   const diaOcupado = estaOcupado(citasFecha, fecha, null);
 
   async function guardar() {
@@ -272,54 +254,12 @@ export function CitaForm({
                 {`${elegido.first_name} ${elegido.last_name}`.trim()}
                 {elegido.last_car_model && ` · ${elegido.last_car_model}`}
               </span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setCliente(null)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setElegido(null)}>
                 Cambiar
               </Button>
             </div>
           ) : (
-            <>
-              <div style={{ position: 'relative', marginBottom: 6 }}>
-                <Search
-                  size={15}
-                  style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }}
-                />
-                <input
-                  className="form-input"
-                  placeholder="Buscar cliente"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  style={{ paddingLeft: 34 }}
-                />
-              </div>
-              {!clientes && <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>Cargando…</p>}
-              {clientes && clientes.length === 0 && (
-                <p style={{ fontSize: 12.5, color: 'var(--color-text-muted)' }}>
-                  No hay clientes todavía. Aparecen al crear órdenes o presupuestos.
-                </p>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {visibles.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCliente(c.id)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      border: '1px solid var(--color-border)',
-                      background: 'var(--color-surface-2)',
-                      color: 'inherit',
-                      textAlign: 'left',
-                      fontSize: 13.5,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {`${c.first_name} ${c.last_name}`.trim() || 'Sin nombre'}
-                    {c.last_car_model && <span style={{ color: 'var(--color-text-muted)' }}> · {c.last_car_model}</span>}
-                  </button>
-                ))}
-              </div>
-            </>
+            <BuscarCliente onElegir={setElegido} />
           )}
         </div>
       )}

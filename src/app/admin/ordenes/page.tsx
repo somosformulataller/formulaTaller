@@ -13,7 +13,7 @@ export default async function OrdenesAdminPage({ searchParams }: { searchParams:
   const caller = await getCaller();
   const wid = caller?.workshopId ?? '';
 
-  const [pagina, conteos, mechanicsRes] = await Promise.all([
+  const [pagina, conteos, mechanicsRes, tallerRes] = await Promise.all([
     // Solo la primera página y los conteos (ver lib/ordenes-lista.ts).
     paginaOrdenes(supabase, wid),
     contarOrdenes(supabase, wid),
@@ -26,6 +26,7 @@ export default async function OrdenesAdminPage({ searchParams }: { searchParams:
       .in('role', ['mechanic', 'admin'])
       .eq('active', true)
       .order('full_name'),
+    supabase.from('workshops').select('name').eq('id', wid).maybeSingle(),
   ]);
 
   return (
@@ -34,6 +35,7 @@ export default async function OrdenesAdminPage({ searchParams }: { searchParams:
       conteos={conteos}
       mechanics={(mechanicsRes.data ?? []) as unknown as Profile[]}
       presupuestoId={searchParams.presupuesto}
+      workshopName={(tallerRes.data as unknown as { name: string } | null)?.name ?? 'el taller'}
     />
   );
 }

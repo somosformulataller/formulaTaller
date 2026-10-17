@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Car, CalendarClock, CheckCircle2, ClipboardList, MessageCircle, User } from 'lucide-react';
+import { Car, CalendarClock, CheckCircle2, ClipboardList, MessageCircle, User, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import PhoneInput from '@/components/ui/PhoneInput';
 import BudgetList, { nuevoRenglon, totalDe, type Renglon } from '@/components/orders/BudgetList';
 import { Horas } from '@/components/presupuestos/Citas';
+import BuscarCliente from '@/components/presupuestos/BuscarCliente';
+import type { ClientRow } from '@/lib/types';
 import { useSaldo } from '@/components/saldo/SaldoProvider';
 import { formatPrecioUsd, formatUsd, parseAmount } from '@/lib/budget';
 import { hoyVE } from '@/lib/recordatorios';
@@ -30,13 +32,25 @@ export default function QuoteForm({
   quote,
   inicial,
   workshopName,
+  enModal,
+  onCerrar,
+  onGuardado,
+  onCrearOrden,
 }: {
   /** Editando uno ya guardado. */
   quote?: Quote;
   /** Datos del cliente para uno nuevo (p. ej. desde Clientes). */
   inicial?: DatosIniciales;
   workshopName: string;
+  /** Dentro de una ventana (como «Nueva orden»): sin tarjetas por sección. */
+  enModal?: boolean;
+  onCerrar?: () => void;
+  /** Avisa cada vez que se guarda, para refrescar la lista de quien lo abrió. */
+  onGuardado?: (q: Quote) => void;
+  /** Crear la orden ahí mismo en vez de ir a Órdenes. */
+  onCrearOrden?: (q: Quote) => void;
 }) {
+  const caja = enModal ? undefined : 'card';
   const saldo = useSaldo();
   const [guardado, setGuardado] = useState<Quote | null>(quote ?? null);
   const [form, setForm] = useState<DatosIniciales>({
@@ -59,6 +73,20 @@ export default function QuoteForm({
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState<{ enviado: boolean; mensaje: string } | null>(null);
   const vinculado = Boolean(guardado?.order_id);
+  // Cliente de la lista en vez de escribirlo (PhoneInput se remonta al llenarlo).
+  const [elegirCliente, setElegirCliente] = useState(false);
+  const [telKey, setTelKey] = useState(0);
+
+  function usarCliente(c: ClientRow) {
+    setForm({
+      client_first_name: c.first_name,
+      client_last_name: c.last_name,
+      client_whatsapp: `+${c.whatsapp}`,
+      car_model: c.last_car_model ?? '',
+    });
+    setTelKey((k) => k + 1);
+    setElegirCliente(false);
+  }
 
   // Lo ya agendado ese día: las horas ocupadas no se pueden elegir.
   useEffect(() => {
@@ -132,6 +160,7 @@ export default function QuoteForm({
       if (nuevo) saldo?.refrescar();
       const q = data as Quote & { citaError?: string | null };
       setGuardado(q);
+      onGuardado?.(q);
       if (q.citaError) setError(`El presupuesto se guardó, pero la cita no: ${q.citaError}`);
 
       const mensaje = buildQuoteMessage({
@@ -153,7 +182,7 @@ export default function QuoteForm({
 
   if (listo && guardado) {
     return (
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'stretch' }}>
+      <div className={caja} style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'stretch' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <CheckCircle2 size={22} style={{ color: '#34d399', flexShrink: 0 }} />
           <div>
@@ -183,17 +212,30 @@ export default function QuoteForm({
           <MessageCircle size={16} />
           {listo.enviado ? '¿No se abrió WhatsApp? Ábrelo aquí' : 'Enviar por WhatsApp'}
         </Button>
-        <Link href={`/admin/ordenes?presupuesto=${guardado.id}`} className="btn btn-secondary btn-full" style={{ textDecoration: 'none' }}>
-          <ClipboardList size={16} />
-          Crear orden con este presupuesto
-        </Link>
+        {onCrearOrden ? (
+          <Button type="button" variant="secondary" fullWidth onClick={() => onCrearOrden(guardado)}>
+            <ClipboardList size={16} />
+            Crear orden con este presupuesto
+          </Button>
+        ) : (
+          <Link href={`/admin/ordenes?presupuesto=${guardado.id}`} className="btn btn-secondary btn-full" style={{ textDecoration: 'none' }}>
+            <ClipboardList size={16} />
+            Crear orden con este presupuesto
+          </Link>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <Button type="button" variant="ghost" onClick={() => setListo(null)}>
             Seguir editando
           </Button>
-          <Link href="/admin/clientes" className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'center' }}>
-            Ir a Clientes
-          </Link>
+          {onCerrar ? (
+            <Button type="button" variant="ghost" onClick={onCerrar}>
+              Cerrar
+            </Button>
+          ) : (
+            <Link href="/admin/clientes" className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'center' }}>
+              Ir a Clientes
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -201,7 +243,7 @@ export default function QuoteForm({
 
   if (vinculado) {
     return (
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className={caja} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <p style={{ fontSize: 14 }}>Este presupuesto ya está en una orden. Edítalo desde la orden.</p>
         <Link href={`/admin/ordenes/${guardado!.order_id}`} className="btn btn-primary btn-full" style={{ textDecoration: 'none' }}>
           Ver la orden
@@ -212,7 +254,39 @@ export default function QuoteForm({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className={caja} style={{ display: 'flex', flexDirection: 'column', gap: enModal ? 16 : 12 }}>
+        {!guardado && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setElegirCliente((v) => !v)}
+              aria-expanded={elegirCliente}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px dashed var(--color-brand-400)',
+                background: 'transparent',
+                color: 'var(--color-brand-400)',
+                fontSize: 13.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Users size={16} />
+              {elegirCliente ? 'Escribir un cliente nuevo' : 'Elegir de mis clientes'}
+            </button>
+            {elegirCliente && (
+              <div style={{ marginTop: 10 }}>
+                <BuscarCliente onElegir={usarCliente} />
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <Input
             label="Nombre"
@@ -229,7 +303,7 @@ export default function QuoteForm({
             onChange={(e) => set('client_last_name', e.target.value)}
           />
         </div>
-        <PhoneInput label="WhatsApp" value={form.client_whatsapp} onChange={(v) => set('client_whatsapp', v)} required />
+        <PhoneInput key={telKey} label="WhatsApp" value={form.client_whatsapp} onChange={(v) => set('client_whatsapp', v)} required />
         <Input
           label="Modelo del vehículo"
           placeholder="Toyota Corolla 2019"
@@ -239,8 +313,12 @@ export default function QuoteForm({
         />
       </div>
 
-      <div className="card">
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Presupuesto</h2>
+      <div className={caja}>
+        {enModal ? (
+          <label className="form-label">Presupuesto</label>
+        ) : (
+          <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Presupuesto</h2>
+        )}
         <BudgetList
           borrador={budget}
           onBorradorChange={setBudget}
@@ -249,7 +327,15 @@ export default function QuoteForm({
         />
       </div>
 
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        className={caja}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          ...(enModal ? { paddingTop: 16, borderTop: '1px solid var(--color-border)' } : {}),
+        }}
+      >
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 700 }}>
           <CalendarClock size={17} style={{ color: 'var(--color-brand-400)' }} />
           Agendar cita (opcional)

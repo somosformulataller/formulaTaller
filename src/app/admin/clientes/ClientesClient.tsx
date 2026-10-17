@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CalendarClock, CalendarDays, ChevronDown, ClipboardList, Receipt, Search, Users } from 'lucide-react';
+import { Bell, CalendarClock, CalendarDays, ChevronDown, ClipboardList, Receipt, Search, UserPlus, Users } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+import NuevoCliente from '@/components/presupuestos/NuevoCliente';
 import LoadError from '@/components/ui/LoadError';
 import ClientReminders from '@/components/reminders/ClientReminders';
 import ClientHistory from '@/components/reminders/ClientHistory';
@@ -26,6 +28,19 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
   const [busqueda, setBusqueda] = useState('');
   const [abierto, setAbierto] = useState<string | null>(null);
   const [seccion, setSeccion] = useState<'recordatorio' | 'historial' | 'cita' | 'presupuesto' | null>(null);
+  const [agregando, setAgregando] = useState(false);
+
+  function clienteCreado(c: ClientRow) {
+    setFilas((prev) =>
+      [...(prev ?? []), c].sort((a, b) =>
+        `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'es', { sensitivity: 'base' })
+      )
+    );
+    setAgregando(false);
+    setBusqueda('');
+    setAbierto(c.id);
+    setSeccion(null);
+  }
 
   useEffect(() => {
     (async () => {
@@ -73,9 +88,19 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
             Toca un cliente para ver sus órdenes, citas y presupuestos.
           </p>
         </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => setAgregando(true)}
+          className="btn btn-primary btn-sm"
+        >
+          <UserPlus size={15} />
+          Agregar cliente
+        </button>
         <Link
           href="/admin/recordatorios"
           style={{
+            justifyContent: 'center',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
@@ -93,7 +118,14 @@ export default function ClientesClient({ workshopName }: { workshopName: string 
           <CalendarDays size={15} />
           Calendario
         </Link>
+        </div>
       </div>
+
+      {agregando && (
+        <Modal isOpen onClose={() => setAgregando(false)} title="Nuevo cliente">
+          <NuevoCliente onCreado={clienteCreado} onCancel={() => setAgregando(false)} />
+        </Modal>
+      )}
 
       {filas && filas.length > 0 && (
         <div style={{ position: 'relative', marginBottom: 14 }}>
